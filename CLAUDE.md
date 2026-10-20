@@ -67,15 +67,19 @@ Done:
 - Capture spike written: `Spikes/AgentReel.CaptureSpike` (console app, free-threaded `Direct3D11CaptureFramePool`,
   no UI thread, per-monitor-v2 DPI manifest, saves first/last frame as PNG to `spike-output/`, prints JSON summary).
 
-Not yet verified – START HERE:
-1. `dotnet build GifRecorder.sln` – has never been built on this machine. Fix any errors.
-2. Build and run the spike. It was written without a compiler, so expect small fixes. Likely suspects:
-   `Marshal.QueryInterface(..., in Guid, ...)` signature, `ActivationFactory.Get(...).AsInterface<T>()`,
-   `GraphicsCaptureItem.FromAbi`, `MarshalInterface<IDirect3DDevice>.FromAbi`, `.AsTask()` on WinRT async ops.
-   Success = exit code 0, `framesDelivered > 0`, two sensible PNGs, yellow capture border visible while running.
-   Also test `--window`. Note: WGC delivers frames only when content changes (low fps on a static screen is fine).
-3. Push to `origin` and confirm CI is green.
-4. Report results back into the plan doc (Roadmap → Phase 0 checklist).
+Verified locally (2026-10-20, .NET SDK 9.0.319 installed user-local in `%LOCALAPPDATA%\Microsoft\dotnet`,
+not on PATH by default):
+- `dotnet build GifRecorder.sln`: 0 errors, 82 warnings (all upstream).
+- Spike builds without changes. Monitor capture: exit 0, 1920x1080 PNG correct. `--window "Notepad"`: exit 0,
+  7 frames, correct PNG.
+- Tests: 32/59 pass. The 27 failures are pre-existing upstream issues: ThemeContrastTests for Dark/VeryDark
+  (WCAG contrast), YandexUpload (needs credentials/network), ImageComparison (test data b1.bmp/b2.bmp missing).
+  CI excludes them via `--filter` (28 tests run, all green).
+
+Next – START HERE:
+1. Add `origin`, push and confirm CI is green.
+2. Report results back into the plan doc (Roadmap → Phase 0 checklist).
+3. Characterization tests: export a sample project to GIF and MP4 and compare outputs.
 
 ## Roadmap
 
