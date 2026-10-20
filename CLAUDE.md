@@ -108,11 +108,21 @@ Phase 1 progress (2026-10-20):
   the app's DXGI/GDI recorders stay untouched. Frames are throttled to the framerate; unchanged content extends the
   previous delay. Tests in `AgentReel.Capture.Tests` (also green on GitHub runners, WGC works there).
 
+Phase 2 progress (2026-10-20):
+- `AgentReel.Mcp` (stdio, new code, not Ms-PL-derived): tools `list_targets`, `start_recording`, `stop_recording`,
+  `get_preview` (text + PNG `ImageContentBlock`), `export` (gif/apng/webp/mp4/webm/mkv/mov). `WpfResources` creates the
+  hidden `Application`; `RecordingSession` holds one active recording; `ExportPresets` uses the user's selected preset
+  as a shallow copy with upload/clipboard/commands off. Built in CI via the solution.
+- Verified end to end over raw JSON-RPC on stdin: 4 s monitor recording (33 frames) → preview PNG correct →
+  GIF export valid (`GIF89a`, 5.8 MB). MP4 returns a clean tool error because FFmpeg is missing locally.
+- The exe is framework-dependent. With the user-local SDK, every launcher (Claude Desktop/Code config) must set
+  `DOTNET_ROOT=%LOCALAPPDATA%\Microsoft\dotnet`, otherwise it fails with "You must install .NET".
+
 Next – START HERE:
-1. Phase 2: `AgentReel.Mcp` (stdio) on top of `ICaptureService` + `ExportService`. The host must create a hidden
-   WPF `Application` with `Resources/Settings.xaml` and `StringResources.en.xaml` for `UserSettings`/`LocalizationHelper`
-   (same as the characterization test fixture), and create the `ProjectInfo` itself
-   (`CreateProjectFolder`, then capture into `project.FullPath`).
+1. Get FFmpeg locally (app options, PATH or `AGENTREEL_FFMPEG`) and test MP4 export over stdio.
+2. Register the server with an MCP client (Claude Desktop is not installed; Claude Code via `claude mcp add` works too),
+   with `DOTNET_ROOT` in its env, and run the gate: Claude records a 20-second demo on its own and exports MP4.
+3. Update the Phase 2 checklist in the plan doc.
 
 ## Roadmap
 
