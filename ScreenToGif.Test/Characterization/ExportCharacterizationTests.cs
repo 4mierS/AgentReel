@@ -17,6 +17,8 @@ using ScreenToGif.Util.Extensions;
 using ScreenToGif.ViewModel.ExportPresets;
 using ScreenToGif.ViewModel.ExportPresets.AnimatedImage.Apng;
 using ScreenToGif.ViewModel.ExportPresets.AnimatedImage.Gif;
+using ScreenToGif.ViewModel.ExportPresets.Image;
+using ScreenToGif.ViewModel.ExportPresets.Other;
 using ScreenToGif.ViewModel.ExportPresets.Video.Mp4;
 using Xunit;
 
@@ -62,6 +64,10 @@ namespace ScreenToGif.Test.Characterization
 
             yield return ["SystemGif-0"];
             yield return ["EmbeddedApng-0"];
+            yield return ["Psd-0"];
+            yield return ["Bmp-0"];
+            yield return ["Jpeg-0"];
+            yield return ["Png-0"];
         }
 
         [Theory]
@@ -69,18 +75,20 @@ namespace ScreenToGif.Test.Characterization
         public async Task ExportMatchesGolden(string key)
         {
             var preset = CreatePreset(key);
-            var output = await Export(preset, key);
+            var outputs = await Export(preset, key);
 
             string actual;
 
             try
             {
-                AssertDecodable(output);
-                actual = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(output)));
+                foreach (var output in outputs.Where(w => !w.EndsWith(".psd", StringComparison.OrdinalIgnoreCase)))
+                    AssertDecodable(output);
+
+                actual = Hash(outputs);
             }
             finally
             {
-                DeleteExportRoot(output);
+                DeleteExportRoot(outputs[0]);
             }
 
             lock (GoldenLock)
@@ -109,7 +117,7 @@ namespace ScreenToGif.Test.Characterization
             ScreenToGif.Util.Settings.UserSettings.All.FfmpegLocation = FfmpegFactAttribute.FfmpegPath;
 
             var preset = FfmpegMp4Preset.Defaults[0];
-            var output = await Export(preset, "FfmpegMp4-0");
+            var output = (await Export(preset, "FfmpegMp4-0")).Single();
 
             var bytes = File.ReadAllBytes(output);
             DeleteExportRoot(output);
@@ -129,11 +137,15 @@ namespace ScreenToGif.Test.Characterization
                 "KGySoftGif" => KGySoftGifPreset.Defaults[index],
                 "SystemGif" => SystemGifPreset.Default,
                 "EmbeddedApng" => EmbeddedApngPreset.Default.ShallowCopy(),
+                "Psd" => PsdPreset.Default,
+                "Bmp" => BmpPreset.Default,
+                "Jpeg" => JpegPreset.Default,
+                "Png" => PngPreset.Default,
                 _ => throw new ArgumentOutOfRangeException(nameof(key))
             };
         }
 
-        private static async Task<string> Export(ExportPreset preset, string name)
+        private static async Task<string[]> Export(ExportPreset preset, string name)
         {
             var root = Path.Combine(Path.GetTempPath(), "AgentReel.Tests", name + "-" + Guid.NewGuid().ToString("N")[..8]);
             var outputFolder = Path.Combine(root, "Output");
@@ -158,12 +170,22 @@ namespace ScreenToGif.Test.Characterization
             //Id -1 is not registered in EncodingManager.Encodings, so progress updates return before touching the Dispatcher.
             await (Task)encode.Invoke(null, [project, preset, -1, new CancellationTokenSource()])!;
 
-            var output = Path.Combine(outputFolder, name + preset.Extension);
+            //Image presets write one file per frame, all others a single file.
+            var outputs = Directory.GetFiles(outputFolder).OrderBy(o => o, StringComparer.Ordinal).ToArray();
 
             //Encode logs and swallows its exceptions, so a missing file is the only failure signal here.
-            Assert.True(File.Exists(output), $"Encode produced no file for '{name}'. Check the ScreenToGif log folder for the exception.");
+            Assert.True(outputs.Length > 0, $"Encode produced no file for '{name}'. Check the ScreenToGif log folder for the exception.");
 
-            return output;
+            return outputs;
+        }
+
+        private static string Hash(string[] outputs)
+        {
+            if (outputs.Length == 1)
+                return Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(outputs[0])));
+
+            var lines = outputs.Select(s => Path.GetFileName(s) + " " + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(s))));
+            return Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join("\n", lines))));
         }
 
         /// <summary>
