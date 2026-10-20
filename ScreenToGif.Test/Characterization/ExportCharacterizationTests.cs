@@ -152,7 +152,7 @@ namespace ScreenToGif.Test.Characterization
             var useBytes = preset.Type == Domain.Enums.ExportFormats.Gif && preset.Encoder == Domain.Enums.EncoderTypes.ScreenToGif;
             var project = CreateProject(Path.Combine(root, "Encode"), useBytes);
 
-            var encode = typeof(FrameInfo).Assembly.GetType("ScreenToGif.Util.EncodingManager")!
+            var encode = Assembly.Load("ScreenToGif").GetType("ScreenToGif.Util.EncodingManager")!
                 .GetMethod("Encode", BindingFlags.NonPublic | BindingFlags.Static)!;
 
             //Id -1 is not registered in EncodingManager.Encodings, so progress updates return before touching the Dispatcher.

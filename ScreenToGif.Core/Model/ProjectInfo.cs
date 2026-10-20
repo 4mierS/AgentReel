@@ -196,7 +196,7 @@ public class ProjectInfo
         MutexList.Remove(RelativePath);
     }
 
-    internal ExportProject CopyToExport(List<int> indexes, bool copyJson = false, bool useBytes = false, bool usePadding = false)
+    public ExportProject CopyToExport(List<int> indexes, bool copyJson = false, bool useBytes = false, bool usePadding = false)
     {
         Persist();
 

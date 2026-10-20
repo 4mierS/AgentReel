@@ -166,6 +166,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ScreenToGif.Native\ScreenToGif.Native.csproj" />
     <ProjectReference Include="..\ScreenToGif.ViewModel\ScreenToGif.ViewModel.csproj" />
+    <ProjectReference Include="..\ScreenToGif.Core\ScreenToGif.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="app.manifest">

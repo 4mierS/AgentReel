@@ -205,7 +205,7 @@ public static class ActionStack
         UndoStack.Push(new StateChange
         {
             Cause = action,
-            Indexes = Util.Other.ListOfIndexes(position, quantity)
+            Indexes = Enumerable.Range(position, quantity).ToList()
         });
 
         ClearRedo();
