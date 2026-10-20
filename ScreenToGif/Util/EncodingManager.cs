@@ -72,7 +72,23 @@ internal class EncodingManager
     /// </summary>
     internal static readonly List<EncoderListViewItem> ViewList = new List<EncoderListViewItem>();
 
+    /// <summary>
+    /// Raised on the encoding thread whenever an encoding item changes. The flag tells if its status changed.
+    /// The app marshals it to the UI thread, so the encoding itself never touches the Dispatcher.
+    /// </summary>
+    public static event Action<EncodingItem, bool> EncodingChanged;
+
+    /// <summary>
+    /// Runs work that needs the UI thread, such as copying to the clipboard. The app sets it to Dispatcher.Invoke.
+    /// </summary>
+    public static Action<Action> InvokeOnUiThread { get; set; } = action => action();
+
     #endregion
+
+    private static void OnEncodingChanged(EncodingItem item, bool statusUpdated = false)
+    {
+        EncodingChanged?.Invoke(item, statusUpdated);
+    }
 
     internal static void StartEncoding(ExportProject project, ExportPreset preset)
     {
@@ -148,7 +164,7 @@ internal class EncodingManager
         item.Text = text;
         item.IsIndeterminate = false;
 
-        Application.Current.Dispatcher.Invoke(() => EncodingUpdated(item));
+        OnEncodingChanged(item);
     }
 
     internal static void Update(int id, int currentFrame)
@@ -160,7 +176,7 @@ internal class EncodingManager
 
         item.CurrentFrame = currentFrame;
 
-        Application.Current.Dispatcher.Invoke(() => EncodingUpdated(item));
+        OnEncodingChanged(item);
     }
 
     internal static void Update(int id, int type, TimeSpan elapsed)
@@ -189,7 +205,7 @@ internal class EncodingManager
                 break;
         }
 
-        Application.Current.Dispatcher.Invoke(() => EncodingUpdated(item));
+        OnEncodingChanged(item);
     }
 
     internal static void Update(int id, string text, bool isIndeterminate = false, bool findText = false)
@@ -202,7 +218,7 @@ internal class EncodingManager
         item.Text = !findText ? text : LocalizationHelper.Get(text);
         item.IsIndeterminate = isIndeterminate;
 
-        Application.Current.Dispatcher.Invoke(() => EncodingUpdated(item));
+        OnEncodingChanged(item);
     }
 
     /// <summary>
@@ -257,7 +273,7 @@ internal class EncodingManager
             }
         }
 
-        Application.Current.Dispatcher.Invoke(() => EncodingUpdated(item, wasStatusUpdated));
+        OnEncodingChanged(item, wasStatusUpdated);
     }
 
     internal static void UpdateMultiple(int id, EncodingStatus status, List<string> fileNames, bool isIndeterminate = false)
@@ -289,7 +305,7 @@ internal class EncodingManager
             }
         }
 
-        Application.Current.Dispatcher.Invoke(() => EncodingUpdated(item, wasStatusUpdated));
+        OnEncodingChanged(item, wasStatusUpdated);
     }
 
 
@@ -306,7 +322,7 @@ internal class EncodingManager
         item.DeletionLink = deleteLink;
         item.UploadTaskException = exception;
 
-        Application.Current.Dispatcher.Invoke(() => EncodingUpdated(item));
+        OnEncodingChanged(item);
     }
 
     private static void SetCopy(int id, bool copied, Exception exception = null)
@@ -319,7 +335,7 @@ internal class EncodingManager
         item.CopiedToClipboard = copied;
         item.CopyTaskException = exception;
 
-        Application.Current.Dispatcher.Invoke(() => EncodingUpdated(item));
+        OnEncodingChanged(item);
     }
 
     private static void SetCommand(int id, bool executed, string command, string output, Exception exception = null)
@@ -334,7 +350,7 @@ internal class EncodingManager
         item.CommandOutput = output;
         item.CommandTaskException = exception;
 
-        Application.Current.Dispatcher.Invoke(() => EncodingUpdated(item));
+        OnEncodingChanged(item);
     }
 
 
@@ -1191,7 +1207,7 @@ internal class EncodingManager
 
             if (preset.SaveToClipboard && File.Exists(preset.FullPath))
             {
-                Application.Current.Dispatcher.Invoke(() =>
+                InvokeOnUiThread(() =>
                 {
                     try
                     {

@@ -62,6 +62,10 @@ public partial class App : IDisposable
 
         SetSecurityProtocol();
 
+        //The encoder reports progress from its own thread, the UI updates happen here.
+        EncodingManager.EncodingChanged += (item, statusUpdated) => Dispatcher.Invoke(() => EncodingManager.EncodingUpdated(item, statusUpdated));
+        EncodingManager.InvokeOnUiThread = action => Dispatcher.Invoke(action);
+
         //Parse arguments.
         Arguments.Prepare(e.Args);
 
