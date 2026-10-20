@@ -21,3 +21,6 @@ bin
 
 # AgentReel
 spike-output/
+
+# Runtime logs the app writes next to the project when run with dotnet run
+ScreenToGif/Logs/
