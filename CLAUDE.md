@@ -99,11 +99,18 @@ Phase 1 progress (2026-10-20):
   with `EncodingReporter`; raises `EncodingChanged`, which `App` marshals to the Dispatcher.
 - Characterization tests call `ExportService` directly; outputs byte-identical to before the move.
 - Not yet smoke-tested in the real UI (export from the editor with progress in the encoder list).
+- `ScreenToGif.Core.Capture.ICaptureService` (list targets, start into a folder, stop → frames with delays).
+  Implementation `AgentReel.Capture.WgcCaptureService` in the new project `AgentReel.Capture`
+  (`net9.0-windows10.0.19041.0`, new code, not Ms-PL-derived), built on the spike. Decided 2026-10-20: WGC directly,
+  the app's DXGI/GDI recorders stay untouched. Frames are throttled to the framerate; unchanged content extends the
+  previous delay. Tests in `AgentReel.Capture.Tests` (also green on GitHub runners, WGC works there).
 
 Next – START HERE:
-1. Smoke-test an export in the app UI.
-2. `ICaptureService` (open decision: wrap the existing DXGI/GDI engines now, or build it directly on
-   Windows.Graphics.Capture from the spike, which needs TFM `net9.0-windows10.0.19041.0`).
+1. Smoke-test an export in the app UI (Amir).
+2. Phase 2: `AgentReel.Mcp` (stdio) on top of `ICaptureService` + `ExportService`. The host must create a hidden
+   WPF `Application` with `Resources/Settings.xaml` and `StringResources.en.xaml` for `UserSettings`/`LocalizationHelper`
+   (same as the characterization test fixture), and create the `ProjectInfo` itself
+   (`CreateProjectFolder`, then capture into `project.FullPath`).
 
 ## Roadmap
 
