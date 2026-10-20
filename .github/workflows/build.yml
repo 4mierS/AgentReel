@@ -1,0 +1,29 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore GifRecorder.sln
+
+      - name: Build
+        run: dotnet build GifRecorder.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test ScreenToGif.Test/ScreenToGif.Test.csproj -c Release --no-build --verbosity normal
+
+      - name: Build capture spike
+        run: dotnet build Spikes/AgentReel.CaptureSpike/AgentReel.CaptureSpike.csproj -c Release
