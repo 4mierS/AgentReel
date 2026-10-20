@@ -98,7 +98,10 @@ Phase 1 progress (2026-10-20):
   `IEncodingReporter`. `EncodingManager` (app) keeps task list, upload, clipboard, custom commands; forwards progress
   with `EncodingReporter`; raises `EncodingChanged`, which `App` marshals to the Dispatcher.
 - Characterization tests call `ExportService` directly; outputs byte-identical to before the move.
-- Not yet smoke-tested in the real UI (export from the editor with progress in the encoder list).
+- Smoke-tested in the real UI (2026-10-20): record + GIF export from the editor works. It first crashed opening the
+  export panel: XAML property paths like `(vm:QuantizerDescriptor.X)` resolve types at runtime, so an xmlns without
+  `assembly=` still pointed at the app after the move. Fixed with `xmlns:core=...;assembly=ScreenToGif.Core`.
+  Lesson: after moving types, grep all `.xaml` for them – the build will not catch it.
 - `ScreenToGif.Core.Capture.ICaptureService` (list targets, start into a folder, stop → frames with delays).
   Implementation `AgentReel.Capture.WgcCaptureService` in the new project `AgentReel.Capture`
   (`net9.0-windows10.0.19041.0`, new code, not Ms-PL-derived), built on the spike. Decided 2026-10-20: WGC directly,
@@ -106,8 +109,7 @@ Phase 1 progress (2026-10-20):
   previous delay. Tests in `AgentReel.Capture.Tests` (also green on GitHub runners, WGC works there).
 
 Next – START HERE:
-1. Smoke-test an export in the app UI (Amir).
-2. Phase 2: `AgentReel.Mcp` (stdio) on top of `ICaptureService` + `ExportService`. The host must create a hidden
+1. Phase 2: `AgentReel.Mcp` (stdio) on top of `ICaptureService` + `ExportService`. The host must create a hidden
    WPF `Application` with `Resources/Settings.xaml` and `StringResources.en.xaml` for `UserSettings`/`LocalizationHelper`
    (same as the characterization test fixture), and create the `ProjectInfo` itself
    (`CreateProjectFolder`, then capture into `project.FullPath`).
