@@ -87,8 +87,23 @@ not on PATH by default):
   `%AppData%\ScreenToGif\Settings.xaml` (never saved by the test).
 - Phase 0 checklist in the plan doc updated.
 
+Phase 1 progress (2026-10-20):
+- `ScreenToGif.Core` exists (`net9.0-windows7.0`, `UseWPF`). Deviation from the plan: Domain and Util already use
+  WPF types, so "headless" means no Dispatcher, no `Application.Current.Windows`, no UI windows – WPF imaging types
+  are fine. `LocalizationHelper` and `UserSettings` still need an `Application` with resources; a headless host must
+  create one (see the static constructor in `ExportCharacterizationTests`).
+- Moved to Core: `FrameInfo`, `ProjectInfo`, `ActionStack`, `ImageMethods`, `QuantizerDescriptor`,
+  `DithererDescriptor`. Namespaces unchanged.
+- `ScreenToGif.Core.Export.ExportService.EncodeAsync` = the whole encoder part of export, progress via
+  `IEncodingReporter`. `EncodingManager` (app) keeps task list, upload, clipboard, custom commands; forwards progress
+  with `EncodingReporter`; raises `EncodingChanged`, which `App` marshals to the Dispatcher.
+- Characterization tests call `ExportService` directly; outputs byte-identical to before the move.
+- Not yet smoke-tested in the real UI (export from the editor with progress in the encoder list).
+
 Next – START HERE:
-1. Phase 1: extract `ScreenToGif.Core`. Keep the characterization tests green throughout.
+1. Smoke-test an export in the app UI.
+2. `ICaptureService` (open decision: wrap the existing DXGI/GDI engines now, or build it directly on
+   Windows.Graphics.Capture from the spike, which needs TFM `net9.0-windows10.0.19041.0`).
 
 ## Roadmap
 
