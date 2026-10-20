@@ -29,7 +29,8 @@ live in separate, newly written assemblies under our own license.
 ## Repo facts
 
 - Remotes: `upstream` = https://github.com/NickeManarin/ScreenToGif (based on v2.43.2, commit a4d0a67).
-  `origin` = Amir's private GitHub repo (add if missing: `git remote add origin <url>`).
+  `origin` = https://github.com/4mierS/AgentReel (private; not a GitHub fork, because forks of public repos
+  cannot be private). Never push to `upstream`.
 - Branch: `main`.
 - Solution: `GifRecorder.sln`. Projects:
   - `ScreenToGif` (WinExe, WPF + WinForms): windows, capture engines, editor, encoding. ~58k lines.
@@ -75,11 +76,11 @@ not on PATH by default):
 - Tests: 32/59 pass. The 27 failures are pre-existing upstream issues: ThemeContrastTests for Dark/VeryDark
   (WCAG contrast), YandexUpload (needs credentials/network), ImageComparison (test data b1.bmp/b2.bmp missing).
   CI excludes them via `--filter` (28 tests run, all green).
+- Pushed to `origin`; CI green (run 39474397409).
 
 Next – START HERE:
-1. Add `origin`, push and confirm CI is green.
-2. Report results back into the plan doc (Roadmap → Phase 0 checklist).
-3. Characterization tests: export a sample project to GIF and MP4 and compare outputs.
+1. Report results back into the plan doc (Roadmap → Phase 0 checklist).
+2. Characterization tests: export a sample project to GIF and MP4 and compare outputs.
 
 ## Roadmap
 
