@@ -41,5 +41,8 @@ jobs:
           dotnet test ScreenToGif.Test/ScreenToGif.Test.csproj -c Release --no-build --verbosity normal
           --filter "DisplayName!~Dark.xaml&FullyQualifiedName!~YandexUpload&FullyQualifiedName!~ImageComparison"
 
+      - name: Test capture
+        run: dotnet test AgentReel.Capture.Tests/AgentReel.Capture.Tests.csproj -c Release --no-build --verbosity normal
+
       - name: Build capture spike
         run: dotnet build Spikes/AgentReel.CaptureSpike/AgentReel.CaptureSpike.csproj -c Release
