@@ -77,10 +77,18 @@ not on PATH by default):
   (WCAG contrast), YandexUpload (needs credentials/network), ImageComparison (test data b1.bmp/b2.bmp missing).
   CI excludes them via `--filter` (28 tests run, all green).
 - Pushed to `origin`; CI green (run 39474397409).
+- Characterization tests (`ScreenToGif.Test/Characterization/ExportCharacterizationTests.cs`): 8 synthetic
+  frames are exported through the private `EncodingManager.Encode` (via reflection, task id -1 so `Update()`
+  never touches the Dispatcher) with every built-in GIF/APNG default preset (embedded, KGySoft, System, APNG).
+  Outputs are compared with SHA-256 hashes in `ScreenToGif.Test/Data/Characterization/export-golden.json`.
+  To accept new output on purpose: run with `AGENTREEL_UPDATE_GOLDEN=1` and commit the json.
+  MP4 (FFmpeg default preset) runs only when `AGENTREEL_FFMPEG` points to ffmpeg.exe; CI downloads a test-only
+  GPL build (needed for libx264, never shipped). Note: the MP4 test initializes `UserSettings`, which reads
+  `%AppData%\ScreenToGif\Settings.xaml` (never saved by the test).
+- Phase 0 checklist in the plan doc updated.
 
 Next – START HERE:
-1. Report results back into the plan doc (Roadmap → Phase 0 checklist).
-2. Characterization tests: export a sample project to GIF and MP4 and compare outputs.
+1. Phase 1: extract `ScreenToGif.Core`. Keep the characterization tests green throughout.
 
 ## Roadmap
 
