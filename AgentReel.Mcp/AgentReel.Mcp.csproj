@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- MCP server (stdio) that lets an agent record and export. New AgentReel code, not derived from ScreenToGif. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>True</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>AnyCPU;ARM64;x64;x86</Platforms>
+    <Configurations>Debug;Release;Debug (Store)</Configurations>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AgentReel.Capture\AgentReel.Capture.csproj" />
+    <ProjectReference Include="..\ScreenToGif.Core\ScreenToGif.Core.csproj" />
+    <!-- Only for the shared resources (Settings.xaml, string resources) that UserSettings and LocalizationHelper need. -->
+    <ProjectReference Include="..\ScreenToGif\ScreenToGif.csproj" />
+  </ItemGroup>
+</Project>
