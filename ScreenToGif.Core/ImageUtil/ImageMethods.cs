@@ -1,3 +1,4 @@
+using ScreenToGif.Core.Export;
 using ScreenToGif.Domain.Enums;
 using ScreenToGif.Domain.Interfaces;
 using ScreenToGif.Domain.Models;
@@ -41,10 +42,10 @@ public static class ImageMethods
     /// <param name="project">The exported project.</param>
     /// <param name="source">The color that will be converted to the chroma key, which in turn will be treated as transparent. If null, takes all colors with transparency and convert to the chroma.</param>
     /// <param name="chroma">The color that will be treated as transparent.</param>
-    /// <param name="taskId">The id of the encoding task.</param>
+    /// <param name="reporter">Receives the progress of the encoding.</param>
     /// <param name="tokenSource">The cancellation token source.</param>
     /// <returns>The export project, with the images already scanned and altered.</returns>
-    public static ExportProject PaintAndCutForTransparency(ExportProject project, System.Windows.Media.Color? source, System.Windows.Media.Color chroma, int taskId, CancellationTokenSource tokenSource)
+    public static ExportProject PaintAndCutForTransparency(ExportProject project, System.Windows.Media.Color? source, System.Windows.Media.Color chroma, IEncodingReporter reporter, CancellationTokenSource tokenSource)
     {
         using (var oldStream = new FileStream(project.ChunkPath, FileMode.Open, FileAccess.Read, FileShare.Read))
         {
@@ -56,7 +57,7 @@ public static class ImageMethods
 
                     if (tokenSource.Token.IsCancellationRequested)
                     {
-                        EncodingManager.Update(taskId, EncodingStatus.Canceled);
+                        reporter.Update(EncodingStatus.Canceled);
                         break;
                     }
 
@@ -64,7 +65,7 @@ public static class ImageMethods
 
                     #region For each frame
 
-                    EncodingManager.Update(taskId, index);
+                    reporter.Update(index);
 
                     //var watch = Stopwatch.StartNew();
 
@@ -243,7 +244,7 @@ public static class ImageMethods
             }
         }
 
-        EncodingManager.Update(taskId, LocalizationHelper.Get("S.Encoder.SavingAnalysis"), true);
+        reporter.Update(LocalizationHelper.Get("S.Encoder.SavingAnalysis"), true);
 
         //Detect any empty frame.
         for (var index = project.Frames.Count - 1; index >= 0; index--)
@@ -265,10 +266,10 @@ public static class ImageMethods
     /// </summary>
     /// <param name="project">The project with frames to analyze.</param>
     /// <param name="chroma">The color to paint the unchanged pixels.</param>
-    /// <param name="taskId">The Id of the current Task.</param>
+    /// <param name="reporter">Receives the progress of the encoding.</param>
     /// <param name="tokenSource">The cancellation token source.</param>
     /// <returns>The project containing all frames and its cut points.</returns>
-    public static ExportProject PaintTransparentAndCut(ExportProject project, System.Windows.Media.Color chroma, int taskId, CancellationTokenSource tokenSource)
+    public static ExportProject PaintTransparentAndCut(ExportProject project, System.Windows.Media.Color chroma, IEncodingReporter reporter, CancellationTokenSource tokenSource)
     {
         using (var oldStream = new FileStream(project.ChunkPath, FileMode.Open, FileAccess.Read, FileShare.Read))
         {
@@ -282,7 +283,7 @@ public static class ImageMethods
 
                         if (tokenSource.Token.IsCancellationRequested)
                         {
-                            EncodingManager.Update(taskId, EncodingStatus.Canceled);
+                            reporter.Update(EncodingStatus.Canceled);
                             break;
                         }
 
@@ -290,7 +291,7 @@ public static class ImageMethods
 
                         #region For each frame, from the end to the start
 
-                        EncodingManager.Update(taskId, project.Frames.Count - index - 1);
+                        reporter.Update(project.Frames.Count - index - 1);
 
                         //var watch = Stopwatch.StartNew();
 
@@ -459,7 +460,7 @@ public static class ImageMethods
                         #endregion
                     }
 
-                    EncodingManager.Update(taskId, LocalizationHelper.Get("S.Encoder.SavingAnalysis"), true);
+                    reporter.Update(LocalizationHelper.Get("S.Encoder.SavingAnalysis"), true);
 
                     #region Write the first frame
 
@@ -494,10 +495,10 @@ public static class ImageMethods
     /// after, it cuts the image to reduce filesize.
     /// </summary>
     /// <param name="project">The project with frames to analyze.</param>
-    /// <param name="taskId">The Id of the Task.</param>
+    /// <param name="reporter">Receives the progress of the encoding.</param>
     /// <param name="tokenSource">The cancellation token source.</param>
     /// <returns>The project containing all frames and its cut points.</returns>
-    public static ExportProject CutUnchanged(ExportProject project, int taskId, CancellationTokenSource tokenSource)
+    public static ExportProject CutUnchanged(ExportProject project, IEncodingReporter reporter, CancellationTokenSource tokenSource)
     {
         using (var oldStream = new FileStream(project.ChunkPath, FileMode.Open, FileAccess.Read, FileShare.Read))
         {
@@ -509,7 +510,7 @@ public static class ImageMethods
 
                     if (tokenSource.Token.IsCancellationRequested)
                     {
-                        EncodingManager.Update(taskId, EncodingStatus.Canceled);
+                        reporter.Update(EncodingStatus.Canceled);
                         break;
                     }
 
@@ -517,7 +518,7 @@ public static class ImageMethods
 
                     #region For each frame, from the end to the start
 
-                    EncodingManager.Update(taskId, project.Frames.Count - index - 1);
+                    reporter.Update(project.Frames.Count - index - 1);
 
                     //var watch = Stopwatch.StartNew();
 
@@ -670,7 +671,7 @@ public static class ImageMethods
                     #endregion
                 }
 
-                EncodingManager.Update(taskId, LocalizationHelper.Get("S.Encoder.SavingAnalysis"), true);
+                reporter.Update(LocalizationHelper.Get("S.Encoder.SavingAnalysis"), true);
 
                 #region Write the first frame
 
@@ -698,7 +699,7 @@ public static class ImageMethods
     }
 
 
-    public static List<IFrame> PaintTransparentAndCut(List<IFrame> listToEncode, System.Windows.Media.Color transparent, int taskId, CancellationTokenSource tokenSource)
+    public static List<IFrame> PaintTransparentAndCut(List<IFrame> listToEncode, System.Windows.Media.Color transparent, IEncodingReporter reporter, CancellationTokenSource tokenSource)
     {
         //First frame rect.
         var size = listToEncode[0].Path.ScaledSize();
@@ -711,7 +712,7 @@ public static class ImageMethods
 
             if (tokenSource.Token.IsCancellationRequested)
             {
-                EncodingManager.Update(taskId, EncodingStatus.Canceled);
+                reporter.Update(EncodingStatus.Canceled);
                 break;
             }
 
@@ -719,7 +720,7 @@ public static class ImageMethods
 
             #region For each Frame, from the end to the start
 
-            EncodingManager.Update(taskId, listToEncode.Count - index - 1);
+            reporter.Update(listToEncode.Count - index - 1);
 
             //var watch = Stopwatch.StartNew();
 
@@ -899,7 +900,7 @@ public static class ImageMethods
         return listToEncode;
     }
 
-    public static List<IFrame> CutUnchanged(List<IFrame> listToEncode, int id, CancellationTokenSource tokenSource)
+    public static List<IFrame> CutUnchanged(List<IFrame> listToEncode, IEncodingReporter reporter, CancellationTokenSource tokenSource)
     {
         //First frame rect.
         var size = listToEncode[0].Path.ScaledSize();
@@ -912,7 +913,7 @@ public static class ImageMethods
 
             if (tokenSource.Token.IsCancellationRequested)
             {
-                EncodingManager.Update(id, EncodingStatus.Canceled);
+                reporter.Update(EncodingStatus.Canceled);
                 break;
             }
 
@@ -920,7 +921,7 @@ public static class ImageMethods
 
             #region For each Frame, from the end to the start
 
-            EncodingManager.Update(id, listToEncode.Count - index - 1);
+            reporter.Update(listToEncode.Count - index - 1);
 
             #region Get Image Info
 
@@ -1601,7 +1602,7 @@ public static class ImageMethods
     /// <param name="useMedian">Calculate the median color of the pixel block.</param>
     /// <param name="inverted">Apply the effect to the inverted region of the selection.</param>
     /// <returns>A pixelated BitmapSource.</returns>
-    internal static BitmapSource Pixelate(BitmapSource image, int rectX, int rectY, int width, int height, int pixelateSize, double opacityPower, int opacityDistance, bool useMedian, bool inverted)
+    public static BitmapSource Pixelate(BitmapSource image, int rectX, int rectY, int width, int height, int pixelateSize, double opacityPower, int opacityDistance, bool useMedian, bool inverted)
     {
         var pixelUtil = new PixelUtil(image);
         pixelUtil.LockBits();
@@ -1674,7 +1675,7 @@ public static class ImageMethods
     /// <param name="opacityDistance">Determines how far the opacity should start/end being smaller than 1 (based on the opacity power too).</param>
     /// <param name="inverted">Apply the effect to the inverted region of the selection.</param>
     /// <returns>A pixelated BitmapSource.</returns>
-    internal static BitmapSource Blur(BitmapSource image, int rectX, int rectY, int width, int height, int blurLevel, double opacityPower, int opacityDistance, bool inverted)
+    public static BitmapSource Blur(BitmapSource image, int rectX, int rectY, int width, int height, int blurLevel, double opacityPower, int opacityDistance, bool inverted)
     {
         var pixelUtil = new PixelUtil(image);
         pixelUtil.LockBits();
@@ -1830,7 +1831,7 @@ public static class ImageMethods
     /// <param name="opacityDistance">Determines how far the opacity should start/end being smaller than 1 (based on the opacity power too).</param>
     /// <param name="inverted">Apply the effect to the inverted region of the selection.</param>
     /// <returns>A lightness altered BitmapSource.</returns>
-    internal static BitmapSource Lightness(BitmapSource image, int rectX, int rectY, int width, int height, bool isDarken, double lightnessLevel, double opacityPower, int opacityDistance, bool inverted)
+    public static BitmapSource Lightness(BitmapSource image, int rectX, int rectY, int width, int height, bool isDarken, double lightnessLevel, double opacityPower, int opacityDistance, bool inverted)
     {
         var pixelUtil = new PixelUtil(image);
         pixelUtil.LockBits();
@@ -2133,7 +2134,7 @@ public static class ImageMethods
                 Stretch = Stretch.Fill
             };
 
-            var uiScale = source.Scale();
+            var uiScale = source.GetVisualScale();
 
             //Test with high dpi.
             //For some reason, an InkCanvas with Strokes going beyond the bounds will report a strange bound even if clipped.

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
@@ -10,6 +9,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ScreenToGif.Core.Export;
+using ScreenToGif.Domain.Enums;
 using ScreenToGif.Domain.Models;
 using ScreenToGif.Model;
 using ScreenToGif.Util.Codification;
@@ -25,8 +26,8 @@ using Xunit;
 namespace ScreenToGif.Test.Characterization
 {
     /// <summary>
-    /// Pins the current export output of the built-in encoders before EncodingManager is refactored (Phase 1).
-    /// Exports a fixed synthetic project through the private EncodingManager.Encode and compares the output
+    /// Pins the export output of the built-in encoders, recorded before EncodingManager was refactored (Phase 1).
+    /// Exports a fixed synthetic project through ExportService.EncodeAsync and compares the output
     /// with the SHA-256 hashes in Data/Characterization/export-golden.json.
     /// To accept new output on purpose, run the tests with AGENTREEL_UPDATE_GOLDEN=1 and commit the json.
     /// </summary>
@@ -161,20 +162,15 @@ namespace ScreenToGif.Test.Characterization
             preset.ExecuteCustomCommands = false;
 
             //Same split as Editor: only the embedded GIF encoder reads raw pixels from a chunk file.
-            var useBytes = preset.Type == Domain.Enums.ExportFormats.Gif && preset.Encoder == Domain.Enums.EncoderTypes.ScreenToGif;
+            var useBytes = preset.Type == ExportFormats.Gif && preset.Encoder == EncoderTypes.ScreenToGif;
             var project = CreateProject(Path.Combine(root, "Encode"), useBytes);
 
-            var encode = Assembly.Load("ScreenToGif").GetType("ScreenToGif.Util.EncodingManager")!
-                .GetMethod("Encode", BindingFlags.NonPublic | BindingFlags.Static)!;
-
-            //Id -1 is not registered in EncodingManager.Encodings, so progress updates return before touching the Dispatcher.
-            await (Task)encode.Invoke(null, [project, preset, -1, new CancellationTokenSource()])!;
+            await ExportService.EncodeAsync(project, preset, new NullReporter(), new CancellationTokenSource());
 
             //Image presets write one file per frame, all others a single file.
             var outputs = Directory.GetFiles(outputFolder).OrderBy(o => o, StringComparer.Ordinal).ToArray();
 
-            //Encode logs and swallows its exceptions, so a missing file is the only failure signal here.
-            Assert.True(outputs.Length > 0, $"Encode produced no file for '{name}'. Check the ScreenToGif log folder for the exception.");
+            Assert.True(outputs.Length > 0, $"Export produced no file for '{name}'.");
 
             return outputs;
         }
@@ -313,6 +309,23 @@ namespace ScreenToGif.Test.Characterization
             Directory.CreateDirectory(Path.GetDirectoryName(GoldenPath)!);
             File.WriteAllText(GoldenPath, JsonSerializer.Serialize(golden, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
         }
+    }
+
+    internal class NullReporter : IEncodingReporter
+    {
+        public void Update(int currentFrame, string text) { }
+
+        public void Update(int currentFrame) { }
+
+        public void Update(int type, TimeSpan elapsed) { }
+
+        public void Update(string text, bool isIndeterminate = false, bool findText = false) { }
+
+        public void Update(EncodingStatus status, string fileName = null, bool isIndeterminate = false, Exception exception = null, int? maxSteps = null) { }
+
+        public void UpdateMultiple(EncodingStatus status, List<string> fileNames, bool isIndeterminate = false) { }
+
+        public EncodingStatus? GetStatus() => null;
     }
 
     /// <summary>

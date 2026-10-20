@@ -13,5 +13,10 @@
   <ItemGroup>
     <ProjectReference Include="..\ScreenToGif.Model\ScreenToGif.Domain.csproj" />
     <ProjectReference Include="..\ScreenToGif.Util\ScreenToGif.Util.csproj" />
+    <ProjectReference Include="..\ScreenToGif.ViewModel\ScreenToGif.ViewModel.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="KGySoft.Drawing" />
+    <PackageReference Include="KGySoft.Drawing.Wpf" />
   </ItemGroup>
 </Project>

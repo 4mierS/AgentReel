@@ -69,7 +69,7 @@ public class DithererDescriptor
 
     #region Static Properties
 
-    internal static DithererDescriptor[] Ditherers => _ditherers;
+    public static DithererDescriptor[] Ditherers => _ditherers;
 
     #endregion
 
@@ -122,7 +122,7 @@ public class DithererDescriptor
 
     #region Methods
 
-    internal static IDitherer Create(string id, KGySoftGifPreset preset)
+    public static IDitherer Create(string id, KGySoftGifPreset preset)
     {
         if (id == null)
             return null;

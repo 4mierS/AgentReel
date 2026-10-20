@@ -26,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ScreenToGif.ViewModel\ScreenToGif.ViewModel.csproj" />
     <ProjectReference Include="..\ScreenToGif\ScreenToGif.csproj" />
+    <ProjectReference Include="..\ScreenToGif.Core\ScreenToGif.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Data\Upload\Test.txt">

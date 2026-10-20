@@ -54,7 +54,7 @@ public class QuantizerDescriptor
 
     #region Static Properties
 
-    internal static QuantizerDescriptor[] Quantizers => _quantizers;
+    public static QuantizerDescriptor[] Quantizers => _quantizers;
 
     #endregion
 
@@ -94,9 +94,9 @@ public class QuantizerDescriptor
 
     #region Methods
 
-    internal static QuantizerDescriptor GetById(string id) => _quantizersById.GetValueOrDefault(id);
+    public static QuantizerDescriptor GetById(string id) => _quantizersById.GetValueOrDefault(id);
 
-    internal static IQuantizer Create(string id, KGySoftGifPreset preset)
+    public static IQuantizer Create(string id, KGySoftGifPreset preset)
     {
         var descriptor = _quantizersById.GetValueOrDefault(id ?? _quantizers[0].Id) ?? throw new ArgumentException($"Invalid {id}", nameof(id));
 
