@@ -245,10 +245,15 @@ Phase 5 progress (2026-10-21):
 - Open: `Directory.Build.props` stamps every assembly, also the new AgentReel ones, with Company/Copyright
   "Nicke Manarin" and the ScreenToGif description; the AgentReel projects should get their own values.
 
+- Dogfooded over the rebuilt registered Debug server (2026-10-21): window recording 18 s → optimize (speed 1.5,
+  6.4 s) → add_caption → request_review → Studio opened with "CLAUDE SUGGESTS" → Amir kept it, `get_review` returned
+  `accepted`. Old test recordings deleted.
+
 Next – START HERE:
-1. Rebuild the registered Debug server (stop the running `AgentReel.Mcp` under `\dev\AgentReel\`, then
-   `dotnet build AgentReel.Mcp/AgentReel.Mcp.csproj`, Amir reconnects `/mcp`), dogfood request_review/get_review from
-   Claude Code, delete the test recordings `2026-10-21 11-18-29` (+ edit 1–3).
+1. Give the AgentReel projects their own Company/Copyright/Description (`Directory.Build.props` stamps
+   "Nicke Manarin" and the ScreenToGif description on every assembly).
+2. Decide with Amir which Studio window or flow comes next (e.g. one window from record to export), and whether
+   rejected edits should be deleted automatically.
 
 ## Roadmap
 
