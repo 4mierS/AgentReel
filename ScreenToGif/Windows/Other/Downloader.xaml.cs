@@ -106,18 +106,6 @@ public partial class Downloader
                         entry?.ExtractToFile(DestinationPath, true);
                         break;
                     }
-                    case "sharpdx":
-                    {
-                        foreach (var entry in zip.Entries)
-                        {
-                            if (File.Exists(Path.Combine(DestinationPath, entry.Name)))
-                                File.Delete(Path.Combine(DestinationPath, entry.Name));
-
-                            entry?.ExtractToFile(Path.Combine(DestinationPath, entry.Name), true);
-                        }
-
-                        break;
-                    }
                 }
             }
 

@@ -46,7 +46,6 @@
                 <c:ExListViewItem Content="{DynamicResource S.Options.Storage}" Icon="{StaticResource Vector.Temporary}"/>
                 <c:ExListViewItem Content="{DynamicResource S.Options.Upload}" Icon="{StaticResource Vector.Web}"/>
                 <c:ExListViewItem Content="{DynamicResource S.Options.Extras}" Icon="{StaticResource Vector.Extras}"/>
-                <c:ExListViewItem Content="{DynamicResource S.Options.Donate}" Icon="{StaticResource Vector.Money}"/>
                 <c:ExListViewItem Content="{DynamicResource S.Options.About}" Icon="{StaticResource Vector.Info}"/>
             </ListView>
 

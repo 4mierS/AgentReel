@@ -30,7 +30,8 @@
                 <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal">
                     <Label Content="{DynamicResource S.Options.About.Version}" FontSize="18" VerticalContentAlignment="Center" Foreground="{DynamicResource Element.Foreground}"/>
                     <Label Content="{Binding Source={x:Static t:UserSettings.All}, Path=VersionText}" FontSize="18" VerticalContentAlignment="Center" Foreground="{DynamicResource Element.Foreground}"/>
-                    <Label x:Name="CheckForUpdatesLabel" VerticalContentAlignment="Center">
+                    <!--AgentReel has no update channel yet (see ApplicationViewModel.CheckForUpdates).-->
+                    <Label x:Name="CheckForUpdatesLabel" VerticalContentAlignment="Center" Visibility="Collapsed">
                         <Hyperlink Click="CheckForUpdatesLabel_Click">
                             <Run Text="{DynamicResource S.Options.About.UpdateCheck}"/>
                         </Hyperlink>

@@ -204,8 +204,6 @@ public partial class App : IDisposable
         #region Tasks
 
         Task.Factory.StartNew(MainViewModel.ClearTemporaryFiles, TaskCreationOptions.LongRunning);
-        Task.Factory.StartNew(async () => await MainViewModel.CheckForUpdates(),TaskCreationOptions.LongRunning);
-        Task.Factory.StartNew(MainViewModel.SendFeedback, TaskCreationOptions.LongRunning);
 
         #endregion
 

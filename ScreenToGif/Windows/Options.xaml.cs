@@ -22,8 +22,7 @@ public partial class Options : INotification
     internal const int StorageIndex = 6;
     internal const int UploadIndex = 7;
     internal const int PluginsIndex = 8;
-    internal const int DonateIndex = 9;
-    internal const int AboutIndex = 10;
+    internal const int AboutIndex = 9;
     
     public Options()
     {
@@ -116,10 +115,6 @@ public partial class Options : INotification
 
             case PluginsIndex:
                 Frame.Navigate(new PluginSettings());
-                break;
-
-            case DonateIndex:
-                Frame.Navigate(new DonateSettings());
                 break;
 
             case AboutIndex:
