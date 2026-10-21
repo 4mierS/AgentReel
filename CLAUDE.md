@@ -182,6 +182,35 @@ robust FFmpeg download (upstream issues #1469, #1460, #1458, #1451).
 Later: auto-zoom on clicks, click/key name overlay (#1476), agent-readable export (Markdown with steps,
 timestamps, frames), bug-report mode, HDR + multi-monitor fixes (#1452, #840), TTS narration, scrolling capture.
 
+Idea (2026-10-21, Amir): transcript-based editing + AI voiceover, likely a pro feature. Stages, each useful alone:
+1. Record audio (mic + system via WASAPI, shared clock with WGC). Prerequisite: ScreenToGif records no audio today.
+2. Transcribe locally (Whisper via whisper.cpp / Whisper.net, MIT) with word timestamps → subtitles
+   (SRT/VTT, MP4 track, or burned in for GIF).
+3. Edit subtitles as text (changes subtitles only).
+4. Remove filler words ("ähm"), slips and long pauses: cut audio + video together via word timestamps
+   (same idea as shortening thinking pauses).
+5. Claude rewrites the script → original audio no longer matches, so this needs step 6.
+6. TTS speaks the rewritten script per segment; each video segment is retimed to the new speech length (hold or
+   shorten still frames, speed up motion) – the frame + delay model fits this well.
+7. Translate: script per language, TTS per language, video retimed per language.
+Every change is proposed as a text diff and approved by the user (review-before-apply). Open: TTS engine (Windows
+voices, Piper – check the current version's license, or cloud like ElevenLabs/Azure), voice cloning of the user's own
+voice (consent, label AI voice, EU AI Act Art. 50).
+
+Todos (transcript editing + AI voiceover):
+- [ ] Decide: audio before or after the MVP, and whether this is a pro feature.
+- [ ] Audio capture: mic + system via WASAPI in `AgentReel.Capture`, shared clock with WGC, mux audio into MP4 export.
+- [ ] MCP: `start_recording` option `audio` (mic/system/both).
+- [ ] Local transcription with Whisper.net, word timestamps; model as optional download (never bundled).
+- [ ] Subtitle export: SRT/VTT, MP4 subtitle track, burned in for GIF.
+- [ ] MCP tools `transcribe` and `edit_subtitles`.
+- [ ] Detect filler words and long pauses, propose cuts as a diff, cut audio + video together (`remove_fillers`).
+- [ ] Script rewrite by Claude as a text diff with approval (`rewrite_script`).
+- [ ] Pick a TTS engine and check its license (Windows voices, Piper, ElevenLabs/Azure).
+- [ ] Retime each video segment to the new speech length (adjust frame delays).
+- [ ] Translation: script, TTS and retiming per language, export per language.
+- [ ] Voice cloning: consent, label as AI voice (EU AI Act Art. 50).
+
 ## Open decisions
 
 - Trademark/domain check for "AgentReel" (DPMA, EUIPO, .com, .app).
