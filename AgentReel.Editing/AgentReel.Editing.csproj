@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Editing shared by the MCP server and AgentReel Studio: timeline edits, overlays, edit/review files, export presets,
-       the project library. New AgentReel code, not derived from ScreenToGif. -->
+  <!-- Editing shared by the MCP server and AgentReel Studio: timeline edits, overlays, edit/review files, privacy scan,
+       the recording library. New AgentReel code, not derived from ScreenToGif. -->
   <PropertyGroup>
     <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
@@ -15,7 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AgentReel.Capture\AgentReel.Capture.csproj" />
-    <ProjectReference Include="..\ScreenToGif.Core\ScreenToGif.Core.csproj" />
-    <ProjectReference Include="..\ScreenToGif.ViewModel\ScreenToGif.ViewModel.csproj" />
+    <ProjectReference Include="..\AgentReel.Core\AgentReel.Core.csproj" />
+    <ProjectReference Include="..\AgentReel.Export\AgentReel.Export.csproj" />
   </ItemGroup>
 </Project>

@@ -9,12 +9,9 @@ using AgentReel.Editing.Privacy;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
-using ScreenToGif.Core.Capture;
-using ScreenToGif.Core.Export;
-using ScreenToGif.Domain.Enums;
-using ScreenToGif.Model;
-using ScreenToGif.Util;
-using ScreenToGif.Util.Settings;
+using AgentReel.Capture;
+using AgentReel.Core;
+using AgentReel.Export;
 
 namespace AgentReel.Mcp;
 
@@ -52,7 +49,7 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         return new StartedInfo(active.Id, Describe(resolved, session.ListTargets()), framerate, maxSeconds);
     }
 
-    [McpServerTool(Name = "stop_recording"), Description("Stops the running recording and saves it as a project. Returns its id for get_preview and export. If the recording already stopped itself at maxSeconds, returns that recording with autoStopped=true.")]
+    [McpServerTool(Name = "stop_recording"), Description("Stops the running recording and saves it. Returns its id for get_preview and export. If the recording already stopped itself at maxSeconds, returns that recording with autoStopped=true.")]
     public async Task<RecordingInfo> StopRecording()
     {
         var (project, autoStopped) = await session.StopAsync();
@@ -105,87 +102,59 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         ];
     }
 
-    [McpServerTool(Name = "export"), Description("Exports a finished recording to a file. Video formats and webp need FFmpeg (configured in the app, on PATH, or AGENTREEL_FFMPEG). The result has a privacyWarning when the recording was not scanned with scan_privacy or still shows private data; tell the user before the file is shared.")]
+    [McpServerTool(Name = "export"), Description("Exports a finished recording to a file: gif, apng or mp4 (H.264 through Windows, nothing to install). The result has a privacyWarning when the recording was not scanned with scan_privacy or still shows private data; tell the user before the file is shared.")]
     public async Task<ExportInfo> Export(
         [Description("Recording id from stop_recording. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null,
-        [Description("One of: gif, apng, webp, mp4, webm, mkv, mov.")] string format = "gif",
-        [Description("Full output file path. Default: Videos\\AgentReel\\<recording id>.<format>.")] string? outputPath = null,
+        [Description("One of: gif, apng, mp4.")] string format = "gif",
+        [Description("Full output file path. Default: Videos\\AgentReel\\<recording id>.<extension>.")] string? outputPath = null,
         [Description("Replace the file if it already exists.")] bool overwrite = false,
         CancellationToken cancellationToken = default)
     {
         var project = session.Get(recordingId);
-        ExportFormats type;
+        ExportFormat type;
 
         try
         {
-            type = ExportPresets.Parse(format);
+            type = RecordingExport.Parse(format);
         }
         catch (ArgumentException ex)
         {
             throw new McpException(ex.Message);
         }
 
-        var preset = ExportPresets.For(type);
+        var path = Path.GetFullPath(outputPath ?? RecordingExport.DefaultPath(project, type));
 
-        var path = Path.GetFullPath(outputPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "AgentReel", RecordingSession.IdOf(project) + preset.DefaultExtension));
-        var extension = Path.GetExtension(path);
-
-        if (string.IsNullOrEmpty(extension))
-        {
-            extension = preset.DefaultExtension;
-            path += extension;
-        }
+        if (string.IsNullOrEmpty(Path.GetExtension(path)))
+            path += RecordingExport.ExtensionOf(type);
 
         if (File.Exists(path) && !overwrite)
             throw new McpException($"'{path}' already exists. Pass overwrite=true or choose another outputPath.");
 
-        if (preset.Encoder == EncoderTypes.FFmpeg && !await FfmpegAvailable())
-            throw new McpException("FFmpeg was not found. Set its path in the app's options, put ffmpeg.exe on PATH, or set AGENTREEL_FFMPEG for the server.");
-
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-
-        preset.OutputFolder = Path.GetDirectoryName(path);
-        preset.OutputFilename = Path.GetFileNameWithoutExtension(path);
-        preset.ResolvedFilename = preset.OutputFilename;
-        preset.Extension = extension;
-
-        //Same split as the editor: only the embedded GIF encoder reads raw pixels from a chunk file.
-        var useBytes = preset.Type == ExportFormats.Gif && preset.Encoder == EncoderTypes.ScreenToGif;
-        var copy = project.CopyToExport([], useBytes: useBytes);
-
-        var reporter = new LogEncodingReporter(logger);
-        using var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        logger.LogInformation("Exporting {Id} as {Preset} ({Encoder}) to {Path}", RecordingSession.IdOf(project), preset.Title ?? preset.TitleKey, preset.Encoder, path);
-
-        bool completed;
+        logger.LogInformation("Exporting {Id} as {Format} to {Path}", project.Id, type, path);
 
         try
         {
-            completed = await ExportService.EncodeAsync(copy, preset, reporter, tokenSource);
+            await RecordingExport.ExportAsync(project, type, path, null, cancellationToken);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            throw new McpException("Export was canceled.");
+        }
+        catch (Exception ex)
         {
             logger.LogError(ex, "Export failed.");
             throw new McpException("Export failed: " + ex.Message, ex);
         }
 
-        if (reporter.GetStatus() == EncodingStatus.Error || !File.Exists(path))
-            throw new McpException("Export failed" + (reporter.Exception != null ? ": " + reporter.Exception.Message : ", no file was written."));
-
-        if (!completed && reporter.GetStatus() == EncodingStatus.Canceled)
-            throw new McpException("Export was canceled.");
-
-        var duration = project.Frames.Sum(s => s.Delay);
-        return new ExportInfo(path, new FileInfo(path).Length, type.ToString().ToLowerInvariant(), preset.Encoder.ToString(), project.Frames.Count, duration, PrivacyWarning(project));
+        return new ExportInfo(path, new FileInfo(path).Length, type.ToString().ToLowerInvariant(), project.Frames.Count, Timeline.Duration(project.Frames), PrivacyWarning(project));
     }
 
     /// <summary>
     /// A warning for the agent, not a block: the user may want to share a recording of a test machine as it is.
     /// </summary>
-    private static string? PrivacyWarning(ProjectInfo project)
+    private static string? PrivacyWarning(Recording project)
     {
-        var status = PrivacyFiles.StatusOf(project.FullPath);
+        var status = PrivacyFiles.StatusOf(project.Folder);
 
         if (!status.Scanned)
             return "Not scanned for private data. If it shows a real desktop, run scan_privacy and redact before sharing the file.";
@@ -196,17 +165,17 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         return $"{status.Open.Count} private finding(s) are still visible ({string.Join(", ", status.Open.Take(8).Select(s => $"{s.Id} {RedactionPlan.Name(s.Kind)}"))}). Redact them before sharing the file, or confirm with the user that they may stay.";
     }
 
-    [McpServerTool(Name = "list_recordings", ReadOnly = true), Description("Lists the finished recordings in the app's recording folder, newest first: this session's recordings and edits, earlier ones and those made in the app. Every id works with the other tools.")]
+    [McpServerTool(Name = "list_recordings", ReadOnly = true), Description("Lists the finished recordings in the recording folder, newest first: this session's recordings and edits, earlier ones and those made in AgentReel Studio. Every id works with the other tools.")]
     public IReadOnlyList<RecordingListItem> ListRecordings([Description("Return at most this many recordings.")] int limit = 20)
     {
         if (limit < 1)
             throw new McpException("limit must be at least 1.");
 
-        return session.List().Take(limit).Select(s => new RecordingListItem(RecordingSession.IdOf(s), s.CreationDate, s.Frames.Count, Timeline.Duration(s.Frames),
-            s.Width, s.Height, session.SourceOf(s), MutexList.IsInUse(s.RelativePath))).ToList();
+        return session.List().Take(limit).Select(s => new RecordingListItem(RecordingSession.IdOf(s), s.Created, s.Frames.Count, Timeline.Duration(s.Frames),
+            s.Width, s.Height, session.SourceOf(s), RecordingLibrary.IsInUse(s))).ToList();
     }
 
-    [McpServerTool(Name = "delete_recording", Destructive = true), Description("Deletes a finished recording and its folder for good, for example a failed take or an edit the user rejected. Edits of it stay usable. Refused while it is open in the editor.")]
+    [McpServerTool(Name = "delete_recording", Destructive = true), Description("Deletes a finished recording and its folder for good, for example a failed take or an edit the user rejected. Edits of it stay usable. Refused while it is in use.")]
     public async Task<RecordingInfo> DeleteRecording([Description("Recording id. There is no default, to avoid deleting the wrong one.")] string recordingId)
     {
         if (string.IsNullOrWhiteSpace(recordingId))
@@ -236,17 +205,6 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
             new TextContentBlock { Text = $"Live: frame {progress.LatestWrittenFrame} of {progress.Frames} so far, recording for {(int)progress.Elapsed.TotalMilliseconds} ms." },
             ImageContentBlock.FromBytes(png, "image/png")
         ];
-    }
-
-    private static async Task<bool> FfmpegAvailable()
-    {
-        //Only for this process: the user's settings file is never written by the server.
-        var custom = Environment.GetEnvironmentVariable("AGENTREEL_FFMPEG");
-
-        if (!string.IsNullOrWhiteSpace(custom))
-            UserSettings.All.FfmpegLocation = custom;
-
-        return await PathHelper.IsFfmpegPresent();
     }
 
     private CaptureTarget Resolve(string? target)
@@ -325,8 +283,8 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         return index >= 0 ? Describe(all)[index] : Describe([target])[0];
     }
 
-    internal static RecordingInfo Describe(ProjectInfo project, RecordingSession session) => new(RecordingSession.IdOf(project), project.Frames.Count,
-        Timeline.Duration(project.Frames), project.Width, project.Height, project.FullPath, SourceId: session.SourceOf(project));
+    internal static RecordingInfo Describe(Recording project, RecordingSession session) => new(RecordingSession.IdOf(project), project.Frames.Count,
+        Timeline.Duration(project.Frames), project.Width, project.Height, project.Folder, SourceId: session.SourceOf(project));
 
     #endregion
 }
@@ -341,7 +299,7 @@ public sealed record StatusInfo(bool Recording, LiveInfo? Active, string? Latest
 
 public sealed record RecordingInfo(string RecordingId, int Frames, int DurationMs, int Width, int Height, string Folder, bool AutoStopped = false, string? SourceId = null);
 
-public sealed record RecordingListItem(string RecordingId, DateTime Created, int Frames, int DurationMs, int Width, int Height, string? SourceId, bool OpenInEditor);
+public sealed record RecordingListItem(string RecordingId, DateTime Created, int Frames, int DurationMs, int Width, int Height, string? SourceId, bool InUse);
 
 /// <param name="PrivacyWarning">Set when the recording was not scanned for private data, or a scan found data that is still visible.</param>
-public sealed record ExportInfo(string Path, long Bytes, string Format, string Encoder, int Frames, int DurationMs, string? PrivacyWarning = null);
+public sealed record ExportInfo(string Path, long Bytes, string Format, int Frames, int DurationMs, string? PrivacyWarning = null);

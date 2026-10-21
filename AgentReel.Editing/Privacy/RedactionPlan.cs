@@ -1,4 +1,4 @@
-using ScreenToGif.Model;
+using AgentReel.Core;
 
 namespace AgentReel.Editing.Privacy;
 
@@ -11,11 +11,11 @@ public sealed record ManualRegion(Box Box, int StartMs, int EndMs);
 /// Which areas to remove from which frames. <see cref="Frames"/> may have more frames than the source: frames cut by a
 /// manual region's start or end are split, so the redaction starts and ends exactly there.
 /// </summary>
-public sealed record RedactionPlan(List<FrameInfo> Frames, List<List<Box>> Boxes, List<EditMark> Marks)
+public sealed record RedactionPlan(List<RecordedFrame> Frames, List<List<Box>> Boxes, List<EditMark> Marks)
 {
     /// <param name="frames">The frames of the recording that was scanned.</param>
     /// <param name="findings">Findings of that scan; their regions refer to <paramref name="frames"/> by index.</param>
-    public static RedactionPlan Create(IReadOnlyList<FrameInfo> frames, IReadOnlyList<PrivacyFinding> findings, IReadOnlyList<ManualRegion> manual)
+    public static RedactionPlan Create(IReadOnlyList<RecordedFrame> frames, IReadOnlyList<PrivacyFinding> findings, IReadOnlyList<ManualRegion> manual)
     {
         var duration = Timeline.Duration(frames);
         //Copies: deriving a recording changes the paths of the frames it is given.

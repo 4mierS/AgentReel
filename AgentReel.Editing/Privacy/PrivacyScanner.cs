@@ -3,7 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using ScreenToGif.Model;
+using AgentReel.Core;
 using Windows.Globalization;
 using Windows.Media.Ocr;
 using BitmapAlphaMode = Windows.Graphics.Imaging.BitmapAlphaMode;
@@ -29,7 +29,7 @@ public static class PrivacyScanner
     /// </summary>
     public static readonly double[] Scales = [2, 3];
 
-    public static async Task<PrivacyScan> ScanAsync(IReadOnlyList<FrameInfo> frames, IProgress<(int Done, int Total)>? progress = null, CancellationToken cancellationToken = default)
+    public static async Task<PrivacyScan> ScanAsync(IReadOnlyList<RecordedFrame> frames, IProgress<(int Done, int Total)>? progress = null, CancellationToken cancellationToken = default)
     {
         var engine = CreateEngine();
         var watch = Stopwatch.StartNew();
@@ -444,7 +444,7 @@ public static class PrivacyScanner
     /// Compares areas of two frames. Keeps the two frames it saw last, because <see cref="PrivacyTracker.Extend"/> walks the
     /// frames in order and compares neighbors.
     /// </summary>
-    private sealed class RegionPixels(IReadOnlyList<FrameInfo> frames)
+    private sealed class RegionPixels(IReadOnlyList<RecordedFrame> frames)
     {
         private readonly Dictionary<int, (byte[] Pixels, int Width, int Height)> _cache = [];
 

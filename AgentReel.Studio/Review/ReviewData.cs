@@ -1,23 +1,23 @@
 using System.Globalization;
 using System.IO;
-using System.Text.Json;
+using AgentReel.Core;
 using AgentReel.Editing;
 
 namespace AgentReel.Studio.Review;
 
-public sealed record Frame(string Path, int StartMs, int Delay)
+public sealed record TrackFrame(string Path, int StartMs, int Delay)
 {
     public int EndMs => StartMs + Delay;
 }
 
 /// <summary>
-/// The frames of a recording, read from the app's Project.json (only what Studio needs).
+/// The frames of a recording with their start times, as the review needs them.
 /// </summary>
-public sealed class Recording
+public sealed class ReviewTrack
 {
     public required string Id { get; init; }
     public required string Folder { get; init; }
-    public required IReadOnlyList<Frame> Frames { get; init; }
+    public required IReadOnlyList<TrackFrame> Frames { get; init; }
     public int Width { get; init; }
     public int Height { get; init; }
     public int Duration => Frames.Count == 0 ? 0 : Frames[^1].EndMs;
@@ -42,36 +42,25 @@ public sealed class Recording
         return low;
     }
 
-    public static Recording Load(string folder)
+    public static ReviewTrack Load(string folder)
     {
-        var file = System.IO.Path.Combine(folder, "Project.json");
-
-        if (!File.Exists(file))
-            throw new FileNotFoundException($"There is no Project.json in {folder}.", file);
-
-        using var json = JsonDocument.Parse(File.ReadAllText(file));
-        var root = json.RootElement;
-        var frames = new List<Frame>();
+        var recording = Recording.Load(folder) ?? throw new InvalidDataException($"There is no readable recording with frames in {folder}.");
+        var frames = new List<TrackFrame>();
         var elapsed = 0;
 
-        //Written by DataContractJsonSerializer, so the names are the property names.
-        foreach (var frame in root.GetProperty("Frames").EnumerateArray())
+        foreach (var frame in recording.Frames)
         {
-            var delay = frame.GetProperty("Delay").GetInt32();
-            frames.Add(new Frame(frame.GetProperty("Path").GetString() ?? "", elapsed, delay));
-            elapsed += delay;
+            frames.Add(new TrackFrame(frame.Path, elapsed, frame.Delay));
+            elapsed += frame.Delay;
         }
 
-        if (frames.Count == 0)
-            throw new InvalidDataException($"The recording in {folder} has no frames.");
-
-        return new Recording
+        return new ReviewTrack
         {
-            Id = System.IO.Path.GetFileName(folder.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar)),
-            Folder = folder,
+            Id = recording.Id,
+            Folder = recording.Folder,
             Frames = frames,
-            Width = root.TryGetProperty("Width", out var width) ? width.GetInt32() : 0,
-            Height = root.TryGetProperty("Height", out var height) ? height.GetInt32() : 0
+            Width = recording.Width,
+            Height = recording.Height
         };
     }
 }
@@ -95,8 +84,8 @@ public sealed record Change(ChangeKind Kind, int EditStartMs, int EditEndMs, int
 /// </summary>
 public sealed class ReviewData
 {
-    public required Recording Edit { get; init; }
-    public required Recording Source { get; init; }
+    public required ReviewTrack Edit { get; init; }
+    public required ReviewTrack Source { get; init; }
     public required EditRecord Record { get; init; }
     public ReviewRecord? Review { get; init; }
     public required IReadOnlyList<Change> Changes { get; init; }
@@ -117,14 +106,14 @@ public sealed class ReviewData
     public static ReviewData Load(string editFolder)
     {
         var record = ReviewFiles.ReadEdit(editFolder) ?? throw new InvalidDataException($"{editFolder} is not an edit (no {ReviewFiles.EditFile}).");
-        var edit = Recording.Load(editFolder);
+        var edit = ReviewTrack.Load(editFolder);
 
         if (record.Sources.Count != edit.Frames.Count)
             throw new InvalidDataException($"{ReviewFiles.EditFile} does not match the frames of {edit.Id}.");
 
         var parent = Path.GetDirectoryName(Path.GetFullPath(editFolder).TrimEnd(Path.DirectorySeparatorChar)) ?? "";
         //Compared with the original recording, the start of the chain.
-        var source = Recording.Load(Path.Combine(parent, string.IsNullOrEmpty(record.OriginalId) ? record.SourceId : record.OriginalId));
+        var source = ReviewTrack.Load(Path.Combine(parent, string.IsNullOrEmpty(record.OriginalId) ? record.SourceId : record.OriginalId));
 
         return new ReviewData
         {
@@ -140,7 +129,7 @@ public sealed class ReviewData
     /// Cuts are gaps between the source ranges, faster parts are frames shorter than their source range, captions
     /// and highlights come from the edit's marks. Neighboring faster frames become one change.
     /// </summary>
-    private static List<Change> FindChanges(Recording edit, Recording source, EditRecord record)
+    private static List<Change> FindChanges(ReviewTrack edit, ReviewTrack source, EditRecord record)
     {
         var changes = new List<Change>();
         var sourceEnd = 0;

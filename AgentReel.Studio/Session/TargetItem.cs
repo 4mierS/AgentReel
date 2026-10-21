@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
-using ScreenToGif.Core.Capture;
+using AgentReel.Capture;
 
 namespace AgentReel.Studio.Session;
 

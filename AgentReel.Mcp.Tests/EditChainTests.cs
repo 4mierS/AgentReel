@@ -1,5 +1,5 @@
 using AgentReel.Editing;
-using ScreenToGif.Model;
+using AgentReel.Core;
 using Xunit;
 
 namespace AgentReel.Mcp.Tests;
@@ -7,7 +7,7 @@ namespace AgentReel.Mcp.Tests;
 public class EditChainTests
 {
     //Visible: #0 0-100, #1 100-300, #2 300-600, #3 600-1000.
-    private static List<FrameInfo> Frames() => [new("0.png", 100), new("1.png", 200), new("2.png", 300), new("3.png", 400)];
+    private static List<RecordedFrame> Frames() => [new("0.png", 100), new("1.png", 200), new("2.png", 300), new("3.png", 400)];
 
     private static EditRecord Step(IReadOnlyList<SourceSpan> sources, params EditMark[] marks) => new("", "", "test", ["step"], sources, marks, DateTime.Now);
 

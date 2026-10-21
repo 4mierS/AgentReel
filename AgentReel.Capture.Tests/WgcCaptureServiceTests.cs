@@ -1,7 +1,6 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Media.Imaging;
-using ScreenToGif.Core.Capture;
 using Windows.Graphics.Capture;
 using Xunit;
 

@@ -2,8 +2,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
-using ScreenToGif.Core.Capture;
-using ScreenToGif.Model;
+using AgentReel.Core;
+
 using Windows.Graphics.Capture;
 using Windows.Graphics.DirectX;
 using Windows.Graphics.DirectX.Direct3D11;
@@ -33,7 +33,7 @@ public sealed class WgcCaptureService : ICaptureService
     private Channel<(SoftwareBitmap Bitmap, string Path)>? _writes;
     private Task? _writer;
 
-    private List<FrameInfo> _frames = [];
+    private List<RecordedFrame> _frames = [];
     private int _written;
     private string _folder = "";
     private Int32Rect _crop;
@@ -250,7 +250,7 @@ public sealed class WgcCaptureService : ICaptureService
             _frames[^1].Delay = ToDelay(now - _lastCommit);
 
         var path = Path.Combine(_folder, _frames.Count + ".png");
-        _frames.Add(new FrameInfo(path, 0) { Index = _frames.Count });
+        _frames.Add(new RecordedFrame(path, 0) { Index = _frames.Count });
         _writes!.Writer.TryWrite((_pending!, path));
 
         _pending = null;

@@ -5,15 +5,14 @@ using System.Windows.Input;
 using AgentReel.Capture;
 using AgentReel.Editing;
 using AgentReel.Studio.Editor;
-using ScreenToGif.Core.Capture;
-using ScreenToGif.Model;
+using AgentReel.Core;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
 namespace AgentReel.Studio.Session;
 
 /// <summary>
-/// Pick a window (or a screen) and record it. The recording opens in the studio; it lands in the app's recording
+/// Pick a window (or a screen) and record it. The recording opens in the studio; it lands in the recording
 /// folder, where the MCP server finds it as the newest one, so Claude can work on it from the chat too.
 /// </summary>
 public partial class SessionWindow : FluentWindow
@@ -146,13 +145,13 @@ public partial class SessionWindow : FluentWindow
 
         var framerate = int.Parse((string)((ComboBoxItem)FramerateBox.SelectedItem).Tag);
         var options = new CaptureOptions(item.Target, framerate, CursorSwitch.IsChecked == true);
-        ProjectInfo project;
+        CaptureRun run;
 
         _recording = true;
 
         try
         {
-            project = await ProjectRecording.StartAsync(_capture, options);
+            run = await ProjectRecording.StartAsync(_capture, options);
         }
         catch (Exception ex)
         {
@@ -163,7 +162,7 @@ public partial class SessionWindow : FluentWindow
         }
 
         var bar = new RecordingBar(item.Target, _capture.GetProgress);
-        bar.Finished += async discard => await FinishAsync(bar, project, discard);
+        bar.Finished += async discard => await FinishAsync(bar, run, discard);
 
         Hide();
         bar.Show();
@@ -172,11 +171,13 @@ public partial class SessionWindow : FluentWindow
             Native.BringToFront(item.Target.Handle);
     }
 
-    private async Task FinishAsync(RecordingBar bar, ProjectInfo project, bool discard)
+    private async Task FinishAsync(RecordingBar bar, CaptureRun run, bool discard)
     {
+        var project = run.Recording;
+
         try
         {
-            project = await ProjectRecording.StopAsync(_capture, project);
+            project = await ProjectRecording.StopAsync(_capture, run);
         }
         catch (Exception ex)
         {
@@ -194,7 +195,8 @@ public partial class SessionWindow : FluentWindow
             Show();
             Activate();
 
-            if (discard)
+            //A recording without frames is already gone.
+            if (discard && Directory.Exists(project.Folder))
                 DeleteFolder(project);
             else
                 Notify("Nothing was recorded", "The window did not draw a single frame. Is it minimized or hidden?", ControlAppearance.Caution);
@@ -246,11 +248,11 @@ public partial class SessionWindow : FluentWindow
         }
     }
 
-    private bool DeleteFolder(ProjectInfo project)
+    private bool DeleteFolder(Recording project)
     {
         try
         {
-            ProjectLibrary.Delete(project);
+            RecordingLibrary.Delete(project);
             return true;
         }
         catch (InvalidOperationException ex)

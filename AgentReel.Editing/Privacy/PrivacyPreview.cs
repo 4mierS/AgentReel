@@ -2,7 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
-using ScreenToGif.Model;
+using AgentReel.Core;
 
 namespace AgentReel.Editing.Privacy;
 
@@ -12,7 +12,7 @@ namespace AgentReel.Editing.Privacy;
 /// </summary>
 public static class PrivacyPreview
 {
-    public static byte[]? Render(IReadOnlyList<FrameInfo> frames, IReadOnlyList<PrivacyFinding> findings, int maxTiles = 8)
+    public static byte[]? Render(IReadOnlyList<RecordedFrame> frames, IReadOnlyList<PrivacyFinding> findings, int maxTiles = 8)
     {
         //One tile per frame where a finding first shows up; findings that appear together share it.
         var picked = findings.GroupBy(g => g.Regions[0].Frame).OrderBy(o => o.Key).Take(maxTiles).ToList();

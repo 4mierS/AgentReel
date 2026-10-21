@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
-using ScreenToGif.Core.Capture;
 
 namespace AgentReel.Capture;
 

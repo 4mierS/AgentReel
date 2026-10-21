@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 namespace AgentReel.Editing;
 
 /// <summary>
-/// What an edit changed, saved as Edit.json next to the edit's Project.json. An edit of an edit describes the whole
+/// What an edit changed, saved as Edit.json next to the edit's recording.json. An edit of an edit describes the whole
 /// chain, measured against the original recording, because that is what the user compares the result with.
 /// </summary>
 /// <param name="SourceId">The recording the edit was made from (may be an edit itself).</param>
@@ -31,7 +31,7 @@ public enum ReviewVerdict
 }
 
 /// <summary>
-/// A review of an edit, saved as Review.json next to the edit's Project.json. The agent writes it as pending with its
+/// A review of an edit, saved as Review.json next to the edit's recording.json. The agent writes it as pending with its
 /// summary, Studio writes the user's verdict into it.
 /// </summary>
 /// <param name="Summary">What the agent changed and why, shown above the edit.</param>

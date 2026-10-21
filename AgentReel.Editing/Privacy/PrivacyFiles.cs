@@ -3,7 +3,7 @@ using System.IO;
 namespace AgentReel.Editing.Privacy;
 
 /// <summary>
-/// The result of a privacy scan, saved as Privacy.json next to the recording's Project.json. It holds boxes, times and
+/// The result of a privacy scan, saved as Privacy.json next to the recording's recording.json. It holds boxes, times and
 /// masks, never the private values themselves.
 /// </summary>
 /// <param name="Findings">In a redacted recording, the findings of its source with <see cref="PrivacyFinding.Redacted"/> set
@@ -42,7 +42,7 @@ public static class PrivacyFiles
 
             try
             {
-                current = string.IsNullOrEmpty(source) ? null : ProjectLibrary.FolderOf(source);
+                current = string.IsNullOrEmpty(source) ? null : RecordingLibrary.FolderOf(source);
             }
             catch (ArgumentException)
             {

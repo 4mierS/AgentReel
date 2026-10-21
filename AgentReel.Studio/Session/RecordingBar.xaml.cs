@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
-using ScreenToGif.Core.Capture;
+using AgentReel.Capture;
 
 namespace AgentReel.Studio.Session;
 

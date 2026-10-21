@@ -7,7 +7,7 @@ using Xunit.Abstractions;
 namespace AgentReel.Export.Tests;
 
 /// <summary>
-/// Exports a real recording when AGENTREEL_E2E_RECORDING points to its folder (Project.json + PNGs); does nothing
+/// Exports a real recording when AGENTREEL_E2E_RECORDING points to its folder (recording.json + PNGs); does nothing
 /// otherwise, so CI skips it. Outputs go to AGENTREEL_E2E_OUT (default: a temporary folder) and are kept for a look.
 /// </summary>
 public class RecordingExportTests(ITestOutputHelper output)
@@ -23,13 +23,13 @@ public class RecordingExportTests(ITestOutputHelper output)
         var target = Environment.GetEnvironmentVariable("AGENTREEL_E2E_OUT") ?? Path.Combine(Path.GetTempPath(), "AgentReel.Export.E2E");
         Directory.CreateDirectory(target);
 
-        //Only the frame paths and delays are needed, read straight from the JSON.
-        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder, "Project.json")));
+        //Only the frame files and delays are needed, read straight from the JSON (file names are relative to the folder).
+        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder, "recording.json")));
         var root = json.RootElement;
-        var frames = root.GetProperty("Frames").EnumerateArray()
-            .Select(s => new ExportFrame(s.GetProperty("Path").GetString()!, s.GetProperty("Delay").GetInt32())).ToList();
-        var width = root.GetProperty("Width").GetInt32();
-        var height = root.GetProperty("Height").GetInt32();
+        var frames = root.GetProperty("frames").EnumerateArray()
+            .Select(s => new ExportFrame(Path.Combine(folder, s.GetProperty("file").GetString()!), s.GetProperty("delay").GetInt32())).ToList();
+        var width = root.GetProperty("width").GetInt32();
+        var height = root.GetProperty("height").GetInt32();
         var duration = frames.Sum(s => s.DelayMs);
 
         output.WriteLine($"{frames.Count} frames, {width}x{height}, {duration} ms");

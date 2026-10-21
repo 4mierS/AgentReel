@@ -1,5 +1,5 @@
 using AgentReel.Editing;
-using ScreenToGif.Model;
+using AgentReel.Core;
 using Xunit;
 
 namespace AgentReel.Mcp.Tests;
@@ -7,7 +7,7 @@ namespace AgentReel.Mcp.Tests;
 public class ClipsTests
 {
     //Visible: #0 0-100, #1 100-300, #2 300-600, #3 600-1000.
-    private static List<Clip> Source() => Clips.FromFrames([new FrameInfo("0.png", 100), new FrameInfo("1.png", 200), new FrameInfo("2.png", 300), new FrameInfo("3.png", 400)]);
+    private static List<Clip> Source() => Clips.FromFrames([new RecordedFrame("0.png", 100), new RecordedFrame("1.png", 200), new RecordedFrame("2.png", 300), new RecordedFrame("3.png", 400)]);
 
     private static bool SamePath(string a, string b) => a == b;
 
@@ -80,7 +80,7 @@ public class ClipsTests
     public void Fold_does_not_bridge_a_cut()
     {
         //a a | a: the third frame is the same image but comes after a cut, so it stays a frame of its own.
-        var clips = Clips.FromFrames([new FrameInfo("a.png", 100), new FrameInfo("a.png", 100), new FrameInfo("b.png", 100), new FrameInfo("a.png", 100)]);
+        var clips = Clips.FromFrames([new RecordedFrame("a.png", 100), new RecordedFrame("a.png", 100), new RecordedFrame("b.png", 100), new RecordedFrame("a.png", 100)]);
         var cut = Clips.Cut(clips, 200, 300);
         var result = Clips.Fold(cut, SamePath, 0);
 
@@ -91,7 +91,7 @@ public class ClipsTests
     [Fact]
     public void Fold_merges_flickers_into_one_hold()
     {
-        var clips = Clips.FromFrames([new FrameInfo("a.png", 500), new FrameInfo("b.png", 500), new FrameInfo("a.png", 500), new FrameInfo("c.png", 100)]);
+        var clips = Clips.FromFrames([new RecordedFrame("a.png", 500), new RecordedFrame("b.png", 500), new RecordedFrame("a.png", 500), new RecordedFrame("c.png", 100)]);
         var result = Clips.Fold(clips, SamePath, 1000);
 
         Assert.Equal(["a.png", "c.png"], result.Select(s => s.Path));

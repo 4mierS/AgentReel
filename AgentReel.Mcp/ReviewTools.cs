@@ -28,15 +28,15 @@ public sealed class ReviewTools(RecordingSession session)
 
         var project = session.Get(recordingId);
         var id = RecordingSession.IdOf(project);
-        var edit = ReviewFiles.ReadEdit(project.FullPath) ?? throw new McpException($"'{id}' is not an edit, there is nothing to compare it with. Review an edit made by trim, optimize, add_caption or add_highlight.");
+        var edit = ReviewFiles.ReadEdit(project.Folder) ?? throw new McpException($"'{id}' is not an edit, there is nothing to compare it with. Review an edit made by trim, optimize, add_caption or add_highlight.");
 
-        ReviewFiles.WriteReview(project.FullPath, new ReviewRecord(summary.Trim(), DateTime.Now, Agent: AgentName(server.ClientInfo)));
+        ReviewFiles.WriteReview(project.Folder, new ReviewRecord(summary.Trim(), DateTime.Now, Agent: AgentName(server.ClientInfo)));
         var studio = StudioPath();
 
         try
         {
             //Shell execute, so Studio does not inherit stdin/stdout, which belong to the MCP protocol.
-            using var process = Process.Start(new ProcessStartInfo(studio) { UseShellExecute = true, ArgumentList = { "review", project.FullPath } });
+            using var process = Process.Start(new ProcessStartInfo(studio) { UseShellExecute = true, ArgumentList = { "review", project.Folder } });
         }
         catch (Exception ex)
         {
@@ -62,7 +62,7 @@ public sealed class ReviewTools(RecordingSession session)
 
         while (true)
         {
-            var review = ReviewFiles.ReadReview(project.FullPath) ?? throw new McpException($"No review was requested for '{id}'. Call request_review first.");
+            var review = ReviewFiles.ReadReview(project.Folder) ?? throw new McpException($"No review was requested for '{id}'. Call request_review first.");
 
             if (review.Verdict == ReviewVerdict.Rejected && review.DeleteEdit)
                 return new ReviewInfo(id, source, "rejected", review.Feedback, await DeleteAsync(id, cancellationToken));
@@ -113,7 +113,7 @@ public sealed class ReviewTools(RecordingSession session)
     /// <summary>
     /// AGENTREEL_STUDIO, else Studio next to this server (the build copies it there through the project reference).
     /// </summary>
-    private static string StudioPath()
+    internal static string StudioPath()
     {
         var configured = Environment.GetEnvironmentVariable("AGENTREEL_STUDIO");
         var path = string.IsNullOrWhiteSpace(configured) ? Path.Combine(AppContext.BaseDirectory, "AgentReel.Studio.exe") : configured.Trim('"');
