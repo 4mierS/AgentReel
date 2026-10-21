@@ -43,7 +43,8 @@ live in separate, newly written assemblies under our own license.
   - `ScreenToGif/Windows/Editor.xaml.cs` is 6,776 lines of code-behind; editing/undo/export hang off WPF commands.
   - `ScreenToGif/Util/EncodingManager.cs` calls `Application.Current.Dispatcher` 14 times → nothing runs headless.
   - `ProjectInfo` / `FrameInfo` live in the UI project (`ScreenToGif/Model/`), not in Domain.
-  - Fast capture uses DXGI Desktop Duplication via SharpDX (unmaintained). No Windows.Graphics.Capture yet.
+  - Fast capture uses DXGI Desktop Duplication, via Vortice.Windows since Phase 3 (was SharpDX, unmaintained).
+    The app has no Windows.Graphics.Capture recorder yet (only `AgentReel.Capture`, used by the MCP server).
 - Existing CLI: `-region`, `-framerate`, `-limit`, `-capture`, `-open`. Existing IPC: `PipeServer`, `InstanceSwitcherChannel`.
 - `ScreenToGif.Util/Secret.cs` holds empty placeholder credentials (Imgur, Yandex, feedback mail) – builds fine as is.
 
@@ -187,8 +188,30 @@ Phase 4 progress (2026-10-21):
   order). `frame`/`atMs` are refused while live. Verified over stdio with a scratch build on a window recording: live
   frames at 3 s and 6 s showed the right console lines, stop/preview/delete afterwards fine.
 
+Phase 3 progress (2026-10-21):
+- SharpDX replaced with Vortice.Direct3D11 3.6.2 (+ Vortice.DXGI, Vortice.Mathematics, SharpGen.Runtime, all MIT) in the
+  four Desktop Duplication recorders (`ScreenToGif/Capture/Direct*Capture.cs`, still Ms-PL). Type aliases
+  (`using Texture2D = Vortice.Direct3D11.ID3D11Texture2D;` …) keep the diff to upstream small. New file
+  `Capture/DirectXHelper.cs`: `CopyRegion` keeps SharpDX's argument order (source first; Vortice's
+  `CopySubresourceRegion` is destination first) and `GetOutputs` enumerates adapters/outputs.
+  Pitfall: `CopyResource` also flips to (destination, source) and both are `ID3D11Resource`, so the compiler does not
+  catch a wrong order – all call sites were swapped by hand. Cursor drawing maps the staging texture with D3D11
+  `Map(ReadWrite)` instead of the DXGI surface (its texture now has CPU read + write access). `ImmediateContext` is
+  cached by Vortice (same wrapper, no refcount leak – checked).
+- Verified on the real app (Release, scratch copy with a local `Settings.xaml`, `-open screen-recorder -region …
+  -limit … -capture`, region inside a demo console window on monitor 2): all four recorders (image, cached,
+  changed-only image, changed-only cached) record the region; the cursor is drawn (monochrome arrow). Compared with
+  a SharpDX build of HEAD in a worktree: the "only capture changes" modes save near-white frames in both builds
+  (same sizes) – upstream behavior, not a regression. Not tested at runtime: color/masked-color cursor shapes, rotated
+  screens, device-lost recovery, the Debug build's D3D debug layer.
+- License link in Options → Extras now points to Vortice (new key `S.Options.Extras.License.Vortice`, English only;
+  other languages fall back to English). NOTICE.md lists the bundled MIT libraries. The old `sharpdx` case in
+  `Downloader.xaml.cs` (legacy download mode) is left untouched.
+
 Next – START HERE:
-1. Phase 3 (Vortice instead of SharpDX for the app's capture).
+1. Phase 3, part 2: decide whether the app gets a Windows.Graphics.Capture recorder (an `ICapture` on top of
+   `AgentReel.Capture`) next to the DXGI/GDI ones, or whether WGC stays MCP-only for now.
+2. Phase 5 (UI).
 
 ## Roadmap
 

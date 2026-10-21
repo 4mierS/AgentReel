@@ -4,19 +4,27 @@ using ScreenToGif.Model;
 using ScreenToGif.Native.External;
 using ScreenToGif.Native.Structs;
 using ScreenToGif.Util;
-using SharpDX;
-using SharpDX.Direct3D;
-using SharpDX.Direct3D11;
-using SharpDX.DXGI;
-using SharpDX.Mathematics.Interop;
+using SharpGen.Runtime;
+using Vortice.Direct3D;
+using Vortice.Direct3D11;
+using Vortice.DXGI;
+using Vortice.DXGI.Debug;
+using Box = Vortice.Mathematics.Box;
+using MapFlags = Vortice.Direct3D11.MapFlags;
+using OutputDuplicateMoveRectangle = Vortice.DXGI.OutduplMoveRect;
+using RawRectangle = Vortice.RawRect;
+using Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 using System;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
-using Device = SharpDX.Direct3D11.Device;
-using MapFlags = SharpDX.Direct3D11.MapFlags;
+using Device = Vortice.Direct3D11.ID3D11Device;
+using DisplayModeRotation = Vortice.DXGI.ModeRotation;
+using OutputDuplication = Vortice.DXGI.IDXGIOutputDuplication;
+using OutputDuplicatePointerPosition = Vortice.DXGI.OutduplPointerPosition;
+using OutputDuplicatePointerShapeInformation = Vortice.DXGI.OutduplPointerShapeInfo;
 
 namespace ScreenToGif.Capture;
 
@@ -128,54 +136,56 @@ internal class DirectImageCapture : BaseCapture
         MajorCrashHappened = false;
 
 #if DEBUG
-        Device = new Device(DriverType.Hardware, DeviceCreationFlags.Debug);
+        D3D11.D3D11CreateDevice(IntPtr.Zero, DriverType.Hardware, DeviceCreationFlags.Debug, null, out Device).CheckError();
 
-        var debug = SharpDX.DXGI.InfoQueue.TryCreate();
-        debug?.SetBreakOnSeverity(DebugId.All, InformationQueueMessageSeverity.Corruption, true);
-        debug?.SetBreakOnSeverity(DebugId.All, InformationQueueMessageSeverity.Error, true);
-        debug?.SetBreakOnSeverity(DebugId.All, InformationQueueMessageSeverity.Warning, true);
+        if (DXGI.DXGIGetDebugInterface1(out IDXGIInfoQueue debug).Success)
+        {
+            debug.SetBreakOnSeverity(DXGI.DebugAll, InfoQueueMessageSeverity.Corruption, true);
+            debug.SetBreakOnSeverity(DXGI.DebugAll, InfoQueueMessageSeverity.Error, true);
+            debug.SetBreakOnSeverity(DXGI.DebugAll, InfoQueueMessageSeverity.Warning, true);
+        }
 
-        var debug2 = DXGIDebug.TryCreate();
-        debug2?.ReportLiveObjects(DebugId.Dx, DebugRloFlags.Summary | DebugRloFlags.Detail);
+        if (DXGI.DXGIGetDebugInterface1(out IDXGIDebug debug2).Success)
+            debug2.ReportLiveObjects(DXGI.DebugDx, ReportLiveObjectFlags.Summary | ReportLiveObjectFlags.Detail);
 
 #else
-        Device = new Device(DriverType.Hardware, DeviceCreationFlags.VideoSupport);
+        D3D11.D3D11CreateDevice(IntPtr.Zero, DriverType.Hardware, DeviceCreationFlags.VideoSupport, null, out Device).CheckError();
 #endif
 
-        using (var multiThread = Device.QueryInterface<Multithread>())
+        using (var multiThread = Device.QueryInterface<ID3D11Multithread>())
             multiThread.SetMultithreadProtected(true);
 
         //Texture used to copy contents from the GPU to be accessible by the CPU.
-        StagingTexture = new Texture2D(Device, new Texture2DDescription
+        StagingTexture = Device.CreateTexture2D(new Texture2DDescription
         {
             ArraySize = 1,
             BindFlags = BindFlags.None,
-            CpuAccessFlags = CpuAccessFlags.Read,
+            CPUAccessFlags = CpuAccessFlags.Read,
             Format = Format.B8G8R8A8_UNorm,
-            Width = Width,
-            Height = Height,
-            OptionFlags = ResourceOptionFlags.None,
+            Width = (uint)Width,
+            Height = (uint)Height,
+            MiscFlags = ResourceOptionFlags.None,
             MipLevels = 1,
             SampleDescription = new SampleDescription(1, 0),
             Usage = ResourceUsage.Staging
         });
 
         //Texture that is used to receive the pixel data from the GPU.
-        BackingTexture = new Texture2D(Device, new Texture2DDescription
+        BackingTexture = Device.CreateTexture2D(new Texture2DDescription
         {
             ArraySize = 1,
             BindFlags = BindFlags.RenderTarget | BindFlags.ShaderResource,
-            CpuAccessFlags = CpuAccessFlags.None,
+            CPUAccessFlags = CpuAccessFlags.None,
             Format = Format.B8G8R8A8_UNorm,
-            Width = Width,
-            Height = Height,
-            OptionFlags = ResourceOptionFlags.None,
+            Width = (uint)Width,
+            Height = (uint)Height,
+            MiscFlags = ResourceOptionFlags.None,
             MipLevels = 1,
             SampleDescription = new SampleDescription(1, 0),
             Usage = ResourceUsage.Default
         });
 
-        using (var factory = new Factory1())
+        using (var factory = DXGI.CreateDXGIFactory1<IDXGIFactory1>())
         {
             //Get the Output1 based on the current capture region position.
             using (var output1 = GetOutput(factory))
@@ -185,19 +195,19 @@ internal class DirectImageCapture : BaseCapture
                     //Make sure to run with the integrated graphics adapter if using a Microsoft hybrid system. https://stackoverflow.com/a/54196789/1735672
                     DuplicatedOutput = output1.DuplicateOutput(Device);
                 }
-                catch (SharpDXException e) when (e.Descriptor == SharpDX.DXGI.ResultCode.NotCurrentlyAvailable)
+                catch (SharpGenException e) when (e.ResultCode == Vortice.DXGI.ResultCode.NotCurrentlyAvailable)
                 {
                     throw new Exception("Too many applications using the Desktop Duplication API. Please close one of the applications and try again.", e);
                 }
-                catch (SharpDXException e) when (e.Descriptor == SharpDX.DXGI.ResultCode.Unsupported)
+                catch (SharpGenException e) when (e.ResultCode == Vortice.DXGI.ResultCode.Unsupported)
                 {
                     throw new GraphicsConfigurationException("The Desktop Duplication API is not supported on this computer.", e);
                 }
-                catch (SharpDXException e) when (e.Descriptor == SharpDX.DXGI.ResultCode.InvalidCall)
+                catch (SharpGenException e) when (e.ResultCode == Vortice.DXGI.ResultCode.InvalidCall)
                 {
                     throw new GraphicsConfigurationException("The Desktop Duplication API is not supported on this screen.", e);
                 }
-                catch (SharpDXException e) when (e.Descriptor.NativeApiCode == "E_INVALIDARG")
+                catch (SharpGenException e) when (e.ResultCode == Result.InvalidArg)
                 {
                     throw new GraphicsConfigurationException("Looks like that the Desktop Duplication API is not supported on this screen.", e);
                 }
@@ -208,18 +218,19 @@ internal class DirectImageCapture : BaseCapture
     /// <summary>
     /// Get the correct Output1 based on region to be captured.
     /// </summary>
-    private Output1 GetOutput(Factory1 factory)
+    private IDXGIOutput1 GetOutput(IDXGIFactory1 factory)
     {
         try
         {
             //Gets the output with the bigger area being intersected.
-            var output = factory.Adapters1.SelectMany(s => s.Outputs).FirstOrDefault(f => f.Description.DeviceName == DeviceName) ??
-                         factory.Adapters1.SelectMany(s => s.Outputs).OrderByDescending(f =>
+            var outputs = factory.GetOutputs();
+            var output = outputs.FirstOrDefault(f => f.Description.DeviceName == DeviceName) ??
+                         outputs.OrderByDescending(f =>
                          {
-                             var x = Math.Max(Left, f.Description.DesktopBounds.Left);
-                             var num1 = Math.Min(Left + Width, f.Description.DesktopBounds.Right);
-                             var y = Math.Max(Top, f.Description.DesktopBounds.Top);
-                             var num2 = Math.Min(Top + Height, f.Description.DesktopBounds.Bottom);
+                             var x = Math.Max(Left, f.Description.DesktopCoordinates.Left);
+                             var num1 = Math.Min(Left + Width, f.Description.DesktopCoordinates.Right);
+                             var y = Math.Max(Top, f.Description.DesktopCoordinates.Top);
+                             var num2 = Math.Min(Top + Height, f.Description.DesktopCoordinates.Bottom);
 
                              if (num1 >= x && num2 >= y)
                                  return num1 - x + num2 - y;
@@ -231,22 +242,22 @@ internal class DirectImageCapture : BaseCapture
                 throw new Exception($"Could not find a proper output device for the area of L: {Left}, T: {Top}, Width: {Width}, Height: {Height}.");
 
             //Position adjustments, so the correct region is captured.
-            OffsetLeft = output.Description.DesktopBounds.Left;
-            OffsetTop = output.Description.DesktopBounds.Top;
+            OffsetLeft = output.Description.DesktopCoordinates.Left;
+            OffsetTop = output.Description.DesktopCoordinates.Top;
             DisplayRotation = output.Description.Rotation;
 
             if (DisplayRotation != DisplayModeRotation.Identity)
             {
                 //Texture that is used to receive the pixel data from the GPU.
-                TransformTexture = new Texture2D(Device, new Texture2DDescription
+                TransformTexture = Device.CreateTexture2D(new Texture2DDescription
                 {
                     ArraySize = 1,
                     BindFlags = BindFlags.RenderTarget | BindFlags.ShaderResource,
-                    CpuAccessFlags = CpuAccessFlags.None,
+                    CPUAccessFlags = CpuAccessFlags.None,
                     Format = Format.B8G8R8A8_UNorm,
-                    Width = Height,
-                    Height = Width,
-                    OptionFlags = ResourceOptionFlags.None,
+                    Width = (uint)Height,
+                    Height = (uint)Width,
+                    MiscFlags = ResourceOptionFlags.None,
                     MipLevels = 1,
                     SampleDescription = new SampleDescription(1, 0),
                     Usage = ResourceUsage.Default
@@ -255,9 +266,9 @@ internal class DirectImageCapture : BaseCapture
 
             //Create textures in here, after detecting the orientation?
 
-            return output.QueryInterface<Output1>();
+            return output.QueryInterface<IDXGIOutput1>();
         }
-        catch (SharpDXException ex)
+        catch (SharpGenException ex)
         {
             throw new Exception("Could not find the specified output device.", ex);
         }
@@ -271,7 +282,7 @@ internal class DirectImageCapture : BaseCapture
         try
         {
             //Try to get the duplicated output frame within given time.
-            res = DuplicatedOutput.TryAcquireNextFrame(0, out var info, out var resource);
+            res = DuplicatedOutput.AcquireNextFrame(0, out var info, out var resource);
 
             if (FrameCount == 0 && (res.Failure || resource == null))
             {
@@ -291,7 +302,7 @@ internal class DirectImageCapture : BaseCapture
                     #region Moved rectangles
 
                     var movedRectangles = new OutputDuplicateMoveRectangle[info.TotalMetadataBufferSize];
-                    DuplicatedOutput.GetFrameMoveRects(movedRectangles.Length, movedRectangles, out var movedRegionsLength);
+                    DuplicatedOutput.GetFrameMoveRects((uint)movedRectangles.Length, movedRectangles, out var movedRegionsLength);
 
                     for (var movedIndex = 0; movedIndex < movedRegionsLength / Marshal.SizeOf(typeof(OutputDuplicateMoveRectangle)); movedIndex++)
                     {
@@ -308,8 +319,8 @@ internal class DirectImageCapture : BaseCapture
                             var sourceWidth = movedRectangles[movedIndex].SourcePoint.X + (right - left);
                             var sourceHeight = movedRectangles[movedIndex].SourcePoint.Y + (bottom - top);
 
-                            Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0,
-                                new ResourceRegion(movedRectangles[movedIndex].SourcePoint.X, movedRectangles[movedIndex].SourcePoint.Y, 0, sourceWidth, sourceHeight, 1),
+                            Device.ImmediateContext.CopyRegion(screenTexture, 0,
+                                new Box(movedRectangles[movedIndex].SourcePoint.X, movedRectangles[movedIndex].SourcePoint.Y, 0, sourceWidth, sourceHeight, 1),
                                 StagingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
                         }
                     }
@@ -319,7 +330,7 @@ internal class DirectImageCapture : BaseCapture
                     #region Dirty rectangles
 
                     var dirtyRectangles = new RawRectangle[info.TotalMetadataBufferSize];
-                    DuplicatedOutput.GetFrameDirtyRects(dirtyRectangles.Length, dirtyRectangles, out var dirtyRegionsLength);
+                    DuplicatedOutput.GetFrameDirtyRects((uint)dirtyRectangles.Length, dirtyRectangles, out var dirtyRegionsLength);
 
                     for (var dirtyIndex = 0; dirtyIndex < dirtyRegionsLength / Marshal.SizeOf(typeof(RawRectangle)); dirtyIndex++)
                     {
@@ -331,7 +342,7 @@ internal class DirectImageCapture : BaseCapture
 
                         //Copies from the screen texture only the area which the user wants to capture.
                         if (right > left && bottom > top)
-                            Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, new ResourceRegion(left, top, 0, right, bottom, 1), StagingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
+                            Device.ImmediateContext.CopyRegion(screenTexture, 0, new Box(left, top, 0, right, bottom, 1), StagingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
                     }
 
                     #endregion
@@ -343,11 +354,11 @@ internal class DirectImageCapture : BaseCapture
             #region Gets the image data
 
             //Gets the staging texture as a stream.
-            var data = Device.ImmediateContext.MapSubresource(StagingTexture, 0, MapMode.Read, MapFlags.None);
+            var data = Device.ImmediateContext.Map(StagingTexture, 0, MapMode.Read, MapFlags.None);
 
-            if (data.IsEmpty)
+            if (data.DataPointer == IntPtr.Zero)
             {
-                Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
+                Device.ImmediateContext.Unmap(StagingTexture, 0);
                 resource?.Dispose();
                 return FrameCount;
             }
@@ -363,10 +374,10 @@ internal class DirectImageCapture : BaseCapture
             for (var y = 0; y < Height; y++)
             {
                 //Copy a single line.
-                Utilities.CopyMemory(destPtr, sourcePtr, Width * 4);
+                MemoryHelpers.CopyMemory(destPtr, sourcePtr, Width * 4);
 
                 //Advance pointers.
-                sourcePtr = IntPtr.Add(sourcePtr, data.RowPitch);
+                sourcePtr = IntPtr.Add(sourcePtr, (int)data.RowPitch);
                 destPtr = IntPtr.Add(destPtr, mapDest.Stride);
             }
 
@@ -384,16 +395,16 @@ internal class DirectImageCapture : BaseCapture
 
             #endregion
 
-            Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
+            Device.ImmediateContext.Unmap(StagingTexture, 0);
 
             resource?.Dispose();
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.WaitTimeout.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.WaitTimeout)
         {
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceRemoved.Result.Code || se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceReset.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || se.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
         {
             //When the device gets lost or reset, the resources should be instantiated again.
             DisposeInternal();
@@ -439,7 +450,7 @@ internal class DirectImageCapture : BaseCapture
         try
         {
             //Try to get the duplicated output frame within given time.
-            res = DuplicatedOutput.TryAcquireNextFrame(0, out var info, out var resource);
+            res = DuplicatedOutput.AcquireNextFrame(0, out var info, out var resource);
 
             //Checks how to proceed with the capture. It could have failed, or the screen, cursor or both could have been captured.
             if (FrameCount == 0 && info.LastMouseUpdateTime == 0 && (res.Failure || resource == null))
@@ -467,7 +478,7 @@ internal class DirectImageCapture : BaseCapture
                     #region Moved rectangles
 
                     var movedRectangles = new OutputDuplicateMoveRectangle[info.TotalMetadataBufferSize];
-                    DuplicatedOutput.GetFrameMoveRects(movedRectangles.Length, movedRectangles, out var movedRegionsLength);
+                    DuplicatedOutput.GetFrameMoveRects((uint)movedRectangles.Length, movedRectangles, out var movedRegionsLength);
 
                     for (var movedIndex = 0; movedIndex < movedRegionsLength / Marshal.SizeOf(typeof(OutputDuplicateMoveRectangle)); movedIndex++)
                     {
@@ -484,8 +495,8 @@ internal class DirectImageCapture : BaseCapture
                             var sourceWidth = movedRectangles[movedIndex].SourcePoint.X + (right - left);
                             var sourceHeight = movedRectangles[movedIndex].SourcePoint.Y + (bottom - top);
 
-                            Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0,
-                                new ResourceRegion(movedRectangles[movedIndex].SourcePoint.X, movedRectangles[movedIndex].SourcePoint.Y, 0, sourceWidth, sourceHeight, 1),
+                            Device.ImmediateContext.CopyRegion(screenTexture, 0,
+                                new Box(movedRectangles[movedIndex].SourcePoint.X, movedRectangles[movedIndex].SourcePoint.Y, 0, sourceWidth, sourceHeight, 1),
                                 BackingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
                         }
                     }
@@ -495,7 +506,7 @@ internal class DirectImageCapture : BaseCapture
                     #region Dirty rectangles
 
                     var dirtyRectangles = new RawRectangle[info.TotalMetadataBufferSize];
-                    DuplicatedOutput.GetFrameDirtyRects(dirtyRectangles.Length, dirtyRectangles, out var dirtyRegionsLength);
+                    DuplicatedOutput.GetFrameDirtyRects((uint)dirtyRectangles.Length, dirtyRectangles, out var dirtyRegionsLength);
 
                     for (var dirtyIndex = 0; dirtyIndex < dirtyRegionsLength / Marshal.SizeOf(typeof(RawRectangle)); dirtyIndex++)
                     {
@@ -507,7 +518,7 @@ internal class DirectImageCapture : BaseCapture
 
                         //Copies from the screen texture only the area which the user wants to capture.
                         if (right > left && bottom > top)
-                            Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, new ResourceRegion(left, top, 0, right, bottom, 1), BackingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
+                            Device.ImmediateContext.CopyRegion(screenTexture, 0, new Box(left, top, 0, right, bottom, 1), BackingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
                     }
 
                     #endregion
@@ -517,7 +528,7 @@ internal class DirectImageCapture : BaseCapture
             if (info.TotalMetadataBufferSize > 0 || info.LastMouseUpdateTime > 0)
             {
                 //Copy the captured desktop texture into a staging texture, in order to show the mouse cursor and not make the captured texture dirty with it.
-                Device.ImmediateContext.CopyResource(BackingTexture, StagingTexture);
+                Device.ImmediateContext.CopyResource(StagingTexture, BackingTexture);
 
                 //Gets the cursor image and merges with the staging texture.
                 GetCursor(StagingTexture, info, frame);
@@ -531,11 +542,11 @@ internal class DirectImageCapture : BaseCapture
             #region Gets the image data
 
             //Get the desktop capture texture.
-            var data = Device.ImmediateContext.MapSubresource(StagingTexture, 0, MapMode.Read, MapFlags.None);
+            var data = Device.ImmediateContext.Map(StagingTexture, 0, MapMode.Read, MapFlags.None);
 
-            if (data.IsEmpty)
+            if (data.DataPointer == IntPtr.Zero)
             {
-                Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
+                Device.ImmediateContext.Unmap(StagingTexture, 0);
                 resource?.Dispose();
                 return FrameCount;
             }
@@ -551,10 +562,10 @@ internal class DirectImageCapture : BaseCapture
             for (var y = 0; y < Height; y++)
             {
                 //Copy a single line.
-                Utilities.CopyMemory(destPtr, sourcePtr, Width * 4);
+                MemoryHelpers.CopyMemory(destPtr, sourcePtr, Width * 4);
 
                 //Advance pointers.
-                sourcePtr = IntPtr.Add(sourcePtr, data.RowPitch);
+                sourcePtr = IntPtr.Add(sourcePtr, (int)data.RowPitch);
                 destPtr = IntPtr.Add(destPtr, mapDest.Stride);
             }
 
@@ -572,16 +583,16 @@ internal class DirectImageCapture : BaseCapture
 
             #endregion
 
-            Device.ImmediateContext?.UnmapSubresource(StagingTexture, 0);
+            Device.ImmediateContext?.Unmap(StagingTexture, 0);
 
             resource?.Dispose();
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.WaitTimeout.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.WaitTimeout)
         {
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceRemoved.Result.Code || se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceReset.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || se.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
         {
             //When the device gets lost or reset, the resources should be instantiated again.
             DisposeInternal();
@@ -627,7 +638,7 @@ internal class DirectImageCapture : BaseCapture
         try
         {
             //Try to get the duplicated output frame within given time.
-            res = DuplicatedOutput.TryAcquireNextFrame(1000, out var info, out var resource);
+            res = DuplicatedOutput.AcquireNextFrame(1000, out var info, out var resource);
 
             //Checks how to proceed with the capture. It could have failed, or the screen, cursor or both could have been captured.
             if (res.Failure || resource == null || (!showCursor && info.AccumulatedFrames == 0) || (showCursor && info.AccumulatedFrames == 0 && info.LastMouseUpdateTime <= LastProcessTime))
@@ -657,10 +668,10 @@ internal class DirectImageCapture : BaseCapture
                 if (showCursor)
                 {
                     //Copies from the screen texture only the area which the user wants to capture.
-                    Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, new ResourceRegion(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), BackingTexture, 0);
+                    Device.ImmediateContext.CopyRegion(screenTexture, 0, new Box(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), BackingTexture, 0);
 
                     //Copy the captured desktop texture into a staging texture, in order to show the mouse cursor and not make the captured texture dirty with it.
-                    Device.ImmediateContext.CopyResource(BackingTexture, StagingTexture);
+                    Device.ImmediateContext.CopyResource(StagingTexture, BackingTexture);
 
                     //Gets the cursor image and merges with the staging texture.
                     GetCursor(StagingTexture, info, frame);
@@ -668,19 +679,19 @@ internal class DirectImageCapture : BaseCapture
                 else
                 {
                     //Copies from the screen texture only the area which the user wants to capture.
-                    Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, new ResourceRegion(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), StagingTexture, 0);
+                    Device.ImmediateContext.CopyRegion(screenTexture, 0, new Box(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), StagingTexture, 0);
                 }
             }
 
             //Get the desktop capture texture.
-            var data = Device.ImmediateContext.MapSubresource(StagingTexture, 0, MapMode.Read, MapFlags.None);
+            var data = Device.ImmediateContext.Map(StagingTexture, 0, MapMode.Read, MapFlags.None);
 
-            if (data.IsEmpty)
+            if (data.DataPointer == IntPtr.Zero)
             {
                 //frame.WasDropped = true;
                 //BlockingCollection.Add(frame);
 
-                Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
+                Device.ImmediateContext.Unmap(StagingTexture, 0);
                 resource.Dispose();
                 return FrameCount;
             }
@@ -698,10 +709,10 @@ internal class DirectImageCapture : BaseCapture
             for (var y = 0; y < Height; y++)
             {
                 //Copy a single line.
-                Utilities.CopyMemory(destPtr, sourcePtr, Width * 4);
+                MemoryHelpers.CopyMemory(destPtr, sourcePtr, Width * 4);
 
                 //Advance pointers.
-                sourcePtr = IntPtr.Add(sourcePtr, data.RowPitch);
+                sourcePtr = IntPtr.Add(sourcePtr, (int)data.RowPitch);
                 destPtr = IntPtr.Add(destPtr, mapDest.Stride);
             }
 
@@ -717,16 +728,16 @@ internal class DirectImageCapture : BaseCapture
 
             #endregion
 
-            Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
+            Device.ImmediateContext.Unmap(StagingTexture, 0);
 
             resource.Dispose();
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.WaitTimeout.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.WaitTimeout)
         {
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceRemoved.Result.Code || se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceReset.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || se.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
         {
             //When the device gets lost or reset, the resources should be instantiated again.
             DisposeInternal();
@@ -763,7 +774,7 @@ internal class DirectImageCapture : BaseCapture
     }
 
 
-    protected internal bool GetCursor(Texture2D screenTexture, OutputDuplicateFrameInformation info, FrameInfo frame)
+    protected internal bool GetCursor(Texture2D screenTexture, OutduplFrameInfo info, FrameInfo frame)
     {
         //Prepare buffer array to hold the cursor shape.
         if (CursorShapeBuffer == null || info.PointerShapeBufferSize > CursorShapeBuffer.Length)
@@ -806,40 +817,43 @@ internal class DirectImageCapture : BaseCapture
             return false;
         }
 
+        var shapeWidth = (int)CursorShapeInfo.Width;
+        var shapeHeight = (int)CursorShapeInfo.Height;
+
         //Don't let it bleed beyond the top-left corner, calculate the dimensions of the portion of the cursor that will appear.
         var leftCut = frame.CursorX;
         var topCut = frame.CursorY;
-        var rightCut = screenTexture.Description.Width - (frame.CursorX + CursorShapeInfo.Width);
-        var bottomCut = screenTexture.Description.Height - (frame.CursorY + CursorShapeInfo.Height);
+        var rightCut = (int)screenTexture.Description.Width - (frame.CursorX + shapeWidth);
+        var bottomCut = (int)screenTexture.Description.Height - (frame.CursorY + shapeHeight);
 
         //Adjust to the hotspot offset, so it's possible to add the highlight correctly later.
         frame.CursorX += CursorShapeInfo.HotSpot.X;
         frame.CursorY += CursorShapeInfo.HotSpot.Y;
 
         //Don't try merging the textures if the cursor is out of bounds.
-        if (leftCut + CursorShapeInfo.Width < 1 || topCut + CursorShapeInfo.Height < 1 || rightCut + CursorShapeInfo.Width < 1 || bottomCut + CursorShapeInfo.Height < 1)
+        if (leftCut + shapeWidth < 1 || topCut + shapeHeight < 1 || rightCut + shapeWidth < 1 || bottomCut + shapeHeight < 1)
             return false;
 
         var cursorLeft = Math.Max(leftCut, 0);
         var cursorTop = Math.Max(topCut, 0);
-        var cursorWidth = leftCut < 0 ? CursorShapeInfo.Width + leftCut : rightCut < 0 ? CursorShapeInfo.Width + rightCut : CursorShapeInfo.Width;
-        var cursorHeight = topCut < 0 ? CursorShapeInfo.Height + topCut : bottomCut < 0 ? CursorShapeInfo.Height + bottomCut : CursorShapeInfo.Height;
+        var cursorWidth = leftCut < 0 ? shapeWidth + leftCut : rightCut < 0 ? shapeWidth + rightCut : shapeWidth;
+        var cursorHeight = topCut < 0 ? shapeHeight + topCut : bottomCut < 0 ? shapeHeight + bottomCut : shapeHeight;
 
         //The staging texture must be able to hold all pixels.
-        if (CursorStagingTexture == null || CursorStagingTexture.Description.Width != cursorWidth || CursorStagingTexture.Description.Height != cursorHeight)
+        if (CursorStagingTexture == null || CursorStagingTexture.Description.Width != (uint)cursorWidth || CursorStagingTexture.Description.Height != (uint)cursorHeight)
         {
             //In order to change the size of the texture, I need to instantiate it again with the new size.
             CursorStagingTexture?.Dispose();
-            CursorStagingTexture = new Texture2D(Device, new Texture2DDescription
+            CursorStagingTexture = Device.CreateTexture2D(new Texture2DDescription
             {
                 ArraySize = 1,
                 BindFlags = BindFlags.None,
-                CpuAccessFlags = CpuAccessFlags.Write,
-                Height = cursorHeight,
+                CPUAccessFlags = CpuAccessFlags.Read | CpuAccessFlags.Write,
+                Height = (uint)cursorHeight,
                 Format = Format.B8G8R8A8_UNorm,
-                Width = cursorWidth,
+                Width = (uint)cursorWidth,
                 MipLevels = 1,
-                OptionFlags = ResourceOptionFlags.None,
+                MiscFlags = ResourceOptionFlags.None,
                 SampleDescription = new SampleDescription(1, 0),
                 Usage = ResourceUsage.Staging
             });
@@ -847,7 +861,7 @@ internal class DirectImageCapture : BaseCapture
 
         //The region where the cursor is located is copied to the staging texture to act as the background when dealing with masks and transparency.
         //The cutout must be the exact region needed and it can't overflow. It's not allowed to try to cut outside of the screenTexture region.
-        var region = new ResourceRegion
+        var region = new Box
         {
             Left = cursorLeft,
             Top = cursorTop,
@@ -858,48 +872,45 @@ internal class DirectImageCapture : BaseCapture
         };
 
         //Copy from the screen the region in which the cursor is located.
-        Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, region, CursorStagingTexture, 0);
+        Device.ImmediateContext.CopyRegion(screenTexture, 0, region, CursorStagingTexture, 0);
 
         //Get cursor details and draw it to the staging texture.
         DrawCursorShape(CursorStagingTexture, CursorShapeInfo, CursorShapeBuffer, leftCut < 0 ? leftCut * -1 : 0, topCut < 0 ? topCut * -1 : 0, cursorWidth, cursorHeight);
 
         //Copy back the cursor texture to the screen texture.
-        Device.ImmediateContext.CopySubresourceRegion(CursorStagingTexture, 0, null, screenTexture, 0, cursorLeft, cursorTop);
+        Device.ImmediateContext.CopyRegion(CursorStagingTexture, 0, null, screenTexture, 0, cursorLeft, cursorTop);
 
         return true;
     }
 
     private void DrawCursorShape(Texture2D texture, OutputDuplicatePointerShapeInformation info, byte[] buffer, int leftCut, int topCut, int cursorWidth, int cursorHeight)
     {
-        using (var surface = texture.QueryInterface<Surface>())
+        //Maps the texture, indicating that the CPU needs access to the data.
+        var rect = Device.ImmediateContext.Map(texture, 0, MapMode.ReadWrite, MapFlags.None);
+
+        //Cursors can be divided into 3 types:
+        switch ((PointerShapeType)info.Type)
         {
-            //Maps the surface, indicating that the CPU needs access to the data.
-            var rect = surface.Map(SharpDX.DXGI.MapFlags.Write);
+            //Masked monochrome, a cursor which reacts with the background.
+            case PointerShapeType.Monochrome:
+                DrawMonochromeCursor(leftCut, topCut, cursorWidth, cursorHeight, rect, (int)info.Pitch, buffer, (int)info.Height);
+                break;
 
-            //Cursors can be divided into 3 types:
-            switch (info.Type)
-            {
-                //Masked monochrome, a cursor which reacts with the background.
-                case (int)OutputDuplicatePointerShapeType.Monochrome:
-                    DrawMonochromeCursor(leftCut, topCut, cursorWidth, cursorHeight, rect, info.Pitch, buffer, info.Height);
-                    break;
+            //Color, a colored cursor which supports transparency.
+            case PointerShapeType.Color:
+                DrawColorCursor(leftCut, topCut, cursorWidth, cursorHeight, rect, (int)info.Pitch, buffer);
+                break;
 
-                //Color, a colored cursor which supports transparency.
-                case (int)OutputDuplicatePointerShapeType.Color:
-                    DrawColorCursor(leftCut, topCut, cursorWidth, cursorHeight, rect, info.Pitch, buffer);
-                    break;
-
-                //Masked color, a mix of both previous types.
-                case (int)OutputDuplicatePointerShapeType.MaskedColor:
-                    DrawMaskedColorCursor(leftCut, topCut, cursorWidth, cursorHeight, rect, info.Pitch, buffer);
-                    break;
-            }
-
-            surface.Unmap();
+            //Masked color, a mix of both previous types.
+            case PointerShapeType.MaskedColor:
+                DrawMaskedColorCursor(leftCut, topCut, cursorWidth, cursorHeight, rect, (int)info.Pitch, buffer);
+                break;
         }
+
+        Device.ImmediateContext.Unmap(texture, 0);
     }
 
-    private void DrawMonochromeCursor(int offsetX, int offsetY, int width, int height, DataRectangle rect, int pitch, byte[] buffer, int actualHeight)
+    private void DrawMonochromeCursor(int offsetX, int offsetY, int width, int height, MappedSubresource rect, int pitch, byte[] buffer, int actualHeight)
     {
         for (var row = offsetY; row < height; row++)
         {
@@ -917,7 +928,7 @@ internal class DirectImageCapture : BaseCapture
 
             for (var col = offsetX; col < width; col++)
             {
-                var pos = (row - offsetY) * rect.Pitch + (col - offsetX) * 4;
+                var pos = (row - offsetY) * (int)rect.RowPitch + (col - offsetX) * 4;
                 var and = (buffer[row * pitch + col / 8] & mask) == mask; //Mask is take from the first half of the cursor image.
                 var xor = (buffer[row * pitch + col / 8 + actualHeight * pitch] & mask) == mask; //Mask is taken from the second half of the cursor image, hence the "+ height * pitch".
 
@@ -936,13 +947,13 @@ internal class DirectImageCapture : BaseCapture
         }
     }
 
-    private void DrawColorCursor(int offsetX, int offsetY, int width, int height, DataRectangle rect, int pitch, byte[] buffer)
+    private void DrawColorCursor(int offsetX, int offsetY, int width, int height, MappedSubresource rect, int pitch, byte[] buffer)
     {
         for (var row = offsetY; row < height; row++)
         {
             for (var col = offsetX; col < width; col++)
             {
-                var surfaceIndex = (row - offsetY) * rect.Pitch + (col - offsetX) * 4;
+                var surfaceIndex = (row - offsetY) * (int)rect.RowPitch + (col - offsetX) * 4;
                 var bufferIndex = row * pitch + col * 4;
                 var alpha = buffer[bufferIndex + 3] + 1;
 
@@ -960,7 +971,7 @@ internal class DirectImageCapture : BaseCapture
         }
     }
 
-    private void DrawMaskedColorCursor(int offsetX, int offsetY, int width, int height, DataRectangle rect, int pitch, byte[] buffer)
+    private void DrawMaskedColorCursor(int offsetX, int offsetY, int width, int height, MappedSubresource rect, int pitch, byte[] buffer)
     {
         //ImageUtil.ImageMethods.SavePixelArrayToFile(buffer, width, height, 4, System.IO.Path.GetFullPath(".\\MaskedColor.png"));
 
@@ -968,7 +979,7 @@ internal class DirectImageCapture : BaseCapture
         {
             for (var col = offsetX; col < width; col++)
             {
-                var surfaceIndex = (row - offsetY) * rect.Pitch + (col - offsetX) * 4;
+                var surfaceIndex = (row - offsetY) * (int)rect.RowPitch + (col - offsetX) * 4;
                 var bufferIndex = row * pitch + col * 4;
                 var maskFlag = buffer[bufferIndex + 3];
 

@@ -89,8 +89,8 @@
                     
                     <Run Text="/" Foreground="{DynamicResource Element.Foreground}"/>
 
-                    <Hyperlink NavigateUri="https://github.com/sharpdx/SharpDX/blob/master/LICENSE" RequestNavigate="ExtrasHyperlink_OnRequestNavigate">
-                        <Run Text="{DynamicResource S.Options.Extras.License.SharpDx}"/>
+                    <Hyperlink NavigateUri="https://github.com/amerkoleci/Vortice.Windows/blob/main/LICENSE" RequestNavigate="ExtrasHyperlink_OnRequestNavigate">
+                        <Run Text="{DynamicResource S.Options.Extras.License.Vortice}"/>
                     </Hyperlink>
                 </TextBlock>
             </StackPanel>

@@ -7,11 +7,14 @@ using System.Windows;
 using ScreenToGif.Model;
 using ScreenToGif.Util;
 using ScreenToGif.Util.Settings;
-using SharpDX;
-using SharpDX.Direct3D11;
-using SharpDX.DXGI;
-using SharpDX.Mathematics.Interop;
-using MapFlags = SharpDX.Direct3D11.MapFlags;
+using SharpGen.Runtime;
+using Vortice.Direct3D11;
+using Vortice.DXGI;
+using Box = Vortice.Mathematics.Box;
+using MapFlags = Vortice.Direct3D11.MapFlags;
+using OutputDuplicateMoveRectangle = Vortice.DXGI.OutduplMoveRect;
+using RawRectangle = Vortice.RawRect;
+using Texture2D = Vortice.Direct3D11.ID3D11Texture2D;
 
 namespace ScreenToGif.Capture;
 
@@ -53,7 +56,7 @@ internal class DirectCachedCapture : DirectImageCapture
         try
         {
             //Try to get the duplicated output frame within given time.
-            res = DuplicatedOutput.TryAcquireNextFrame(0, out var info, out var resource);
+            res = DuplicatedOutput.AcquireNextFrame(0, out var info, out var resource);
 
             if (FrameCount == 0 && (res.Failure || resource == null))
             {
@@ -73,7 +76,7 @@ internal class DirectCachedCapture : DirectImageCapture
                     #region Moved rectangles
 
                     var movedRectangles = new OutputDuplicateMoveRectangle[info.TotalMetadataBufferSize];
-                    DuplicatedOutput.GetFrameMoveRects(movedRectangles.Length, movedRectangles, out var movedRegionsLength);
+                    DuplicatedOutput.GetFrameMoveRects((uint)movedRectangles.Length, movedRectangles, out var movedRegionsLength);
 
                     for (var movedIndex = 0; movedIndex < movedRegionsLength / Marshal.SizeOf(typeof(OutputDuplicateMoveRectangle)); movedIndex++)
                     {
@@ -90,8 +93,8 @@ internal class DirectCachedCapture : DirectImageCapture
                             var sourceWidth = movedRectangles[movedIndex].SourcePoint.X + (right - left);
                             var sourceHeight = movedRectangles[movedIndex].SourcePoint.Y + (bottom - top);
 
-                            Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0,
-                                new ResourceRegion(movedRectangles[movedIndex].SourcePoint.X, movedRectangles[movedIndex].SourcePoint.Y, 0, sourceWidth, sourceHeight, 1),
+                            Device.ImmediateContext.CopyRegion(screenTexture, 0,
+                                new Box(movedRectangles[movedIndex].SourcePoint.X, movedRectangles[movedIndex].SourcePoint.Y, 0, sourceWidth, sourceHeight, 1),
                                 StagingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
                         }
                     }
@@ -101,7 +104,7 @@ internal class DirectCachedCapture : DirectImageCapture
                     #region Dirty rectangles
 
                     var dirtyRectangles = new RawRectangle[info.TotalMetadataBufferSize];
-                    DuplicatedOutput.GetFrameDirtyRects(dirtyRectangles.Length, dirtyRectangles, out var dirtyRegionsLength);
+                    DuplicatedOutput.GetFrameDirtyRects((uint)dirtyRectangles.Length, dirtyRectangles, out var dirtyRegionsLength);
 
                     for (var dirtyIndex = 0; dirtyIndex < dirtyRegionsLength / Marshal.SizeOf(typeof(RawRectangle)); dirtyIndex++)
                     {
@@ -113,7 +116,7 @@ internal class DirectCachedCapture : DirectImageCapture
 
                         //Copies from the screen texture only the area which the user wants to capture.
                         if (right > left && bottom > top)
-                            Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, new ResourceRegion(left, top, 0, right, bottom, 1), StagingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
+                            Device.ImmediateContext.CopyRegion(screenTexture, 0, new Box(left, top, 0, right, bottom, 1), StagingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
                     }
 
                     #endregion
@@ -125,12 +128,11 @@ internal class DirectCachedCapture : DirectImageCapture
             #region Gets the image data
 
             //Gets the staging texture as a stream.
-            var data = Device.ImmediateContext.MapSubresource(StagingTexture, 0, MapMode.Read, MapFlags.None, out var stream);
+            var data = Device.ImmediateContext.Map(StagingTexture, 0, MapMode.Read, MapFlags.None);
 
-            if (data.IsEmpty)
+            if (data.DataPointer == IntPtr.Zero)
             {
-                Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
-                stream?.Dispose();
+                Device.ImmediateContext.Unmap(StagingTexture, 0);
                 resource?.Dispose();
                 return FrameCount;
             }
@@ -139,14 +141,13 @@ internal class DirectCachedCapture : DirectImageCapture
             FrameCount++;
             frame.Path = $"{Project.FullPath}{FrameCount}.png";
             frame.Delay = FrameRate.GetMilliseconds();
-            frame.DataLength = stream.Length;
-            frame.Data = new byte[stream.Length];
+            frame.DataLength = (long)data.RowPitch * Height;
+            frame.Data = new byte[(long)data.RowPitch * Height];
 
             //BGRA32 is 4 bytes.
             for (var height = 0; height < Height; height++)
             {
-                stream.Position = height * data.RowPitch;
-                Marshal.Copy(new IntPtr(stream.DataPointer.ToInt64() + height * data.RowPitch), frame.Data, height * Width * 4, Width * 4);
+                Marshal.Copy(new IntPtr(data.DataPointer.ToInt64() + height * data.RowPitch), frame.Data, height * Width * 4, Width * 4);
             }
 
             if (IsAcceptingFrames)
@@ -154,16 +155,16 @@ internal class DirectCachedCapture : DirectImageCapture
 
             #endregion
 
-            Device.ImmediateContext?.UnmapSubresource(StagingTexture, 0);
+            Device.ImmediateContext?.Unmap(StagingTexture, 0);
 
             resource?.Dispose();
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.WaitTimeout.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.WaitTimeout)
         {
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceRemoved.Result.Code || se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceReset.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || se.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
         {
             //When the device gets lost or reset, the resources should be instantiated again.
             DisposeInternal();
@@ -204,7 +205,7 @@ internal class DirectCachedCapture : DirectImageCapture
         try
         {
             //Try to get the duplicated output frame within given time.
-            res = DuplicatedOutput.TryAcquireNextFrame(0, out var info, out var resource);
+            res = DuplicatedOutput.AcquireNextFrame(0, out var info, out var resource);
 
             //Checks how to proceed with the capture. It could have failed, or the screen, cursor or both could have been captured.
             if (FrameCount == 0 && info.LastMouseUpdateTime == 0 && (res.Failure || resource == null))
@@ -232,7 +233,7 @@ internal class DirectCachedCapture : DirectImageCapture
                     #region Moved rectangles
 
                     var movedRectangles = new OutputDuplicateMoveRectangle[info.TotalMetadataBufferSize];
-                    DuplicatedOutput.GetFrameMoveRects(movedRectangles.Length, movedRectangles, out var movedRegionsLength);
+                    DuplicatedOutput.GetFrameMoveRects((uint)movedRectangles.Length, movedRectangles, out var movedRegionsLength);
 
                     for (var movedIndex = 0; movedIndex < movedRegionsLength / Marshal.SizeOf(typeof(OutputDuplicateMoveRectangle)); movedIndex++)
                     {
@@ -249,8 +250,8 @@ internal class DirectCachedCapture : DirectImageCapture
                             var sourceWidth = movedRectangles[movedIndex].SourcePoint.X + (right - left);
                             var sourceHeight = movedRectangles[movedIndex].SourcePoint.Y + (bottom - top);
 
-                            Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0,
-                                new ResourceRegion(movedRectangles[movedIndex].SourcePoint.X, movedRectangles[movedIndex].SourcePoint.Y, 0, sourceWidth, sourceHeight, 1),
+                            Device.ImmediateContext.CopyRegion(screenTexture, 0,
+                                new Box(movedRectangles[movedIndex].SourcePoint.X, movedRectangles[movedIndex].SourcePoint.Y, 0, sourceWidth, sourceHeight, 1),
                                 BackingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
                         }
                     }
@@ -260,7 +261,7 @@ internal class DirectCachedCapture : DirectImageCapture
                     #region Dirty rectangles
 
                     var dirtyRectangles = new RawRectangle[info.TotalMetadataBufferSize];
-                    DuplicatedOutput.GetFrameDirtyRects(dirtyRectangles.Length, dirtyRectangles, out var dirtyRegionsLength);
+                    DuplicatedOutput.GetFrameDirtyRects((uint)dirtyRectangles.Length, dirtyRectangles, out var dirtyRegionsLength);
 
                     for (var dirtyIndex = 0; dirtyIndex < dirtyRegionsLength / Marshal.SizeOf(typeof(RawRectangle)); dirtyIndex++)
                     {
@@ -312,7 +313,7 @@ internal class DirectCachedCapture : DirectImageCapture
 
                         //Copies from the screen texture only the area which the user wants to capture.
                         if (right > left && bottom > top)
-                            Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, new ResourceRegion(left, top, 0, right, bottom, 1), BackingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
+                            Device.ImmediateContext.CopyRegion(screenTexture, 0, new Box(left, top, 0, right, bottom, 1), BackingTexture, 0, left - (Left - OffsetLeft), top - (Top - OffsetTop));
                     }
 
                     #endregion
@@ -322,7 +323,7 @@ internal class DirectCachedCapture : DirectImageCapture
             if (info.TotalMetadataBufferSize > 0 || info.LastMouseUpdateTime > 0)
             {
                 //Copy the captured desktop texture into a staging texture, in order to show the mouse cursor and not make the captured texture dirty with it.
-                Device.ImmediateContext.CopyResource(BackingTexture, StagingTexture);
+                Device.ImmediateContext.CopyResource(StagingTexture, BackingTexture);
 
                 //Gets the cursor image and merges with the staging texture.
                 GetCursor(StagingTexture, info, frame);
@@ -336,12 +337,11 @@ internal class DirectCachedCapture : DirectImageCapture
             #region Gets the image data
 
             //Gets the staging texture as a stream.
-            var data = Device.ImmediateContext.MapSubresource(StagingTexture, 0, MapMode.Read, MapFlags.None, out var stream);
+            var data = Device.ImmediateContext.Map(StagingTexture, 0, MapMode.Read, MapFlags.None);
 
-            if (data.IsEmpty)
+            if (data.DataPointer == IntPtr.Zero)
             {
-                Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
-                stream?.Dispose();
+                Device.ImmediateContext.Unmap(StagingTexture, 0);
                 resource?.Dispose();
                 return FrameCount;
             }
@@ -350,14 +350,13 @@ internal class DirectCachedCapture : DirectImageCapture
             FrameCount++;
             frame.Path = $"{Project.FullPath}{FrameCount}.png";
             frame.Delay = FrameRate.GetMilliseconds();
-            frame.DataLength = stream.Length;
-            frame.Data = new byte[stream.Length];
+            frame.DataLength = (long)data.RowPitch * Height;
+            frame.Data = new byte[(long)data.RowPitch * Height];
 
             //BGRA32 is 4 bytes.
             for (var height = 0; height < Height; height++)
             {
-                stream.Position = height * data.RowPitch;
-                Marshal.Copy(new IntPtr(stream.DataPointer.ToInt64() + height * data.RowPitch), frame.Data, height * Width * 4, Width * 4);
+                Marshal.Copy(new IntPtr(data.DataPointer.ToInt64() + height * data.RowPitch), frame.Data, height * Width * 4, Width * 4);
             }
 
             if (IsAcceptingFrames)
@@ -365,17 +364,16 @@ internal class DirectCachedCapture : DirectImageCapture
 
             #endregion
 
-            Device.ImmediateContext?.UnmapSubresource(StagingTexture, 0);
-            stream.Dispose();
+            Device.ImmediateContext?.Unmap(StagingTexture, 0);
             resource?.Dispose();
 
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.WaitTimeout.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.WaitTimeout)
         {
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceRemoved.Result.Code || se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceReset.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || se.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
         {
             //When the device gets lost or reset, the resources should be instantiated again.
             DisposeInternal();
@@ -416,7 +414,7 @@ internal class DirectCachedCapture : DirectImageCapture
         try
         {
             //Try to get the duplicated output frame within given time.
-            res = DuplicatedOutput.TryAcquireNextFrame(1000, out var info, out var resource);
+            res = DuplicatedOutput.AcquireNextFrame(1000, out var info, out var resource);
 
             //Checks how to proceed with the capture. It could have failed, or the screen, cursor or both could have been captured.
             if (res.Failure || resource == null || (!showCursor && info.AccumulatedFrames == 0) || (showCursor && info.AccumulatedFrames == 0 && info.LastMouseUpdateTime <= LastProcessTime))
@@ -445,10 +443,10 @@ internal class DirectCachedCapture : DirectImageCapture
                 if (showCursor)
                 {
                     //Copies from the screen texture only the area which the user wants to capture.
-                    Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, new ResourceRegion(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), BackingTexture, 0);
+                    Device.ImmediateContext.CopyRegion(screenTexture, 0, new Box(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), BackingTexture, 0);
 
                     //Copy the captured desktop texture into a staging texture, in order to show the mouse cursor and not make the captured texture dirty with it.
-                    Device.ImmediateContext.CopyResource(BackingTexture, StagingTexture);
+                    Device.ImmediateContext.CopyResource(StagingTexture, BackingTexture);
 
                     //Gets the cursor image and merges with the staging texture.
                     GetCursor(StagingTexture, info, frame);
@@ -456,17 +454,16 @@ internal class DirectCachedCapture : DirectImageCapture
                 else
                 {
                     //Copies from the screen texture only the area which the user wants to capture.
-                    Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, new ResourceRegion(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), StagingTexture, 0);
+                    Device.ImmediateContext.CopyRegion(screenTexture, 0, new Box(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), StagingTexture, 0);
                 }
             }
 
             //Get the desktop capture texture.
-            var data = Device.ImmediateContext.MapSubresource(StagingTexture, 0, MapMode.Read, MapFlags.None, out var stream);
+            var data = Device.ImmediateContext.Map(StagingTexture, 0, MapMode.Read, MapFlags.None);
 
-            if (data.IsEmpty)
+            if (data.DataPointer == IntPtr.Zero)
             {
-                Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
-                stream?.Dispose();
+                Device.ImmediateContext.Unmap(StagingTexture, 0);
                 resource.Dispose();
                 return FrameCount;
             }
@@ -477,31 +474,29 @@ internal class DirectCachedCapture : DirectImageCapture
             FrameCount++;
             frame.Path = $"{Project.FullPath}{FrameCount}.png";
             frame.Delay = FrameRate.GetMilliseconds();
-            frame.DataLength = stream.Length;
-            frame.Data = new byte[stream.Length];
+            frame.DataLength = (long)data.RowPitch * Height;
+            frame.Data = new byte[(long)data.RowPitch * Height];
 
             //BGRA32 is 4 bytes.
             for (var height = 0; height < Height; height++)
             {
-                stream.Position = height * data.RowPitch;
-                Marshal.Copy(new IntPtr(stream.DataPointer.ToInt64() + height * data.RowPitch), frame.Data, height * Width * 4, Width * 4);
+                Marshal.Copy(new IntPtr(data.DataPointer.ToInt64() + height * data.RowPitch), frame.Data, height * Width * 4, Width * 4);
             }
 
             BlockingCollection.Add(frame);
 
             #endregion
 
-            Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
-            stream.Dispose();
+            Device.ImmediateContext.Unmap(StagingTexture, 0);
             resource.Dispose();
 
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.WaitTimeout.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.WaitTimeout)
         {
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceRemoved.Result.Code || se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceReset.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || se.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
         {
             //When the device gets lost or reset, the resources should be instantiated again.
             DisposeInternal();
@@ -575,7 +570,7 @@ internal class DirectCachedCapture : DirectImageCapture
         try
         {
             //Try to get the duplicated output frame within given time.
-            res = DuplicatedOutput.TryAcquireNextFrame(0, out var info, out var resource);
+            res = DuplicatedOutput.AcquireNextFrame(0, out var info, out var resource);
 
             //Somehow, it was not possible to retrieve the resource or any frame.
             if (res.Failure || resource == null || info.AccumulatedFrames == 0)
@@ -588,17 +583,16 @@ internal class DirectCachedCapture : DirectImageCapture
             using (var screenTexture = resource.QueryInterface<Texture2D>())
             {
                 //Copies from the screen texture only the area which the user wants to capture.
-                Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, new ResourceRegion(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), StagingTexture, 0);
+                Device.ImmediateContext.CopyRegion(screenTexture, 0, new Box(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), StagingTexture, 0);
             }
 
             //Get the desktop capture texture.
-            var data = Device.ImmediateContext.MapSubresource(StagingTexture, 0, MapMode.Read, MapFlags.None, out var stream);
+            var data = Device.ImmediateContext.Map(StagingTexture, 0, MapMode.Read, MapFlags.None);
 
-            if (data.IsEmpty)
+            if (data.DataPointer == IntPtr.Zero)
             {
-                Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
+                Device.ImmediateContext.Unmap(StagingTexture, 0);
 
-                stream?.Dispose();
                 resource.Dispose();
                 return FrameCount;
             }
@@ -609,30 +603,29 @@ internal class DirectCachedCapture : DirectImageCapture
             FrameCount++;
             frame.Path = $"{Project.FullPath}{FrameCount}.png";
             frame.Delay = FrameRate.GetMilliseconds();
-            frame.DataLength = stream.Length;
-            frame.Data = new byte[stream.Length];
+            frame.DataLength = (long)data.RowPitch * Height;
+            frame.Data = new byte[(long)data.RowPitch * Height];
 
             //BGRA32 is 4 bytes.
             for (var height = 0; height < Height; height++)
             {
-                stream.Position = height * data.RowPitch;
-                Marshal.Copy(new IntPtr(stream.DataPointer.ToInt64() + height * data.RowPitch), frame.Data, height * Width * 4, Width * 4);
+                Marshal.Copy(new IntPtr(data.DataPointer.ToInt64() + height * data.RowPitch), frame.Data, height * Width * 4, Width * 4);
             }
 
             BlockingCollection.Add(frame);
 
             #endregion
 
-            Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
+            Device.ImmediateContext.Unmap(StagingTexture, 0);
 
             resource.Dispose();
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.WaitTimeout.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.WaitTimeout)
         {
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceRemoved.Result.Code || se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceReset.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || se.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
         {
             //When the device gets lost or reset, the resources should be instantiated again.
             DisposeInternal();
@@ -669,7 +662,7 @@ internal class DirectCachedCapture : DirectImageCapture
         try
         {
             //Try to get the duplicated output frame within given time.
-            res = DuplicatedOutput.TryAcquireNextFrame(0, out var info, out var resource);
+            res = DuplicatedOutput.AcquireNextFrame(0, out var info, out var resource);
 
             //Checks how to proceed with the capture. It could have failed, or the screen, cursor or both could have been captured.
             if (res.Failure || resource == null || (info.AccumulatedFrames == 0 && info.LastMouseUpdateTime <= LastProcessTime))
@@ -696,22 +689,21 @@ internal class DirectCachedCapture : DirectImageCapture
             using (var screenTexture = resource.QueryInterface<Texture2D>())
             {
                 //Copies from the screen texture only the area which the user wants to capture.
-                Device.ImmediateContext.CopySubresourceRegion(screenTexture, 0, new ResourceRegion(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), BackingTexture, 0);
+                Device.ImmediateContext.CopyRegion(screenTexture, 0, new Box(TrueLeft, TrueTop, 0, TrueRight, TrueBottom, 1), BackingTexture, 0);
 
                 //Copy the captured desktop texture into a staging texture, in order to show the mouse cursor and not make the captured texture dirty with it.
-                Device.ImmediateContext.CopyResource(BackingTexture, StagingTexture);
+                Device.ImmediateContext.CopyResource(StagingTexture, BackingTexture);
 
                 //Gets the cursor image and merges with the staging texture.
                 GetCursor(StagingTexture, info, frame);
             }
 
             //Get the desktop capture texture.
-            var data = Device.ImmediateContext.MapSubresource(StagingTexture, 0, MapMode.Read, MapFlags.None, out var stream);
+            var data = Device.ImmediateContext.Map(StagingTexture, 0, MapMode.Read, MapFlags.None);
 
-            if (data.IsEmpty)
+            if (data.DataPointer == IntPtr.Zero)
             {
-                Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
-                stream?.Dispose();
+                Device.ImmediateContext.Unmap(StagingTexture, 0);
                 resource.Dispose();
                 return FrameCount;
             }
@@ -722,31 +714,29 @@ internal class DirectCachedCapture : DirectImageCapture
             FrameCount++;
             frame.Path = $"{Project.FullPath}{FrameCount}.png";
             frame.Delay = FrameRate.GetMilliseconds();
-            frame.DataLength = stream.Length;
-            frame.Data = new byte[stream.Length];
+            frame.DataLength = (long)data.RowPitch * Height;
+            frame.Data = new byte[(long)data.RowPitch * Height];
 
             //BGRA32 is 4 bytes.
             for (var height = 0; height < Height; height++)
             {
-                stream.Position = height * data.RowPitch;
-                Marshal.Copy(new IntPtr(stream.DataPointer.ToInt64() + height * data.RowPitch), frame.Data, height * Width * 4, Width * 4);
+                Marshal.Copy(new IntPtr(data.DataPointer.ToInt64() + height * data.RowPitch), frame.Data, height * Width * 4, Width * 4);
             }
 
             BlockingCollection.Add(frame);
 
             #endregion
 
-            Device.ImmediateContext.UnmapSubresource(StagingTexture, 0);
-            stream.Dispose();
+            Device.ImmediateContext.Unmap(StagingTexture, 0);
             resource.Dispose();
 
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.WaitTimeout.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.WaitTimeout)
         {
             return FrameCount;
         }
-        catch (SharpDXException se) when (se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceRemoved.Result.Code || se.ResultCode.Code == SharpDX.DXGI.ResultCode.DeviceReset.Result.Code)
+        catch (SharpGenException se) when (se.ResultCode == Vortice.DXGI.ResultCode.DeviceRemoved || se.ResultCode == Vortice.DXGI.ResultCode.DeviceReset)
         {
             //When the device gets lost or reset, the resources should be instantiated again.
             DisposeInternal();

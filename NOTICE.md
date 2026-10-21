@@ -17,3 +17,10 @@ AgentReel (Ms-PL section 3(A)).
 | --- | --- | --- |
 | FFmpeg | LGPL/GPL depending on build | Downloaded separately by the user, not bundled |
 | Gifski | AGPL-3.0 | Optional, downloaded separately by the user, not bundled |
+
+## Third-party libraries bundled with the app
+
+| Component | License | Note |
+| --- | --- | --- |
+| [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows) (Direct3D11, DXGI, Mathematics) | MIT | DirectX interop for the Desktop Duplication recorder, replaces SharpDX |
+| [SharpGen.Runtime](https://github.com/SharpGenTools/SharpGenTools) | MIT | Runtime of the Vortice bindings |

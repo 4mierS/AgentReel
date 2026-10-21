@@ -621,6 +621,7 @@
     <s:String x:Key="S.Options.Extras.License.Ffmpeg">FFmpeg license</s:String>
     <s:String x:Key="S.Options.Extras.License.Gifski">Gifski license</s:String>
     <s:String x:Key="S.Options.Extras.License.SharpDx">SharpDx license</s:String>
+    <s:String x:Key="S.Options.Extras.License.Vortice">Vortice license</s:String>
     <s:String x:Key="S.Options.Extras.Permission.Header">Missing write permission in folder</s:String>
     <s:String x:Key="S.Options.Extras.Permission.Observation">It's not possible to save the download in the folder due to a lack of write permission.&#10;&#10;Would you like to start the downloader with administrative rights to finish the download?</s:String>
     
