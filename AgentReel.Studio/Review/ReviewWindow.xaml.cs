@@ -69,7 +69,7 @@ public partial class ReviewWindow : FluentWindow
         ChangeList.ItemsSource = data.Changes.Select(ChangeChip).ToList();
 
         if (data.Review is { Verdict: not ReviewVerdict.Pending } review)
-            ShowDone(review.Verdict, review.Feedback, closing: false);
+            ShowDone(review.Verdict, review.Feedback, review.DeleteEdit, closing: false);
 
         ShowAt(0);
         _cache.Prefetch(data.Edit.Frames.Take(24).Select(s => s.Path));
@@ -262,19 +262,20 @@ public partial class ReviewWindow : FluentWindow
 
     #region Decision
 
-    private void Decide(ReviewVerdict verdict, string? feedback = null)
+    /// <param name="delete">For a rejection: the server deletes the edit once the agent reads the verdict.</param>
+    private void Decide(ReviewVerdict verdict, string? feedback = null, bool delete = false)
     {
         if (_decided)
             return;
 
         var current = ReviewFiles.ReadReview(_data.Edit.Folder) ?? new ReviewRecord("", DateTime.Now);
-        ReviewFiles.WriteReview(_data.Edit.Folder, current with { Verdict = verdict, Feedback = feedback, Decided = DateTime.Now });
+        ReviewFiles.WriteReview(_data.Edit.Folder, current with { Verdict = verdict, Feedback = feedback, Decided = DateTime.Now, DeleteEdit = delete });
 
         Pause();
-        ShowDone(verdict, feedback, closing: true);
+        ShowDone(verdict, feedback, delete, closing: true);
     }
 
-    private void ShowDone(ReviewVerdict verdict, string? feedback, bool closing)
+    private void ShowDone(ReviewVerdict verdict, string? feedback, bool delete, bool closing)
     {
         _decided = true;
         DecisionGrid.Visibility = Visibility.Collapsed;
@@ -283,7 +284,8 @@ public partial class ReviewWindow : FluentWindow
         (DoneIcon.Symbol, DoneIcon.Foreground, DoneText.Text) = verdict switch
         {
             ReviewVerdict.Accepted => (SymbolRegular.CheckmarkCircle24, (Brush)FindResource("Agent.Brush"), $"Kept. {Capitalized(_agent)} continues with this edit."),
-            ReviewVerdict.Rejected => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), $"Discarded. {Capitalized(_agent)} will drop this edit."),
+            ReviewVerdict.Rejected when delete => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), "Discarded. The edit will be deleted."),
+            ReviewVerdict.Rejected => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), $"Discarded. {Capitalized(_agent)} drops it, its files stay in your recordings."),
             _ => (SymbolRegular.Sparkle24, (Brush)FindResource("Agent.Brush"), $"Sent to {_agent}: “{feedback}”")
         };
 
@@ -303,7 +305,16 @@ public partial class ReviewWindow : FluentWindow
 
     private void Keep_Click(object sender, RoutedEventArgs e) => Decide(ReviewVerdict.Accepted);
 
-    private void Discard_Click(object sender, RoutedEventArgs e) => Decide(ReviewVerdict.Rejected);
+    private void Discard_Click(object sender, RoutedEventArgs e) => Decide(ReviewVerdict.Rejected, delete: true);
+
+    private void DiscardKeep_Click(object sender, RoutedEventArgs e) => Decide(ReviewVerdict.Rejected);
+
+    private void DiscardMore_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = DiscardMoreButton.ContextMenu!;
+        menu.PlacementTarget = DiscardMoreButton;
+        menu.IsOpen = true;
+    }
 
     private void Send_Click(object sender, RoutedEventArgs e) => SendFeedback();
 
@@ -359,8 +370,12 @@ public partial class ReviewWindow : FluentWindow
                 FocusManager.SetFocusedElement(this, this);
                 break;
 
-            case Key.Escape:
+            case Key.Escape when Keyboard.Modifiers == ModifierKeys.Shift:
                 Decide(ReviewVerdict.Rejected);
+                break;
+
+            case Key.Escape:
+                Decide(ReviewVerdict.Rejected, delete: true);
                 break;
 
             case Key.Space when !typing:

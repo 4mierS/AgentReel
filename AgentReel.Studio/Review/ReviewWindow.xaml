@@ -144,13 +144,24 @@
                     </ui:Button>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="24,0,0,0">
-                        <ui:Button x:Name="DiscardButton" Height="40" Appearance="Secondary" Click="Discard_Click" ToolTip="Reject the edit (Esc)">
+                        <!--Discard deletes the edit; keeping its files is the rare case, so it sits behind the arrow.-->
+                        <ui:Button x:Name="DiscardButton" Height="40" Appearance="Secondary" Click="Discard_Click" ToolTip="Reject and delete the edit (Esc)">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Discard" VerticalAlignment="Center"/>
                                 <Border Style="{StaticResource Keycap}" Margin="8,0,0,0">
                                     <TextBlock Text="Esc" VerticalAlignment="Center"/>
                                 </Border>
                             </StackPanel>
+                        </ui:Button>
+                        <ui:Button x:Name="DiscardMoreButton" Height="40" Width="32" Padding="0" Margin="2,0,0,0" Appearance="Secondary" Click="DiscardMore_Click"
+                                   ToolTip="More ways to discard">
+                            <ui:SymbolIcon Symbol="ChevronDown20" FontSize="14"/>
+                            <ui:Button.ContextMenu>
+                                <ContextMenu Placement="Top">
+                                    <MenuItem Header="Discard and delete the edit" InputGestureText="Esc" Click="Discard_Click"/>
+                                    <MenuItem Header="Discard, but keep its files" InputGestureText="Shift+Esc" Click="DiscardKeep_Click"/>
+                                </ContextMenu>
+                            </ui:Button.ContextMenu>
                         </ui:Button>
                         <ui:Button x:Name="KeepButton" Height="40" Margin="8,0,0,0" Appearance="Primary" Click="Keep_Click" ToolTip="Keep the edit (Ctrl+Enter)">
                             <StackPanel Orientation="Horizontal">

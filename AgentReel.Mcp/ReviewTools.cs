@@ -46,7 +46,7 @@ public sealed class ReviewTools(RecordingSession session)
         return new ReviewInfo(id, edit.SourceId, "pending", null);
     }
 
-    [McpServerTool(Name = "get_review", ReadOnly = true), Description("The user's answer to request_review: pending, accepted (keep the edit), rejected (the user does not want it; delete it with delete_recording unless the user says otherwise) or feedback (make a new edit of the original that follows the feedback, then request a review again). Waits up to waitSeconds for an answer.")]
+    [McpServerTool(Name = "get_review"), Description("The user's answer to request_review: pending, accepted (keep the edit), rejected (the user does not want it) or feedback (make a new edit of the original that follows the feedback, then request a review again). For rejected, the user also chose whether to delete the edit: deleted=true means it is already gone, deleted=false means the user keeps its files, so do not delete it. Waits up to waitSeconds for an answer.")]
     public async Task<ReviewInfo> GetReview(
         [Description("Recording id of the edit. Default: the latest recording.")] string? recordingId = null,
         [Description("Seconds to wait for the user's answer, 0 to 300. 0 returns at once.")] int waitSeconds = 60,
@@ -64,10 +64,33 @@ public sealed class ReviewTools(RecordingSession session)
         {
             var review = ReviewFiles.ReadReview(project.FullPath) ?? throw new McpException($"No review was requested for '{id}'. Call request_review first.");
 
+            if (review.Verdict == ReviewVerdict.Rejected && review.DeleteEdit)
+                return new ReviewInfo(id, source, "rejected", review.Feedback, await DeleteAsync(id, cancellationToken));
+
             if (review.Verdict != ReviewVerdict.Pending || DateTime.UtcNow >= until)
                 return new ReviewInfo(id, source, review.Verdict.ToString().ToLowerInvariant(), review.Feedback);
 
             await Task.Delay(PollInterval, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Deletes a rejected edit as the user asked. Studio may still be decoding a frame while it closes, so a locked file
+    /// gets a few retries.
+    /// </summary>
+    private async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await session.DeleteAsync(id);
+                return true;
+            }
+            catch (IOException) when (attempt < 5)
+            {
+                await Task.Delay(400, cancellationToken);
+            }
         }
     }
 
@@ -100,4 +123,5 @@ public sealed class ReviewTools(RecordingSession session)
 }
 
 /// <param name="Verdict">pending, accepted, rejected or feedback.</param>
-public sealed record ReviewInfo(string RecordingId, string? SourceId, string Verdict, string? Feedback);
+/// <param name="Deleted">The rejected edit was deleted, as the user chose.</param>
+public sealed record ReviewInfo(string RecordingId, string? SourceId, string Verdict, string? Feedback, bool Deleted = false);

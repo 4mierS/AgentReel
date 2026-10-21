@@ -1,4 +1,6 @@
+using System.IO;
 using System.Windows;
+using AgentReel.Review;
 using Microsoft.Extensions.Logging.Abstractions;
 using ScreenToGif.Core.Capture;
 using ScreenToGif.Model;
@@ -70,6 +72,36 @@ public sealed class RecordingSessionTests
         {
             active.Project.ReleaseMutex();
             await session.DeleteAsync(active.Id);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_rejected_edit_is_deleted_only_if_the_user_chose_so(bool delete)
+    {
+        var session = new RecordingSession(new FakeCapture(), NullLogger<RecordingSession>.Instance);
+        var target = new CaptureTarget(CaptureTargetKind.Window, IntPtr.Zero, "Fake", new Int32Rect(0, 0, 10, 10));
+
+        var active = await session.StartAsync(new CaptureOptions(target), TimeSpan.FromMinutes(1));
+        var project = (await session.StopAsync()).Project;
+
+        try
+        {
+            ReviewFiles.WriteReview(project.FullPath, new ReviewRecord("summary", DateTime.Now, ReviewVerdict.Rejected, DeleteEdit: delete));
+
+            var review = await new ReviewTools(session).GetReview(active.Id, 0);
+
+            Assert.Equal("rejected", review.Verdict);
+            Assert.Equal(delete, review.Deleted);
+            Assert.Equal(!delete, Directory.Exists(project.FullPath));
+        }
+        finally
+        {
+            active.Project.ReleaseMutex();
+
+            if (Directory.Exists(project.FullPath))
+                await session.DeleteAsync(active.Id);
         }
     }
 

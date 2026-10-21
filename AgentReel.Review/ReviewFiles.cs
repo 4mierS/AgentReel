@@ -36,7 +36,8 @@ public enum ReviewVerdict
 /// <param name="Summary">What the agent changed and why, shown above the edit.</param>
 /// <param name="Feedback">What the user wants changed, for <see cref="ReviewVerdict.Feedback"/>.</param>
 /// <param name="Agent">The name of the agent that asked, like "Claude", null if unknown.</param>
-public sealed record ReviewRecord(string Summary, DateTime Requested, ReviewVerdict Verdict = ReviewVerdict.Pending, string? Feedback = null, DateTime? Decided = null, string? Agent = null);
+/// <param name="DeleteEdit">For <see cref="ReviewVerdict.Rejected"/>: the user wants the edit deleted, not just dropped.</param>
+public sealed record ReviewRecord(string Summary, DateTime Requested, ReviewVerdict Verdict = ReviewVerdict.Pending, string? Feedback = null, DateTime? Decided = null, string? Agent = null, bool DeleteEdit = false);
 
 public static class ReviewFiles
 {
