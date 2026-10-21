@@ -21,7 +21,7 @@ public sealed class EditTools(RecordingSession session)
 {
     [McpServerTool(Name = "trim"), Description("Keeps only the time range startMs to endMs of a recording, frame accurate. Saves the result as a new recording and returns its id; the original stays unchanged. Find the range with get_contact_sheet first.")]
     public async Task<RecordingInfo> Trim(
-        [Description("Recording id. Default: the latest recording.")] string? recordingId = null,
+        [Description("Recording id. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null,
         [Description("Start of the part to keep, in milliseconds from the start.")] int startMs = 0,
         [Description("End of the part to keep, in milliseconds from the start. Default: the end of the recording.")] int? endMs = null)
     {
@@ -35,7 +35,7 @@ public sealed class EditTools(RecordingSession session)
 
     [McpServerTool(Name = "optimize"), Description("Makes a recording shorter: folds repeated frames and short flickers that return to the previous image (a blinking caret) into one hold, cuts long idle holds such as waiting for an agent or a page load, and can speed everything up. Saves the result as a new recording; the original stays unchanged. The result lists every shortened pause, so check them with get_contact_sheet.")]
     public async Task<OptimizeInfo> Optimize(
-        [Description("Recording id. Default: the latest recording.")] string? recordingId = null,
+        [Description("Recording id. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null,
         [Description("Fold A-B-A flickers whose middle frame shows at most this many milliseconds. 0 folds only exact repeats.")] int maxFlickerMs = 1000,
         [Description("No frame is held longer than this many milliseconds, after the speed change. 0 keeps every pause.")] int maxPauseMs = 1500,
         [Description("Playback speed factor, 0.25 to 8. 2 plays twice as fast.")] double speed = 1,
@@ -70,7 +70,7 @@ public sealed class EditTools(RecordingSession session)
     [McpServerTool(Name = "add_caption"), Description("Burns a text caption into the frames shown from startMs to endMs. Saves the result as a new recording; the original stays unchanged. Check the result with get_preview.")]
     public async Task<RecordingInfo> AddCaption(
         [Description("The caption. Long text wraps, line breaks are kept.")] string text,
-        [Description("Recording id. Default: the latest recording.")] string? recordingId = null,
+        [Description("Recording id. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null,
         [Description("Start of the caption, in milliseconds from the start.")] int startMs = 0,
         [Description("End of the caption, in milliseconds from the start. Default: the end of the recording.")] int? endMs = null,
         [Description("One of: top, center, bottom.")] string position = "bottom",
@@ -94,7 +94,7 @@ public sealed class EditTools(RecordingSession session)
         [Description("Top edge of the area, in pixels of the recording.")] int y,
         [Description("Width of the area in pixels.")] int width,
         [Description("Height of the area in pixels.")] int height,
-        [Description("Recording id. Default: the latest recording.")] string? recordingId = null,
+        [Description("Recording id. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null,
         [Description("Start of the highlight, in milliseconds from the start.")] int startMs = 0,
         [Description("End of the highlight, in milliseconds from the start. Default: the end of the recording.")] int? endMs = null,
         [Description("One of: rectangle, ellipse.")] string shape = "rectangle",
@@ -122,7 +122,7 @@ public sealed class EditTools(RecordingSession session)
 
     [McpServerTool(Name = "get_contact_sheet", ReadOnly = true), Description("Returns one PNG with evenly spaced frames of a recording in a grid, each labeled with its frame index and time, plus the same list as text. Use it to see a whole recording at once and to find the times for trim; zoom in with startMs/endMs or a single frame with get_preview.")]
     public IEnumerable<ContentBlock> GetContactSheet(
-        [Description("Recording id. Default: the latest recording.")] string? recordingId = null,
+        [Description("Recording id. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null,
         [Description("Number of frames to show, 1 to 48. Fewer are shown if the range has fewer distinct frames.")] int count = 12,
         [Description("Tiles per row.")] int columns = 4,
         [Description("Width of each tile in pixels, 80 to 640.")] int tileWidth = 320,

@@ -21,7 +21,7 @@ public sealed class ReviewTools(RecordingSession session)
     public ReviewInfo RequestReview(
         McpServer server,
         [Description("What you changed and why, in one to three short sentences, written for the user.")] string summary,
-        [Description("Recording id of the edit. Default: the latest recording.")] string? recordingId = null)
+        [Description("Recording id of the edit. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null)
     {
         if (string.IsNullOrWhiteSpace(summary))
             throw new McpException("summary must not be empty.");
@@ -48,7 +48,7 @@ public sealed class ReviewTools(RecordingSession session)
 
     [McpServerTool(Name = "get_review"), Description("The user's answer to request_review: pending, accepted (keep the edit), rejected (the user does not want it) or feedback (make a new edit of the original that follows the feedback, then request a review again). For rejected, the user also chose whether to delete the edit: deleted=true means it is already gone, deleted=false means the user keeps its files, so do not delete it. Waits up to waitSeconds for an answer.")]
     public async Task<ReviewInfo> GetReview(
-        [Description("Recording id of the edit. Default: the latest recording.")] string? recordingId = null,
+        [Description("Recording id of the edit. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null,
         [Description("Seconds to wait for the user's answer, 0 to 300. 0 returns at once.")] int waitSeconds = 60,
         CancellationToken cancellationToken = default)
     {

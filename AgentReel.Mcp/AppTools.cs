@@ -13,7 +13,7 @@ namespace AgentReel.Mcp;
 public sealed class AppTools(RecordingSession session)
 {
     [McpServerTool(Name = "open_in_editor"), Description("Opens a recording in the AgentReel editor on the user's desktop, so the user can review it, compare it with the original and finish it by hand. If the app is already running with 'single instance' enabled, the running app opens it. Edits the user makes there are not seen by this server, so open a recording when the agent is done with it.")]
-    public OpenedInfo OpenInEditor([Description("Recording id. Default: the latest recording.")] string? recordingId = null)
+    public OpenedInfo OpenInEditor([Description("Recording id. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null)
     {
         var project = session.Get(recordingId);
         var app = AppPath();

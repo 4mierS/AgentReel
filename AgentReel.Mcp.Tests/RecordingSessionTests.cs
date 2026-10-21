@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using AgentReel.Capture;
 using AgentReel.Review;
 using Microsoft.Extensions.Logging.Abstractions;
 using ScreenToGif.Core.Capture;
@@ -105,8 +106,38 @@ public sealed class RecordingSessionTests
         }
     }
 
+    [Fact]
+    public async Task A_recording_made_outside_the_server_is_the_latest()
+    {
+        var session = new RecordingSession(new FakeCapture(), NullLogger<RecordingSession>.Instance);
+        var target = new CaptureTarget(CaptureTargetKind.Window, IntPtr.Zero, "Fake", new Int32Rect(0, 0, 10, 10));
+
+        //Like AgentReel Studio does it, in its own process.
+        var studio = new FakeCapture();
+        var project = await ProjectRecording.StopAsync(studio, await ProjectRecording.StartAsync(studio, new CaptureOptions(target)));
+        var id = ProjectRecording.IdOf(project);
+
+        try
+        {
+            Assert.Equal(id, session.LatestId);
+            Assert.Equal(project.FullPath, session.Get(null).FullPath);
+
+            //Deleted by Studio: the server forgets it.
+            Directory.Delete(project.FullPath, true);
+
+            Assert.NotEqual(id, session.LatestId);
+        }
+        finally
+        {
+            if (Directory.Exists(project.FullPath))
+                Directory.Delete(project.FullPath, true);
+        }
+    }
+
     private sealed class FakeCapture : ICaptureService
     {
+        private string _folder = "";
+
         public bool IsRecording { get; private set; }
 
         public IReadOnlyList<CaptureTarget> ListTargets() => [];
@@ -114,6 +145,7 @@ public sealed class RecordingSessionTests
         public Task StartAsync(CaptureOptions options, string folder, CancellationToken cancellationToken = default)
         {
             IsRecording = true;
+            _folder = folder;
             return Task.CompletedTask;
         }
 
@@ -122,7 +154,11 @@ public sealed class RecordingSessionTests
         public Task<CaptureResult> StopAsync()
         {
             IsRecording = false;
-            return Task.FromResult(new CaptureResult(new List<FrameInfo>(), 10, 10, 96));
+
+            //A recording without frames is thrown away, so there is one (its content does not matter here).
+            var path = Path.Combine(_folder, "0.png");
+            File.WriteAllBytes(path, [0]);
+            return Task.FromResult(new CaptureResult(new List<FrameInfo> { new(path, 100) }, 10, 10, 96));
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

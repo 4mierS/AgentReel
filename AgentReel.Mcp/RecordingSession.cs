@@ -1,4 +1,5 @@
 using System.IO;
+using AgentReel.Capture;
 using AgentReel.Mcp.Editing;
 using AgentReel.Review;
 using System.Runtime.Serialization.Json;
@@ -6,10 +7,8 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ScreenToGif.Core.Capture;
-using ScreenToGif.Domain.Enums;
 using ScreenToGif.Model;
 using ScreenToGif.Util;
-using ScreenToGif.Util.Settings;
 
 namespace AgentReel.Mcp;
 
@@ -25,7 +24,6 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
     private ActiveRecording? _active;
     private ProjectInfo? _autoStopped;
-    private string? _lastId;
 
     public IReadOnlyList<CaptureTarget> ListTargets() => capture.ListTargets();
 
@@ -40,20 +38,8 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
             _autoStopped = null;
 
-            //Creating the folder also takes the project's mutex, which keeps the app's cache cleanup away while recording.
-            var project = new ProjectInfo().CreateProjectFolder(ProjectByType.ScreenRecorder);
+            var project = await ProjectRecording.StartAsync(capture, options);
             var id = IdOf(project);
-
-            try
-            {
-                await capture.StartAsync(options, project.FullPath);
-            }
-            catch
-            {
-                project.ReleaseMutex();
-                Directory.Delete(project.FullPath, true);
-                throw;
-            }
 
             var autoStop = new CancellationTokenSource();
             _active = new ActiveRecording(id, project, options, DateTime.Now, maxDuration, autoStop);
@@ -116,9 +102,10 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     }
 
     /// <summary>
-    /// The latest finished recording or edit of this session, the default for the other tools.
+    /// The newest finished recording or edit, the default for the other tools. Includes recordings made outside
+    /// this server (AgentReel Studio, the app), so "my latest recording" means what the user just recorded.
     /// </summary>
-    public string? LatestId => _lastId;
+    public string? LatestId => List().FirstOrDefault() is { } project ? IdOf(project) : null;
 
     /// <summary>
     /// The recording that stopped itself at its maximum duration and was not picked up by stop_recording yet.
@@ -130,17 +117,25 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     /// </summary>
     public ProjectInfo Get(string? id)
     {
-        if (string.IsNullOrWhiteSpace(id) && _lastId == null && _active != null)
-            throw new McpException($"Recording '{_active.Id}' is still running. Call stop_recording first.");
-
         if (string.IsNullOrWhiteSpace(id))
-            id = _lastId ?? throw new McpException("There is no latest recording in this session. Record one with start_recording and stop_recording, or pass a recordingId from list_recordings.");
+        {
+            id = LatestId;
+
+            if (id == null && _active != null)
+                throw new McpException($"Recording '{_active.Id}' is still running. Call stop_recording first.");
+
+            if (id == null)
+                throw new McpException("There is no recording yet. Record one with start_recording and stop_recording.");
+        }
 
         if (_active != null && string.Equals(_active.Id, id, StringComparison.OrdinalIgnoreCase))
             throw new McpException($"Recording '{id}' is still running. Call stop_recording first.");
 
-        if (_recordings.TryGetValue(id, out var project))
+        //Studio or the user may have deleted it since.
+        if (_recordings.TryGetValue(id, out var project) && Directory.Exists(project.FullPath))
             return project;
+
+        _recordings.Remove(id);
 
         //Made before this server started, by an earlier run or by the app.
         project = Load(FolderOf(id)) ?? throw new McpException($"Unknown recording '{id}'. Call list_recordings for the ids.");
@@ -153,7 +148,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     /// </summary>
     public IReadOnlyList<ProjectInfo> List()
     {
-        var list = new Dictionary<string, ProjectInfo>(_recordings, StringComparer.OrdinalIgnoreCase);
+        var list = _recordings.Where(w => Directory.Exists(w.Value.FullPath)).ToDictionary(StringComparer.OrdinalIgnoreCase);
 
         if (Directory.Exists(RecordingFolder))
         {
@@ -187,9 +182,6 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
             Directory.Delete(project.FullPath, true);
 
             _recordings.Remove(id);
-
-            if (string.Equals(_lastId, id, StringComparison.OrdinalIgnoreCase))
-                _lastId = null;
 
             if (_autoStopped != null && IdOf(_autoStopped) == id)
                 _autoStopped = null;
@@ -270,7 +262,6 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
             var id = IdOf(project);
             _recordings[id] = project;
-            _lastId = id;
 
             logger.LogInformation("Recording {Id} derived from {Source}: {Count} frames", id, sourceId, project.Frames.Count);
             return project;
@@ -286,9 +277,9 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     /// </summary>
     public string? SourceOf(ProjectInfo project) => ReviewFiles.ReadEdit(project.FullPath)?.SourceId;
 
-    public static string IdOf(ProjectInfo project) => project.RelativePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    public static string IdOf(ProjectInfo project) => ProjectRecording.IdOf(project);
 
-    private static string RecordingFolder => Path.Combine(UserSettings.All.TemporaryFolderResolved, "ScreenToGif", "Recording");
+    private static string RecordingFolder => ProjectRecording.RecordingFolder;
 
     /// <summary>
     /// The folder of a recording id. Only direct subfolders of the recording folder, so an id cannot reach anything else.
@@ -355,20 +346,13 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
         _active = null;
         await active.AutoStop.CancelAsync();
 
-        var result = await capture.StopAsync();
-        var project = active.Project;
+        //Releases the mutex: it means "open in an editor", held by the server it would block the editor and delete_recording.
+        var project = await ProjectRecording.StopAsync(capture, active.Project);
 
-        project.Frames = result.Frames.ToList();
-        project.Width = result.Width;
-        project.Height = result.Height;
-        project.Dpi = result.Dpi;
-        project.Persist();
-
-        //The mutex means "open in an editor": held by the server, it would block the editor and delete_recording.
-        project.ReleaseMutex();
+        if (project.Frames.Count == 0)
+            throw new McpException($"Recording '{active.Id}' captured no frames, so it was deleted. Is the window minimized or hidden?");
 
         _recordings[active.Id] = project;
-        _lastId = active.Id;
 
         logger.LogInformation("Recording {Id} stopped: {Count} frames, {Width}x{Height}", active.Id, project.Frames.Count, project.Width, project.Height);
         return project;

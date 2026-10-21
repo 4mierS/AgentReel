@@ -106,7 +106,7 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
 
     [McpServerTool(Name = "export"), Description("Exports a finished recording to a file. Video formats and webp need FFmpeg (configured in the app, on PATH, or AGENTREEL_FFMPEG).")]
     public async Task<ExportInfo> Export(
-        [Description("Recording id from stop_recording. Default: the latest recording.")] string? recordingId = null,
+        [Description("Recording id from stop_recording. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null,
         [Description("One of: gif, apng, webp, mp4, webm, mkv, mov.")] string format = "gif",
         [Description("Full output file path. Default: Videos\\AgentReel\\<recording id>.<format>.")] string? outputPath = null,
         [Description("Replace the file if it already exists.")] bool overwrite = false,
