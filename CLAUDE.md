@@ -297,7 +297,6 @@ Plan (the new code still uses ScreenToGif for these):
 Merged 2026-10-21: Studio pro editor (`AgentReel.Studio/Editor/`, `AgentReel.Editing/EditDocument.cs` + `Clips.cs`:
 library with versions, stage, timeline, shorten/cut/caption/highlight, undo, save as version; `edit <folder>` argument;
 mouse gestures and shortcuts not runtime-tested), removal of uploads/feedback/`Secret.cs` from the legacy app.
-In flight: Privacy Shield prototype (`scan_privacy`, `redact`), own export, trademark check.
 
 Name and USP (2026-10-21, after research): "AgentReel" is taken in practice (agentreel.dev sells agent-session videos,
 npm `agentreel`, .com/.app/.dev registered) – working name **Glasstake** (not renamed in code yet; attorney clearance
