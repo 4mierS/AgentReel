@@ -232,7 +232,7 @@ Phase 5 progress (2026-10-21):
     so the review always compares with the original recording. `sourceId` now comes from `Edit.json` (was in memory).
   - MCP: `request_review(summary, recordingId)` writes a pending `Review.json` and starts Studio (`AGENTREEL_STUDIO`,
     else next to the server via project reference); `get_review(recordingId, waitSeconds)` polls for the verdict
-    (pending/accepted/rejected/feedback). Rejected edits are not deleted automatically; the agent calls delete_recording.
+    (pending/accepted/rejected/feedback).
   - Verified over stdio (Release): 17 s window recording → optimize → add_caption → trim → request_review → Studio
     showed the chain against the original (17.0 → 8.1 s, cut, two faster pauses, caption). Tests: 36/36 MCP
     (`EditChainTests`). `RecordingSessionTests.A_stopped_recording_is_not_marked_as_open_in_an_editor` failed once in a
@@ -250,9 +250,16 @@ Phase 5 progress (2026-10-21):
   "AgentReel", Authors "Amir", "Copyright © 2026 Amir", version 0.1.0, no MS-PL package license. ScreenToGif projects
   keep the upstream values.
 
+- Discard deletes the edit, or keeps its files (2026-10-21, Amir: "Kann man entscheiden"). Discard (Esc) = reject +
+  delete; the chevron menu next to it (or Shift+Esc) = reject, keep the files. Studio writes `deleteEdit` in
+  `Review.json`; `get_review` (no longer read-only) deletes the edit through `RecordingSession.DeleteAsync` (retries on
+  IOException) and returns `deleted: true`, so the server's in-memory cache stays consistent. Rejected: undo after
+  Discard (races with get_review polling), deletion by Studio (stale server cache), a persistent setting. Verified:
+  tests 43/43, menu and both verdicts in Studio via UI Automation.
+
 Next – START HERE:
-1. Decide with Amir which Studio window or flow comes next (e.g. one window from record to export), and whether
-   rejected edits should be deleted automatically.
+1. Plan the next Studio window with Amir (he left the choice to Claude): proposed one window from record to export
+   (record → agent edits → review → export), reusing `ICaptureService`, `ExportService` and the Edit/Review files.
 
 ## Roadmap
 
