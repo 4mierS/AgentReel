@@ -242,17 +242,16 @@ Phase 5 progress (2026-10-21):
     `request_review` takes `McpServer.ClientInfo`; `ReviewTools.AgentName` maps every name containing "claude"
     (claude-code, claude-ai) to "Claude", else title or name. Stored as `agent` in `Review.json`; Studio falls back to
     "Your agent". Verified over stdio with clientInfo `claude-code`; tests 41/41.
-- Open: `Directory.Build.props` stamps every assembly, also the new AgentReel ones, with Company/Copyright
-  "Nicke Manarin" and the ScreenToGif description; the AgentReel projects should get their own values.
 
 - Dogfooded over the rebuilt registered Debug server (2026-10-21): window recording 18 s → optimize (speed 1.5,
   6.4 s) → add_caption → request_review → Studio opened with "CLAUDE SUGGESTS" → Amir kept it, `get_review` returned
   `accepted`. Old test recordings deleted.
+- `Directory.Build.props` gives every `AgentReel.*` project its own metadata (2026-10-21, Amir): Company/Product
+  "AgentReel", Authors "Amir", "Copyright © 2026 Amir", version 0.1.0, no MS-PL package license. ScreenToGif projects
+  keep the upstream values.
 
 Next – START HERE:
-1. Give the AgentReel projects their own Company/Copyright/Description (`Directory.Build.props` stamps
-   "Nicke Manarin" and the ScreenToGif description on every assembly).
-2. Decide with Amir which Studio window or flow comes next (e.g. one window from record to export), and whether
+1. Decide with Amir which Studio window or flow comes next (e.g. one window from record to export), and whether
    rejected edits should be deleted automatically.
 
 ## Roadmap

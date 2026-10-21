@@ -15,4 +15,21 @@
     <Description>Screen, webcam and sketchboard recorder, with integrated editor!</Description>
     <CETCompat>false</CETCompat>
   </PropertyGroup>
+
+  <!-- New AgentReel code is not derived from ScreenToGif and carries its own metadata and license. -->
+  <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('AgentReel.'))">
+    <Version>0.1.0</Version>
+    <FileVersion>0.1.0</FileVersion>
+    <AssemblyVersion>0.1.0</AssemblyVersion>
+    <Company>AgentReel</Company>
+    <Authors>Amir</Authors>
+    <Product>AgentReel</Product>
+    <Copyright>Copyright © 2026 Amir</Copyright>
+    <PackageProjectUrl></PackageProjectUrl>
+    <PackageReadmeFile></PackageReadmeFile>
+    <RepositoryUrl>https://github.com/4mierS/AgentReel</RepositoryUrl>
+    <PackageTags></PackageTags>
+    <PackageLicenseExpression></PackageLicenseExpression>
+    <Description>AgentReel: screen recording and editing that AI agents drive over MCP.</Description>
+  </PropertyGroup>
 </Project>
