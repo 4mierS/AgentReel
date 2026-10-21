@@ -5,6 +5,7 @@ using ScreenToGif.ViewModel.ExportPresets;
 using ScreenToGif.ViewModel.ExportPresets.AnimatedImage.Apng;
 using ScreenToGif.ViewModel.ExportPresets.AnimatedImage.Gif;
 using ScreenToGif.ViewModel.ExportPresets.AnimatedImage.Webp;
+using ScreenToGif.ViewModel.ExportPresets.Video;
 using ScreenToGif.ViewModel.ExportPresets.Video.Mkv;
 using ScreenToGif.ViewModel.ExportPresets.Video.Mov;
 using ScreenToGif.ViewModel.ExportPresets.Video.Mp4;
@@ -46,6 +47,12 @@ internal static class ExportPresets
         preset.UploadFile = false;
         preset.SaveToClipboard = false;
         preset.ExecuteCustomCommands = false;
+
+        //Recordings end on long-held frames (idle screen). With passthrough/vfr, x264 B-frames leave the last DTS far
+        //behind its PTS, so the MP4 header claims a shorter duration than what plays. Constant framerate avoids that.
+        //Advanced mode uses the user's own command line, which is kept as is.
+        if (preset is VideoPreset { SettingsMode: VideoSettingsModes.Normal } video)
+            video.Vsync = Vsyncs.Cfr;
 
         return preset;
     }
