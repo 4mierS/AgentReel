@@ -429,7 +429,7 @@
         </Grid.RowDefinitions>
 
         <n:HideableTabControl Grid.Row="0" x:Name="RibbonTabControl" Effect="{StaticResource Shadow.Border.Tiny}" FontSize="13" IsTabStop="False" Focusable="False"
-                              OptionsCommand="{Binding Source={StaticResource AppViewModel}, Path=OpenOptions}" FeedbackCommand="{Binding Source={StaticResource AppViewModel}, Path=OpenFeedback}"
+                              OptionsCommand="{Binding Source={StaticResource AppViewModel}, Path=OpenOptions}"
                               TroubleshootCommand="{Binding Source={StaticResource AppViewModel}, Path=OpenTroubleshoot}" HelpCommand="{Binding Source={StaticResource AppViewModel}, Path=OpenHelp}"
                               DataContext="{Binding ElementName=FrameListView, Path=SelectedItem}">
 

@@ -247,10 +247,6 @@ public class NotificationBox : ItemsControl
             OutputFilename = item.OutputFilename,
             SavedToDisk = item.SavedToDisk,
 
-            Uploaded = item.Uploaded,
-            UploadLink = item.UploadLink,
-            UploadLinkDisplay = item.UploadLinkDisplay,
-            DeletionLink = item.DeletionLink,
             Exception = item.Exception,
 
             CommandExecuted = item.CommandExecuted,
@@ -263,7 +259,6 @@ public class NotificationBox : ItemsControl
 
             TimeToAnalyze = item.TimeToAnalyze,
             TimeToEncode = item.TimeToEncode,
-            TimeToUpload = item.TimeToUpload,
             TimeToCopy = item.TimeToCopy,
             TimeToExecute = item.TimeToExecute,
         };
@@ -308,10 +303,6 @@ public class NotificationBox : ItemsControl
                 OutputFilename = item.OutputFilename,
                 SavedToDisk = item.SavedToDisk,
 
-                Uploaded = item.Uploaded,
-                UploadLink = item.UploadLink,
-                UploadLinkDisplay = item.UploadLinkDisplay,
-                DeletionLink = item.DeletionLink,
                 Exception = item.Exception,
 
                 CommandExecuted = item.CommandExecuted,
@@ -324,7 +315,6 @@ public class NotificationBox : ItemsControl
 
                 TimeToAnalyze = item.TimeToAnalyze,
                 TimeToEncode = item.TimeToEncode,
-                TimeToUpload = item.TimeToUpload,
                 TimeToCopy = item.TimeToCopy,
                 TimeToExecute = item.TimeToExecute,
             };
@@ -372,10 +362,6 @@ public class NotificationBox : ItemsControl
             actual.SavedToDisk = item.SavedToDisk;
             actual.Exception = item.Exception;
 
-            actual.Uploaded = item.Uploaded;
-            actual.UploadLink = item.UploadLink;
-            actual.UploadLinkDisplay = item.UploadLinkDisplay;
-            actual.DeletionLink = item.DeletionLink;
 
             actual.CommandExecuted = item.CommandExecuted;
             actual.Command = item.Command;
@@ -387,7 +373,6 @@ public class NotificationBox : ItemsControl
 
             actual.TimeToAnalyze = item.TimeToAnalyze;
             actual.TimeToEncode = item.TimeToEncode;
-            actual.TimeToUpload = item.TimeToUpload;
             actual.TimeToCopy = item.TimeToCopy;
             actual.TimeToExecute = item.TimeToExecute;
         }

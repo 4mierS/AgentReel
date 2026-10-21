@@ -461,12 +461,6 @@
         </RoutedUICommand.InputGestures>
     </RoutedUICommand>
 
-    <!--Upload-->
-    <RoutedUICommand x:Key="Command.ViewHistory" Text="S.Command.ViewHistory">
-        <RoutedUICommand.InputGestures>
-            <KeyGesture>Ctrl + H</KeyGesture>
-        </RoutedUICommand.InputGestures>
-    </RoutedUICommand>
 
     <!--Localization-->
     <RoutedUICommand x:Key="Command.MoveUp" Text="S.Command.MoveUp">

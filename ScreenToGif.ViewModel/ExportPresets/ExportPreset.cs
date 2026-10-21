@@ -27,7 +27,6 @@ public abstract class ExportPreset : BindableBase, IExportPreset
     private bool _isEncoderOptionsExpanded = true;
     private bool _isPartialExportExpanded = true;
     private bool _isExportOptionsExpanded = false;
-    private bool _isUploadExpanded = true;
     private bool _isOutputExpanded = true;
     private bool _exportPartially;
     private PartialExportModes _partialExport = PartialExportModes.Selection;
@@ -39,8 +38,6 @@ public abstract class ExportPreset : BindableBase, IExportPreset
     private bool _pickLocation = true;
     private OverwriteModes _overwriteMode;
     private bool _exportAsProjectToo;
-    private bool _uploadFile;
-    private string _uploadService;
     private bool _saveToClipboard;
     private CopyModes _copyType = CopyModes.File;
     private bool _executeCustomCommands;
@@ -179,12 +176,6 @@ public abstract class ExportPreset : BindableBase, IExportPreset
         set => SetProperty(ref _isOutputExpanded, value);
     }
 
-    public bool IsUploadExpanded
-    {
-        get => _isUploadExpanded;
-        set => SetProperty(ref _isUploadExpanded, value);
-    }
-
 
     public bool ExportPartially
     {
@@ -255,18 +246,6 @@ public abstract class ExportPreset : BindableBase, IExportPreset
     {
         get => _exportAsProjectToo;
         set => SetProperty(ref _exportAsProjectToo, value);
-    }
-
-    public bool UploadFile
-    {
-        get => _uploadFile;
-        set => SetProperty(ref _uploadFile, value);
-    }
-
-    public string UploadService
-    {
-        get => _uploadService;
-        set => SetProperty(ref _uploadService, value);
     }
 
     public bool SaveToClipboard
@@ -364,7 +343,7 @@ public abstract class ExportPreset : BindableBase, IExportPreset
 
     public virtual Task<ValidatedEventArgs> IsValid()
     {
-        if (!PickLocation && !UploadFile && !SaveToClipboard)
+        if (!PickLocation && !SaveToClipboard)
             return Task.FromResult(new ValidatedEventArgs("S.SaveAs.Warning.Type", StatusReasons.InvalidState));
 
         if (PickLocation)
@@ -394,14 +373,6 @@ public abstract class ExportPreset : BindableBase, IExportPreset
             if (ResolvedFilename.ToCharArray().Any(x => Path.GetInvalidFileNameChars().Contains(x)))
                 return Task.FromResult(new ValidatedEventArgs("S.SaveAs.Warning.Filename.Invalid", StatusReasons.InvalidState));
         }
-
-        //Upload set, but no service selected.
-        if (UploadFile && string.IsNullOrWhiteSpace(UploadService))
-            return Task.FromResult(new ValidatedEventArgs("S.SaveAs.Warning.Upload.None", StatusReasons.InvalidState));
-
-        //Copy link to clipboard set, but no upload set.
-        if (SaveToClipboard && CopyType == CopyModes.Link && !UploadFile)
-            return Task.FromResult(new ValidatedEventArgs("S.SaveAs.Warning.Copy.Link", StatusReasons.InvalidState));
 
         //Custom command not set.
         if (ExecuteCustomCommands && string.IsNullOrWhiteSpace(CustomCommands))

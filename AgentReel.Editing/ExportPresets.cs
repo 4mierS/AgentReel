@@ -43,7 +43,6 @@ public static class ExportPresets
         preset.ExportPartially = false;
         preset.PickLocation = true;
         preset.ExportAsProjectToo = false;
-        preset.UploadFile = false;
         preset.SaveToClipboard = false;
         preset.ExecuteCustomCommands = false;
 

@@ -22,7 +22,6 @@ using ScreenToGif.ViewModel.ExportPresets.Video.Mkv;
 using ScreenToGif.ViewModel.ExportPresets.Video.Mov;
 using ScreenToGif.ViewModel.ExportPresets.Video.Mp4;
 using ScreenToGif.ViewModel.ExportPresets.Video.Webm;
-using ScreenToGif.ViewModel.UploadPresets;
 using ScreenToGif.Windows;
 using ScreenToGif.Windows.Other;
 using System;
@@ -320,10 +319,9 @@ public partial class ExportPanel : UserControl, IPanel
         }
 
         SaveAsProjectTooCheckBox.Visibility = type != ExportFormats.Stg ? Visibility.Visible : Visibility.Collapsed;
-        UploadFileCheckBox.Visibility = type != ExportFormats.Bmp && type != ExportFormats.Jpeg && type != ExportFormats.Png ? Visibility.Visible : Visibility.Collapsed;
         CopyFileCheckBox.Visibility = type != ExportFormats.Bmp && type != ExportFormats.Jpeg && type != ExportFormats.Png ? Visibility.Visible : Visibility.Collapsed;
         CustomCommandsCheckBox.Visibility = type != ExportFormats.Bmp && type != ExportFormats.Jpeg && type != ExportFormats.Png ? Visibility.Visible : Visibility.Collapsed;
-        SaveFileCheckBox.IsEnabled = UploadFileCheckBox.Visibility == Visibility.Visible || CopyFileCheckBox.Visibility == Visibility.Visible;
+        SaveFileCheckBox.IsEnabled = CopyFileCheckBox.Visibility == Visibility.Visible;
     }
 
     private void LoadPresets(ExportFormats type, ExportPreset toLoad = null, bool firstLoad = false)
@@ -362,34 +360,6 @@ public partial class ExportPanel : UserControl, IPanel
 
         if (PresetComboBox.SelectedItem == null) //Why?
             PresetComboBox.SelectedItem = toLoad ?? list.FirstOrDefault(f => f.IsSelected) ?? list.FirstOrDefault();
-    }
-
-    private void LoadUploadPresets(ExportPreset preset, UploadPreset uploadPreset = null)
-    {
-        var type = (preset.Extension ?? preset.DefaultExtension) == ".zip" ? ExportFormats.Zip : preset.Type;
-        var list = UserSettings.All.UploadPresets?.OfType<UploadPreset>().Where(w => w.AllowedTypes.Count == 0 || w.AllowedTypes.Contains(type)).ToList() ?? new List<UploadPreset>();
-
-        //No need to adding grouping when there's no item to be displayed.
-        if (list.Count == 0)
-        {
-            UploadPresetComboBox.ItemsSource = null;
-            UploadPresetComboBox.ItemsSource = list;
-            return;
-        }
-
-        //Groups by authentication mode.
-        var lcv = new ListCollectionView(list.OrderBy(o => o.IsAnonymous).ThenBy(t => t.Title).ToList());
-        lcv.GroupDescriptions?.Add(new PropertyGroupDescription("Mode"));
-
-        var previous = preset.UploadService;
-
-        UploadPresetComboBox.IsEnabled = true;
-        UploadPresetComboBox.ItemsSource = lcv;
-
-        if (uploadPreset != null && list.Contains(uploadPreset))
-            preset.UploadService = uploadPreset.Title;
-        else
-            preset.UploadService = previous;
     }
 
     private IEnumerable<ExportPreset> GeneratePresets(ExportFormats type, ICollection<ExportPreset> presets)
@@ -846,20 +816,6 @@ public partial class ExportPanel : UserControl, IPanel
             }
         }
 
-        if (CurrentPreset.UploadFile)
-        {
-            var presetType = CurrentPreset.Extension == ".zip" ? ExportFormats.Zip : CurrentPreset.Type;
-            var upload = UserSettings.All.UploadPresets.OfType<UploadPreset>().FirstOrDefault(f => (f.AllowedTypes.Count == 0 || f.AllowedTypes.Contains(presetType)) && f.Title == CurrentPreset.UploadService);
-
-            args = await PresetExtensions.IsValid(upload);
-
-            if (args != null)
-            {
-                RaiseValidatedEvent(args);
-                return false;
-            }
-        }
-
         if (CurrentPreset.ExportPartially)
         {
             if (CurrentPreset.PartialExport == PartialExportModes.Selection && SelectionCount < 1)
@@ -1009,9 +965,6 @@ public partial class ExportPanel : UserControl, IPanel
         selected.PartialExportTimeEnd = TotalTime;
         selected.PartialExportFrameExpression = $"0 - {FrameCount - 1}";
 
-        //Select the upload preset.
-        LoadUploadPresets(selected);
-
         if (string.IsNullOrWhiteSpace(selected.Extension))
             selected.Extension = selected.DefaultExtension;
 
@@ -1102,8 +1055,6 @@ public partial class ExportPanel : UserControl, IPanel
             {
                 if (CurrentPreset.PickLocation)
                     FilenameTextBox.Focus();
-                else if (CurrentPreset.UploadFile)
-                    UploadPresetComboBox.Focus();
             }, DispatcherPriority.Loaded);
         }
     }
@@ -1416,17 +1367,6 @@ public partial class ExportPanel : UserControl, IPanel
             FfmpegAvifCodecComboBox.SelectedIndex = 0;
     }
 
-    private void ImagesZipCheckBox_CheckedChanged(object sender, RoutedEventArgs e)
-    {
-        if (!IsLoaded)
-            return;
-
-        if (PresetComboBox.SelectedItem is not ExportPreset preset)
-            return;
-
-        LoadUploadPresets(preset);
-    }
-
     private void ChooseLocation_Click(object sender, RoutedEventArgs e)
     {
         if (PresetComboBox.SelectedItem is not ExportPreset preset)
@@ -1691,89 +1631,6 @@ public partial class ExportPanel : UserControl, IPanel
         {
             LogWriter.Log(ex, $"Error while trying to navigate to a given URI: '{e?.Uri?.AbsoluteUri}'.");
         }
-    }
-
-    private void UploadFileCheckBox_Unchecked(object sender, RoutedEventArgs e)
-    {
-        if (CurrentPreset.CopyType == CopyModes.Link)
-            CurrentPreset.CopyType = CopyModes.File;
-    }
-
-    private void AddUploadPreset_Click(object sender, RoutedEventArgs e)
-    {
-        if (PresetComboBox.SelectedItem is not ExportPreset preset)
-            return;
-
-        var upload = new Upload { Type = preset.Extension == ".zip" ? ExportFormats.Zip : preset.Type };
-        var result = upload.ShowDialog();
-
-        if (result != true)
-            return;
-
-        UserSettings.All.UploadPresets.Add(upload.CurrentPreset);
-        UserSettings.Save();
-
-        LoadUploadPresets(preset, upload.CurrentPreset);
-    }
-
-    private void EditUploadPreset_Click(object sender, RoutedEventArgs e)
-    {
-        if (PresetComboBox.SelectedItem is not ExportPreset preset)
-            return;
-
-        if (UploadPresetComboBox.SelectedItem is not UploadPreset selected)
-            return;
-
-        var upload = new Upload { CurrentPreset = selected.ShallowCopy(), IsEditing = true };
-        var result = upload.ShowDialog();
-
-        if (result != true)
-            return;
-
-        UserSettings.All.UploadPresets.Remove(selected);
-        UserSettings.All.UploadPresets.Add(upload.CurrentPreset);
-        UserSettings.Save();
-
-        //Update the upload preset in all export presets.
-        if (selected.Title != upload.CurrentPreset.Title)
-        {
-            foreach (var exportPreset in UserSettings.All.ExportPresets.OfType<ExportPreset>().Where(w => w.UploadService == selected.Title))
-                exportPreset.UploadService = upload.CurrentPreset.Title;
-        }
-
-        LoadUploadPresets(preset, upload.CurrentPreset);
-    }
-
-    private void HistoryUploadPreset_Click(object sender, RoutedEventArgs e)
-    {
-        if (UploadPresetComboBox.SelectedItem is not UploadPreset selected)
-            return;
-
-        var history = new UploadHistory
-        {
-            CurrentPreset = selected
-        };
-        history.ShowDialog();
-    }
-
-    private void RemoveUploadPreset_Click(object sender, RoutedEventArgs e)
-    {
-        if (PresetComboBox.SelectedItem is not ExportPreset preset)
-            return;
-
-        //Ask if the user really wants to remove the preset.
-        if (UploadPresetComboBox.SelectedItem is not UploadPreset selected || !Dialog.Ask(LocalizationHelper.Get("S.SaveAs.Upload.Ask.Delete.Title"), LocalizationHelper.Get("S.SaveAs.Upload.Ask.Delete.Instruction"),
-                LocalizationHelper.Get("S.SaveAs.Upload.Ask.Delete.Message")))
-            return;
-
-        UserSettings.All.UploadPresets.Remove(selected);
-        UserSettings.Save();
-
-        //Remove the upload preset from all export presets.
-        foreach (var exportPreset in UserSettings.All.ExportPresets.OfType<ExportPreset>().Where(w => w.UploadService == selected.Title))
-            exportPreset.UploadService = null;
-
-        LoadUploadPresets(preset);
     }
 
     private void ExportPanel_Unloaded(object sender, RoutedEventArgs e)

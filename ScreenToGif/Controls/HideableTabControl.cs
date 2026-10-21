@@ -32,8 +32,6 @@ public class HideableTabControl : TabControl
 
     public static DependencyProperty OptionsCommandProperty = DependencyProperty.Register("OptionsCommand", typeof(ICommand), typeof(HideableTabControl), new PropertyMetadata(null));
 
-    public static DependencyProperty FeedbackCommandProperty = DependencyProperty.Register("FeedbackCommand", typeof(ICommand), typeof(HideableTabControl), new PropertyMetadata(null));
-
     public static DependencyProperty TroubleshootCommandProperty = DependencyProperty.Register("TroubleshootCommand", typeof(ICommand), typeof(HideableTabControl), new PropertyMetadata(null));
 
     public static DependencyProperty HelpCommandProperty = DependencyProperty.Register("HelpCommand", typeof(ICommand), typeof(HideableTabControl), new PropertyMetadata(null));
@@ -46,12 +44,6 @@ public class HideableTabControl : TabControl
     {
         get => (ICommand)GetValue(OptionsCommandProperty);
         set => SetValue(OptionsCommandProperty, value);
-    }
-
-    public ICommand FeedbackCommand
-    {
-        get => (ICommand)GetValue(FeedbackCommandProperty);
-        set => SetValue(FeedbackCommandProperty, value);
     }
 
     public ICommand TroubleshootCommand

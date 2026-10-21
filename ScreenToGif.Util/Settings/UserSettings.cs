@@ -693,16 +693,6 @@ public class UserSettings : INotifyPropertyChanged
 
     #endregion
 
-    #region Feedback
-
-    public string LatestFeedbackEmail
-    {
-        get => (string)GetValue();
-        set => SetValue(value);
-    }
-
-    #endregion
-
 
     #region Options • Application
 
@@ -1527,13 +1517,6 @@ public class UserSettings : INotifyPropertyChanged
     public string ProxyPassword
     {
         get => (string)GetValue();
-        set => SetValue(value);
-    }
-
-    //Presets.
-    public ArrayList UploadPresets
-    {
-        get => (ArrayList)GetValue();
         set => SetValue(value);
     }
 

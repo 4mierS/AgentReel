@@ -20,9 +20,8 @@ public partial class Options : INotification
     internal const int ShortcutsIndex = 4;
     internal const int LanguageIndex = 5;
     internal const int StorageIndex = 6;
-    internal const int UploadIndex = 7;
-    internal const int PluginsIndex = 8;
-    internal const int AboutIndex = 9;
+    internal const int PluginsIndex = 7;
+    internal const int AboutIndex = 8;
     
     public Options()
     {
@@ -107,10 +106,6 @@ public partial class Options : INotification
 
             case StorageIndex:
                 Frame.Navigate(new StorageSettings());
-                break;
-
-            case UploadIndex:
-                Frame.Navigate(new UploadSettings());
                 break;
 
             case PluginsIndex:

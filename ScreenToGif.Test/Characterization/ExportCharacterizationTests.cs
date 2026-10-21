@@ -157,7 +157,6 @@ namespace ScreenToGif.Test.Characterization
             preset.OutputFilename = name;
             preset.ResolvedFilename = name;
             preset.Extension = preset.DefaultExtension;
-            preset.UploadFile = false;
             preset.SaveToClipboard = false;
             preset.ExecuteCustomCommands = false;
 

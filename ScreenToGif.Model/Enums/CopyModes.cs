@@ -7,6 +7,5 @@ public enum CopyModes
 {
     File,
     FolderPath,
-    FilePath,
-    Link
+    FilePath
 }

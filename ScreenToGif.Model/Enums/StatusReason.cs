@@ -7,7 +7,6 @@ namespace ScreenToGif.Domain.Enums
         InvalidState,
         FileAlreadyExists,
         MissingFfmpeg,
-        MissingGifski,
-        UploadServiceUnauthorized
+        MissingGifski
     }
 }

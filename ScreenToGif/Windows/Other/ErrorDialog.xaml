@@ -53,8 +53,6 @@
 
             <n:ExtendedButton Grid.Column="3" x:Name="DetailsButton" Text="{DynamicResource S.Encoder.Details}" Icon="{StaticResource Vector.Application}" 
                               ContentWidth="18" ContentHeight="18" Padding="5,0" MinWidth="90" Margin="5" Click="DetailsButton_Click"/>
-            <n:ExtendedButton Grid.Column="4" x:Name="SendButton" Text="{DynamicResource S.ErrorDialog.Send}" Icon="{StaticResource Vector.Email}" 
-                              ContentWidth="18" ContentHeight="18" Padding="5,0" MinWidth="90" Margin="5" Click="SendButton_Click"/>
         </Grid>
     </Grid>
 </n:ExWindow>

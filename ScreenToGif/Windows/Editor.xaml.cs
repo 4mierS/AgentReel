@@ -5426,7 +5426,6 @@ namespace ScreenToGif.Windows
                 projectPreset.ResolvedFilename = preset.ResolvedFilename;
                 projectPreset.ExportPartially = false;
                 projectPreset.PickLocation = true;
-                projectPreset.UploadFile = false;
                 projectPreset.SaveToClipboard = false;
                 projectPreset.ExecuteCustomCommands = false;
 
