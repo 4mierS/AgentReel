@@ -75,6 +75,68 @@ public static class Timeline
         return times.Select(t => FrameAt(frames, t)).Distinct().ToList();
     }
 
+    /// <summary>
+    /// Folds frames that add nothing into the frame before them, which keeps its image and gets their delays, so the
+    /// duration does not change. Folded are exact repeats (A A) and short flickers that return to the previous image
+    /// (A B A with B shown at most <paramref name="maxFlickerMs"/>), such as a blinking caret. Real changes like typing
+    /// never return to an earlier image, so they stay.
+    /// </summary>
+    public static List<FrameInfo> Fold(IReadOnlyList<FrameInfo> frames, Func<FrameInfo, FrameInfo, bool> same, int maxFlickerMs)
+    {
+        var result = new List<FrameInfo>();
+
+        foreach (var frame in frames)
+        {
+            if (result.Count > 0 && same(result[^1], frame))
+            {
+                result[^1].Delay += frame.Delay;
+                continue;
+            }
+
+            if (result.Count > 1 && result[^1].Delay <= maxFlickerMs && same(result[^2], frame))
+            {
+                result[^2].Delay += result[^1].Delay + frame.Delay;
+                result.RemoveAt(result.Count - 1);
+                continue;
+            }
+
+            result.Add(CopyOf(frame, frame.Delay));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Plays the frames <paramref name="factor"/> times faster, then cuts every frame held longer than
+    /// <paramref name="maxHoldMs"/> down to it. No frame gets shorter than <paramref name="minDelayMs"/>.
+    /// Returns the start (in the input) and length of every shortened hold.
+    /// </summary>
+    public static (List<FrameInfo> Frames, List<(int StartMs, int FromMs, int ToMs)> Shortened) Retime(IReadOnlyList<FrameInfo> frames, double factor, int? maxHoldMs, int minDelayMs = 10)
+    {
+        if (factor <= 0)
+            throw new ArgumentOutOfRangeException(nameof(factor), "The speed factor must be positive.");
+
+        var result = new List<FrameInfo>();
+        var shortened = new List<(int, int, int)>();
+        var elapsed = 0;
+
+        foreach (var frame in frames)
+        {
+            var delay = Math.Max(minDelayMs, (int)Math.Round(frame.Delay / factor));
+
+            if (maxHoldMs is { } max && delay > max)
+            {
+                shortened.Add((elapsed, delay, Math.Max(minDelayMs, max)));
+                delay = Math.Max(minDelayMs, max);
+            }
+
+            result.Add(CopyOf(frame, delay));
+            elapsed += frame.Delay;
+        }
+
+        return (result, shortened);
+    }
+
     private static FrameInfo CopyOf(FrameInfo frame, int delay) => new(frame.Path, delay, frame.CursorX, frame.CursorY, frame.ButtonClicked, frame.KeyList)
     {
         WasClicked = frame.WasClicked,

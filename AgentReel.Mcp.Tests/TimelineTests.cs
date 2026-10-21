@@ -70,6 +70,58 @@ public class TimelineTests
         Assert.Equal(expected, Timeline.FrameAt(Frames(), ms));
     }
 
+    //Frames with the same path count as the same image.
+    private static bool SamePath(FrameInfo a, FrameInfo b) => a.Path == b.Path;
+
+    [Fact]
+    public void Fold_merges_repeats_and_keeps_the_duration()
+    {
+        List<FrameInfo> frames = [new("a.png", 100), new("a.png", 200), new("b.png", 300), new("c.png", 400)];
+        var result = Timeline.Fold(frames, SamePath, 0);
+
+        Assert.Equal(["a.png", "b.png", "c.png"], result.Select(s => s.Path));
+        Assert.Equal([300, 300, 400], result.Select(s => s.Delay));
+        Assert.Equal(100, frames[0].Delay);
+    }
+
+    [Fact]
+    public void Fold_removes_a_blinking_caret()
+    {
+        List<FrameInfo> frames = [new("on.png", 500), new("off.png", 500), new("on.png", 500), new("off.png", 500), new("on.png", 500), new("typed.png", 100)];
+        var result = Timeline.Fold(frames, SamePath, 600);
+
+        Assert.Equal(["on.png", "typed.png"], result.Select(s => s.Path));
+        Assert.Equal([2500, 100], result.Select(s => s.Delay));
+    }
+
+    [Fact]
+    public void Fold_keeps_changes_that_do_not_return_or_last_long()
+    {
+        List<FrameInfo> typing = [new("a.png", 100), new("ab.png", 100), new("abc.png", 100)];
+        List<FrameInfo> dialog = [new("page.png", 500), new("dialog.png", 3000), new("page.png", 500)];
+
+        Assert.Equal(3, Timeline.Fold(typing, SamePath, 1000).Count);
+        Assert.Equal(3, Timeline.Fold(dialog, SamePath, 1000).Count);
+    }
+
+    [Fact]
+    public void Retime_speeds_up_then_caps_holds()
+    {
+        var (result, shortened) = Timeline.Retime(Frames(), 2, 120);
+
+        Assert.Equal([50, 100, 120, 120], result.Select(s => s.Delay));
+        Assert.Equal([(300, 150, 120), (600, 200, 120)], shortened);
+    }
+
+    [Fact]
+    public void Retime_never_goes_below_the_minimum_delay()
+    {
+        var (result, shortened) = Timeline.Retime(Frames(), 8, 5);
+
+        Assert.All(result, a => Assert.Equal(10, a.Delay));
+        Assert.Equal(4, shortened.Count);
+    }
+
     [Fact]
     public void Sample_includes_first_and_last_frame_without_duplicates()
     {

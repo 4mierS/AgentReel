@@ -32,6 +32,39 @@ public sealed class EditTools(RecordingSession session)
         return RecorderTools.Describe(edited, session);
     }
 
+    [McpServerTool(Name = "optimize"), Description("Makes a recording shorter: folds repeated frames and short flickers that return to the previous image (a blinking caret) into one hold, cuts long idle holds such as waiting for an agent or a page load, and can speed everything up. Saves the result as a new recording; the original stays unchanged. The result lists every shortened pause, so check them with get_contact_sheet.")]
+    public async Task<OptimizeInfo> Optimize(
+        [Description("Recording id. Default: the latest recording.")] string? recordingId = null,
+        [Description("Fold A-B-A flickers whose middle frame shows at most this many milliseconds. 0 folds only exact repeats.")] int maxFlickerMs = 1000,
+        [Description("No frame is held longer than this many milliseconds, after the speed change. 0 keeps every pause.")] int maxPauseMs = 1500,
+        [Description("Playback speed factor, 0.25 to 8. 2 plays twice as fast.")] double speed = 1,
+        CancellationToken cancellationToken = default)
+    {
+        var project = session.Get(recordingId);
+
+        if (maxFlickerMs < 0)
+            throw new McpException("maxFlickerMs must not be negative.");
+
+        if (maxPauseMs < 0)
+            throw new McpException("maxPauseMs must not be negative.");
+
+        if (speed is < 0.25 or > 8)
+            throw new McpException("speed must be between 0.25 and 8.");
+
+        var pixels = new FramePixels();
+        var folded = await Task.Run(() => Timeline.Fold(project.Frames, (a, b) =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return pixels.Same(a.Path, b.Path);
+        }, maxFlickerMs), cancellationToken);
+
+        var (retimed, shortened) = Timeline.Retime(folded, speed, maxPauseMs > 0 ? maxPauseMs : null);
+        var edited = await session.DeriveAsync(project, retimed);
+
+        return new OptimizeInfo(RecorderTools.Describe(edited, session), Timeline.Duration(project.Frames), project.Frames.Count, project.Frames.Count - folded.Count,
+            shortened.Select(s => new ShortenedPause(s.StartMs, s.FromMs, s.ToMs)).ToList());
+    }
+
     [McpServerTool(Name = "get_contact_sheet", ReadOnly = true), Description("Returns one PNG with evenly spaced frames of a recording in a grid, each labeled with its frame index and time, plus the same list as text. Use it to see a whole recording at once and to find the times for trim; zoom in with startMs/endMs or a single frame with get_preview.")]
     public IEnumerable<ContentBlock> GetContactSheet(
         [Description("Recording id. Default: the latest recording.")] string? recordingId = null,
@@ -89,3 +122,7 @@ public sealed class EditTools(RecordingSession session)
 
     private static string Clock(int ms) => TimeSpan.FromMilliseconds(ms).ToString(ms >= 3_600_000 ? @"h\:mm\:ss\.f" : @"m\:ss\.f", CultureInfo.InvariantCulture);
 }
+
+public sealed record ShortenedPause(int AtMs, int FromMs, int ToMs);
+
+public sealed record OptimizeInfo(RecordingInfo Recording, int SourceDurationMs, int SourceFrames, int FoldedFrames, IReadOnlyList<ShortenedPause> ShortenedPauses);

@@ -150,10 +150,14 @@ Phase 4 progress (2026-10-21):
   `EditTools.cs`. Tests in `AgentReel.Mcp.Tests` (in CI).
 - Verified over stdio with a scratch build: window recording → contact sheet → trim 1000–4000 ms (3000 ms) →
   trim of the edit (`edit 2`) → GIF export.
+- `optimize`: `Timeline.Fold` folds exact repeats and A-B-A flickers (middle frame ≤ `maxFlickerMs`, e.g. a blinking
+  caret) into the earlier frame, then `Timeline.Retime` applies `speed` and caps holds at `maxPauseMs`. Pixel compare in
+  `FramePixels` (exact, small decode cache). Rejected: the editor's percent similarity (`ImageMethods.CalculateDifference`)
+  – a new console line changes < 0.5 % of the pixels, so 99.5 % folded a whole 44-frame recording into one frame.
+  Verified over stdio: a 4 s "thinking" pause with a blinking caret became one 1.5 s hold, all output lines kept.
 
 Next – START HERE:
-1. Phase 4 continued: `optimize` (dedupe + shorten idle pauses, reuse the app's duplicate-frame detection),
-   `add_caption`, `add_highlight`, `open_in_editor` (existing named pipe), maybe `delete_recording`/`list_recordings`.
+1. Phase 4 continued: `add_caption`, `add_highlight`, `open_in_editor` (existing named pipe), maybe `delete_recording`/`list_recordings`.
 2. Optional MCP polish: a `get_status` tool; decide whether `get_preview` should work during a running recording.
 3. Phase 3 (Vortice instead of SharpDX for the app's capture).
 
