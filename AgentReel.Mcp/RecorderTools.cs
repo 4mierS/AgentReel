@@ -150,6 +150,27 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         return new ExportInfo(path, new FileInfo(path).Length, type.ToString().ToLowerInvariant(), preset.Encoder.ToString(), project.Frames.Count, duration);
     }
 
+    [McpServerTool(Name = "list_recordings", ReadOnly = true), Description("Lists the finished recordings in the app's recording folder, newest first: this session's recordings and edits, earlier ones and those made in the app. Every id works with the other tools.")]
+    public IReadOnlyList<RecordingListItem> ListRecordings([Description("Return at most this many recordings.")] int limit = 20)
+    {
+        if (limit < 1)
+            throw new McpException("limit must be at least 1.");
+
+        return session.List().Take(limit).Select(s => new RecordingListItem(RecordingSession.IdOf(s), s.CreationDate, s.Frames.Count, Timeline.Duration(s.Frames),
+            s.Width, s.Height, session.SourceOf(s), MutexList.IsInUse(s.RelativePath))).ToList();
+    }
+
+    [McpServerTool(Name = "delete_recording", Destructive = true), Description("Deletes a finished recording and its folder for good, for example a failed take or an edit the user rejected. Edits of it stay usable. Refused while it is open in the editor.")]
+    public async Task<RecordingInfo> DeleteRecording([Description("Recording id. There is no default, to avoid deleting the wrong one.")] string recordingId)
+    {
+        if (string.IsNullOrWhiteSpace(recordingId))
+            throw new McpException("recordingId is required.");
+
+        var info = Describe(session.Get(recordingId), session);
+        await session.DeleteAsync(recordingId);
+        return info;
+    }
+
     #region Helpers
 
     private static async Task<bool> FfmpegAvailable()
@@ -250,5 +271,7 @@ public sealed record TargetInfo(string Id, string Kind, string Name, int X, int 
 public sealed record StartedInfo(string RecordingId, TargetInfo Target, int Framerate, int MaxSeconds);
 
 public sealed record RecordingInfo(string RecordingId, int Frames, int DurationMs, int Width, int Height, string Folder, bool AutoStopped = false, string? SourceId = null);
+
+public sealed record RecordingListItem(string RecordingId, DateTime Created, int Frames, int DurationMs, int Width, int Height, string? SourceId, bool OpenInEditor);
 
 public sealed record ExportInfo(string Path, long Bytes, string Format, string Encoder, int Frames, int DurationMs);

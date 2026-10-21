@@ -165,13 +165,19 @@ Phase 4 progress (2026-10-21):
   stdio pipes. App changes (Ms-PL files, kept small): `Editor.LoadFromArguments` opens a passed `Project.json` like
   "Recent projects" (`LoadProjectFile`); `ApplicationViewModel.Open` case 4 passes the files on, so an already open
   empty editor loads them too (with "single instance" on, args arrive over the existing `InstanceSwitcherChannel` pipe).
-  Verified over stdio: caption edit → `open_in_editor` → the editor shows the edit with all 24 frames. Not verified yet:
-  the single-instance path. Known gap: edits the user makes in the editor are not seen by the server.
+  Verified over stdio: caption edit → `open_in_editor` → the editor shows the edit with all 24 frames. Single-instance
+  path verified too (local `Settings.xaml` with `SingleInstance=True` next to a scratch build, so the user's AppData
+  settings stay untouched): one app process, the second project arrived over the pipe in a second editor window.
+  Known gap: edits the user makes in the editor are not seen by the server.
+- `list_recordings` (all projects with frames in the recording folder, newest first, `openInEditor` via the app's
+  global mutex `MutexList.IsInUse`) and `delete_recording` (`Destructive`, no default id, refused while running or open
+  in the editor). `RecordingSession.Get` loads unknown ids from disk (`Project.json`), so recordings of earlier runs and
+  of the app work with every tool. Ids must be plain folder names (no `..`, no separators). Verified over stdio across
+  two server runs: load from disk → trim → delete all.
 
 Next – START HERE:
-1. Phase 4 rest: maybe `list_recordings`/`delete_recording`; verify `open_in_editor` with "single instance" on.
-2. Optional MCP polish: a `get_status` tool; decide whether `get_preview` should work during a running recording.
-3. Phase 3 (Vortice instead of SharpDX for the app's capture).
+1. Phase 4 is done. Optional MCP polish: `get_status`; decide whether `get_preview` should work during a running recording.
+2. Phase 3 (Vortice instead of SharpDX for the app's capture).
 
 ## Roadmap
 

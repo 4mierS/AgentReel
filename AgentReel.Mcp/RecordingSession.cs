@@ -1,16 +1,20 @@
 using System.IO;
+using System.Runtime.Serialization.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ScreenToGif.Core.Capture;
 using ScreenToGif.Domain.Enums;
 using ScreenToGif.Model;
+using ScreenToGif.Util;
+using ScreenToGif.Util.Settings;
 
 namespace AgentReel.Mcp;
 
 /// <summary>
 /// The server's state: at most one running recording, plus the finished recordings of this session.
-/// Recordings are regular app projects in the app's recording folder, so the editor can open them later.
+/// Recordings are regular app projects in the app's recording folder, so the editor can open them later, and
+/// projects from that folder (earlier server runs, the app) can be used too.
 /// </summary>
 public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingSession> logger) : IAsyncDisposable
 {
@@ -86,12 +90,74 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     public ProjectInfo Get(string? id)
     {
         if (string.IsNullOrWhiteSpace(id))
-            id = _lastId ?? throw new McpException("There is no finished recording yet. Record one with start_recording and stop_recording.");
+            id = _lastId ?? throw new McpException("There is no latest recording in this session. Record one with start_recording and stop_recording, or pass a recordingId from list_recordings.");
 
         if (_active != null && string.Equals(_active.Id, id, StringComparison.OrdinalIgnoreCase))
             throw new McpException($"Recording '{id}' is still running. Call stop_recording first.");
 
-        return _recordings.TryGetValue(id, out var project) ? project : throw new McpException($"Unknown recording '{id}'.");
+        if (_recordings.TryGetValue(id, out var project))
+            return project;
+
+        //Made before this server started, by an earlier run or by the app.
+        project = Load(FolderOf(id)) ?? throw new McpException($"Unknown recording '{id}'. Call list_recordings for the ids.");
+        _recordings[id] = project;
+        return project;
+    }
+
+    /// <summary>
+    /// Every project with frames in the recording folder, newest first, plus the recordings of this session.
+    /// </summary>
+    public IReadOnlyList<ProjectInfo> List()
+    {
+        var list = new Dictionary<string, ProjectInfo>(_recordings, StringComparer.OrdinalIgnoreCase);
+
+        if (Directory.Exists(RecordingFolder))
+        {
+            foreach (var folder in Directory.EnumerateDirectories(RecordingFolder))
+            {
+                var id = Path.GetFileName(folder);
+
+                if (!list.ContainsKey(id) && id != _active?.Id && Load(folder) is { } project)
+                    list[id] = project;
+            }
+        }
+
+        return list.Values.OrderByDescending(o => o.CreationDate).ToList();
+    }
+
+    /// <summary>
+    /// Deletes a finished recording with its folder. Refused while it runs or is open in the editor.
+    /// </summary>
+    public async Task<ProjectInfo> DeleteAsync(string id)
+    {
+        await _gate.WaitAsync();
+
+        try
+        {
+            var project = Get(id);
+            id = IdOf(project);
+
+            if (MutexList.IsInUse(project.RelativePath))
+                throw new McpException($"Recording '{id}' is open in the editor. Close it there first.");
+
+            Directory.Delete(project.FullPath, true);
+
+            _recordings.Remove(id);
+            _sources.Remove(id);
+
+            if (string.Equals(_lastId, id, StringComparison.OrdinalIgnoreCase))
+                _lastId = null;
+
+            if (_autoStopped != null && IdOf(_autoStopped) == id)
+                _autoStopped = null;
+
+            logger.LogInformation("Recording {Id} deleted", id);
+            return project;
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     /// <summary>
@@ -171,6 +237,45 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     public string? SourceOf(ProjectInfo project) => _sources.GetValueOrDefault(IdOf(project));
 
     public static string IdOf(ProjectInfo project) => project.RelativePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+    private static string RecordingFolder => Path.Combine(UserSettings.All.TemporaryFolderResolved, "ScreenToGif", "Recording");
+
+    /// <summary>
+    /// The folder of a recording id. Only direct subfolders of the recording folder, so an id cannot reach anything else.
+    /// </summary>
+    private static string FolderOf(string id)
+    {
+        if (id.Trim() != id || id.Trim('.').Length == 0 || id.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            throw new McpException($"'{id}' is not a recording id. Call list_recordings for the ids.");
+
+        return Path.Combine(RecordingFolder, id);
+    }
+
+    /// <summary>
+    /// A project from its folder, null if there is none or it has no frames left (like the editor's recent projects).
+    /// </summary>
+    private ProjectInfo? Load(string folder)
+    {
+        var file = Path.Combine(folder, "Project.json");
+
+        if (!File.Exists(file))
+            return null;
+
+        try
+        {
+            using var stream = File.OpenRead(file);
+
+            if (new DataContractJsonSerializer(typeof(ProjectInfo)).ReadObject(stream) is not ProjectInfo project || project.Frames.Count == 0 || !project.Frames.All(a => File.Exists(a.Path)))
+                return null;
+
+            return project;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Project {File} could not be read.", file);
+            return null;
+        }
+    }
 
     private async Task AutoStopAsync(string id)
     {
