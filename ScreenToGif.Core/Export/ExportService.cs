@@ -1153,12 +1153,16 @@ public static class ExportService
             CreateNoWindow = true,
             ErrorDialog = false,
             UseShellExecute = false,
-            RedirectStandardError = true
+            RedirectStandardError = true,
+            //Own stdin, closed right away: otherwise FFmpeg reads the host's stdin (the MCP server's JSON-RPC pipe).
+            RedirectStandardInput = true
         };
 
         var log = "";
         using (var pro = Process.Start(process))
         {
+            pro.StandardInput.Close();
+
             var indeterminate = true;
 
             reporter.Update(0, LocalizationHelper.Get("S.Encoder.Analyzing"));
@@ -1243,11 +1247,15 @@ public static class ExportService
             CreateNoWindow = true,
             ErrorDialog = false,
             UseShellExecute = false,
-            RedirectStandardError = true
+            RedirectStandardError = true,
+            //Own stdin, closed right away: otherwise FFmpeg reads the host's stdin (the MCP server's JSON-RPC pipe).
+            RedirectStandardInput = true
         };
 
         using (var pro = Process.Start(process))
         {
+            pro.StandardInput.Close();
+
             var indeterminate = true;
 
             reporter.Update(0, LocalizationHelper.Get("S.Encoder.Analyzing.Second"));
