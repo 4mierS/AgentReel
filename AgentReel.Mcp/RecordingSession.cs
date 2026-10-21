@@ -1,4 +1,6 @@
 using System.IO;
+using AgentReel.Mcp.Editing;
+using AgentReel.Review;
 using System.Runtime.Serialization.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
@@ -20,7 +22,6 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, ProjectInfo> _recordings = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string> _sources = new(StringComparer.OrdinalIgnoreCase);
 
     private ActiveRecording? _active;
     private ProjectInfo? _autoStopped;
@@ -186,7 +187,6 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
             Directory.Delete(project.FullPath, true);
 
             _recordings.Remove(id);
-            _sources.Remove(id);
 
             if (string.Equals(_lastId, id, StringComparison.OrdinalIgnoreCase))
                 _lastId = null;
@@ -206,12 +206,17 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     /// <summary>
     /// Saves an edit of <paramref name="source"/> as a new project ("&lt;original id&gt; edit &lt;n&gt;") with its own copy
     /// of the images, so the source stays as it was and the editor can open either one. The edit becomes the latest recording.
-    /// <paramref name="change"/> may change the copied images before the project is saved.
+    /// <paramref name="change"/> may change the copied images before the project is saved. <paramref name="edit"/>
+    /// describes the step against <paramref name="source"/>; it is saved as Edit.json, joined to the chain when the
+    /// source is an edit itself.
     /// </summary>
-    public async Task<ProjectInfo> DeriveAsync(ProjectInfo source, IReadOnlyList<FrameInfo> frames, Action<ProjectInfo>? change = null)
+    public async Task<ProjectInfo> DeriveAsync(ProjectInfo source, IReadOnlyList<FrameInfo> frames, EditRecord edit, Action<ProjectInfo>? change = null)
     {
         if (frames.Count == 0)
             throw new McpException("The edit leaves no frames.");
+
+        if (edit.Sources.Count != frames.Count)
+            throw new ArgumentException("Every frame needs its source range.", nameof(edit));
 
         await _gate.WaitAsync();
 
@@ -251,6 +256,9 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
                 }
 
                 change?.Invoke(project);
+                var step = edit with { SourceId = sourceId, OriginalId = sourceId, Created = project.CreationDate };
+                var parent = ReviewFiles.ReadEdit(source.FullPath);
+                ReviewFiles.WriteEdit(project.FullPath, parent == null ? step : EditChain.Join(parent, source.Frames, step, project.Frames));
                 project.Persist();
             }
             catch
@@ -262,7 +270,6 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
             var id = IdOf(project);
             _recordings[id] = project;
-            _sources[id] = sourceId;
             _lastId = id;
 
             logger.LogInformation("Recording {Id} derived from {Source}: {Count} frames", id, sourceId, project.Frames.Count);
@@ -277,7 +284,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     /// <summary>
     /// The recording an edit was made from, null for an original recording.
     /// </summary>
-    public string? SourceOf(ProjectInfo project) => _sources.GetValueOrDefault(IdOf(project));
+    public string? SourceOf(ProjectInfo project) => ReviewFiles.ReadEdit(project.FullPath)?.SourceId;
 
     public static string IdOf(ProjectInfo project) => project.RelativePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 

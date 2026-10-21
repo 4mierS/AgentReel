@@ -20,6 +20,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AgentReel.Capture\AgentReel.Capture.csproj" />
+    <ProjectReference Include="..\AgentReel.Review\AgentReel.Review.csproj" />
+    <!-- Copied next to the server, which starts it for request_review. -->
+    <ProjectReference Include="..\AgentReel.Studio\AgentReel.Studio.csproj" />
     <ProjectReference Include="..\ScreenToGif.Core\ScreenToGif.Core.csproj" />
     <!-- Only for the shared resources (Settings.xaml, string resources) that UserSettings and LocalizationHelper need. -->
     <ProjectReference Include="..\ScreenToGif\ScreenToGif.csproj" />

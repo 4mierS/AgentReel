@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Files shared by the MCP server and AgentReel Studio for review-before-apply. New AgentReel code, not derived from ScreenToGif. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;ARM64;x64;x86</Platforms>
+    <Configurations>Debug;Release;Debug (Store)</Configurations>
+  </PropertyGroup>
+</Project>

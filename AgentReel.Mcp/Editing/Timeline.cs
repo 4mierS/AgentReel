@@ -1,3 +1,4 @@
+using AgentReel.Review;
 using ScreenToGif.Model;
 
 namespace AgentReel.Mcp.Editing;
@@ -104,6 +105,25 @@ public static class Timeline
     }
 
     public static int StartOf(IReadOnlyList<FrameInfo> frames, int index) => frames.Take(index).Sum(s => s.Delay);
+
+    /// <summary>
+    /// The source time range of every frame, for frames that still last as long as the source part they show (the
+    /// result of Trim, Isolate or Fold, before Retime). <paramref name="offsetMs"/> is where the first frame starts in
+    /// the source.
+    /// </summary>
+    public static List<SourceSpan> Spans(IReadOnlyList<FrameInfo> frames, int offsetMs = 0)
+    {
+        var result = new List<SourceSpan>(frames.Count);
+        var elapsed = offsetMs;
+
+        foreach (var frame in frames)
+        {
+            result.Add(new SourceSpan(elapsed, elapsed + frame.Delay));
+            elapsed += frame.Delay;
+        }
+
+        return result;
+    }
 
     /// <summary>
     /// Up to <paramref name="count"/> distinct frames at evenly spaced times in [startMs, endMs), first and last included.

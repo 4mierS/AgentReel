@@ -4,6 +4,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Media;
 using AgentReel.Mcp.Editing;
+using AgentReel.Review;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -27,7 +28,8 @@ public sealed class EditTools(RecordingSession session)
         var project = session.Get(recordingId);
         var end = EndOf(project, startMs, endMs);
 
-        var edited = await session.DeriveAsync(project, Timeline.Trim(project.Frames, startMs, end));
+        var frames = Timeline.Trim(project.Frames, startMs, end);
+        var edited = await session.DeriveAsync(project, frames, Record("trim", $"Trimmed to {Clock(startMs)} – {Clock(end)}", Timeline.Spans(frames, startMs)));
         return RecorderTools.Describe(edited, session);
     }
 
@@ -58,7 +60,8 @@ public sealed class EditTools(RecordingSession session)
         }, maxFlickerMs), cancellationToken);
 
         var (retimed, shortened) = Timeline.Retime(folded, speed, maxPauseMs > 0 ? maxPauseMs : null);
-        var edited = await session.DeriveAsync(project, retimed);
+        var description = $"Optimized: {project.Frames.Count - folded.Count} repeated frames folded, {shortened.Count} pauses shortened" + (speed != 1 ? $", {speed.ToString(CultureInfo.InvariantCulture)}x speed" : "");
+        var edited = await session.DeriveAsync(project, retimed, Record("optimize", description, Timeline.Spans(folded)));
 
         return new OptimizeInfo(RecorderTools.Describe(edited, session), Timeline.Duration(project.Frames), project.Frames.Count, project.Frames.Count - folded.Count,
             shortened.Select(s => new ShortenedPause(s.StartMs, s.FromMs, s.ToMs)).ToList());
@@ -82,7 +85,7 @@ public sealed class EditTools(RecordingSession session)
             throw new McpException("fontSize must be between 0 and 500.");
 
         var draw = Overlay.Caption(text, ParseEnum<CaptionPosition>(position, nameof(position)), fontSize, ParseColor(textColor, nameof(textColor)), ParseColor(backgroundColor, nameof(backgroundColor)));
-        return await DrawAsync(recordingId, startMs, endMs, draw);
+        return await DrawAsync(recordingId, startMs, endMs, draw, "add_caption", "caption", text);
     }
 
     [McpServerTool(Name = "add_highlight"), Description("Draws a rectangle or ellipse around an area in the frames shown from startMs to endMs, optionally darkening everything else. Coordinates are pixels of the recording (see width and height of the recording; get_preview may show it scaled down). Saves the result as a new recording; the original stays unchanged.")]
@@ -114,7 +117,7 @@ public sealed class EditTools(RecordingSession session)
             throw new McpException("With thickness 0 and dimOutside false nothing would be drawn.");
 
         var draw = Overlay.Highlight(new Rect(x, y, width, height), ParseEnum<HighlightShape>(shape, nameof(shape)), ParseColor(color, nameof(color)), thickness, dimOutside);
-        return await DrawAsync(RecordingSession.IdOf(project), startMs, endMs, draw);
+        return await DrawAsync(RecordingSession.IdOf(project), startMs, endMs, draw, "add_highlight", "highlight", $"{shape.ToLowerInvariant()} at {x}, {y}, {width}x{height}");
     }
 
     [McpServerTool(Name = "get_contact_sheet", ReadOnly = true), Description("Returns one PNG with evenly spaced frames of a recording in a grid, each labeled with its frame index and time, plus the same list as text. Use it to see a whole recording at once and to find the times for trim; zoom in with startMs/endMs or a single frame with get_preview.")]
@@ -172,15 +175,17 @@ public sealed class EditTools(RecordingSession session)
     /// Saves a copy of the recording with <paramref name="draw"/> applied to the frames shown in the range. Frames cut by
     /// the range are split first, so the overlay starts and ends exactly there.
     /// </summary>
-    private async Task<RecordingInfo> DrawAsync(string? recordingId, int startMs, int? endMs, Action<DrawingContext, int, int> draw)
+    private async Task<RecordingInfo> DrawAsync(string? recordingId, int startMs, int? endMs, Action<DrawingContext, int, int> draw, string tool, string kind, string label)
     {
         var project = session.Get(recordingId);
         var end = EndOf(project, startMs, endMs);
         var (frames, first, count) = Timeline.Isolate(project.Frames, startMs, end);
+        var description = $"{char.ToUpperInvariant(kind[0])}{kind[1..]} \"{label}\" from {Clock(startMs)} to {Clock(end)}";
+        var edit = Record(tool, description, Timeline.Spans(frames)) with { Marks = [new EditMark(kind, startMs, end, label)] };
 
         try
         {
-            var edited = await session.DeriveAsync(project, frames, p => Overlay.Apply(p.Frames.Skip(first).Take(count).Select(s => s.Path), draw));
+            var edited = await session.DeriveAsync(project, frames, edit, p => Overlay.Apply(p.Frames.Skip(first).Take(count).Select(s => s.Path), draw));
             return RecorderTools.Describe(edited, session);
         }
         catch (InvalidOperationException ex)
@@ -188,6 +193,11 @@ public sealed class EditTools(RecordingSession session)
             throw new McpException(ex.Message, ex);
         }
     }
+
+    /// <summary>
+    /// The edit record of one step, measured against its direct source; DeriveAsync sets the ids and joins it to the chain.
+    /// </summary>
+    private static EditRecord Record(string tool, string description, IReadOnlyList<SourceSpan> sources) => new("", "", tool, [description], sources, [], DateTime.Now);
 
     private static int EndOf(ProjectInfo project, int startMs, int? endMs)
     {

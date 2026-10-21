@@ -210,10 +210,40 @@ Phase 3 progress (2026-10-21):
 
 - Decided 2026-10-21 (Amir): WGC stays MCP-only for now; the app keeps its DXGI/GDI recorders. Phase 3 is closed.
 
+Phase 5 progress (2026-10-21):
+- Spike (not committed): WPF UI 4.3.0 merged globally in `App.xaml` (before the app's own dictionaries) builds and
+  runs, but restyles all old windows unevenly: `ExtendedButton` is `BasedOn {x:Type Button}`, so it picks up WPF UI's
+  Button (start tiles and Ok button shrink), larger fonts in ribbon and ComboBox, different spacing. WPF UI has only
+  Light/Dark, the app has 4 themes. No key collisions (`Panel.Background` vs `ApplicationBackgroundBrush`).
+- Decided (Amir): WPF UI only in the resources of new windows, never in `App.xaml`; old windows stay untouched and are
+  migrated one by one. The new UI may look completely different from ScreenToGif: very ergonomic, modern, AI-first.
+  First new window: the review window (review-before-apply of agent edits).
+- Review window built (2026-10-21) as a separate app, `AgentReel.Studio` (WinExe, WPF UI 4.3.0 merged in its own
+  `App.xaml`, Mica, follows the system theme; new code, not Ms-PL). The new UI lives there, not in the ScreenToGif app,
+  so no old implicit styles leak in. `AgentReel.Studio review <edit folder>`.
+  - Layout (decided with Amir: one large stage beats side by side): the agent's summary is the headline, the steps in
+    small type; one stage plays the edit, holding O shows the original at the same moment; `ChangeTimeline` draws the
+    original and the edit on one time scale with bands between them (gap = cut, narrowing band = faster), caption and
+    highlight marks, a joined playhead; clickable change chips; feedback box + Discard (Esc) + Keep edit (Ctrl+Enter).
+    Space plays, ←/→ steps frames, Shift+←/→ jumps between changes, typing a letter focuses the feedback box.
+  - `AgentReel.Review` (net9.0): `Edit.json` (`EditRecord`: source id, original id, steps, per-frame source range in
+    the original, marks) and `Review.json` (`ReviewRecord`: summary, verdict, feedback). Written atomically.
+  - `RecordingSession.DeriveAsync` writes `Edit.json`; an edit of an edit is joined to the chain (`Editing/EditChain`),
+    so the review always compares with the original recording. `sourceId` now comes from `Edit.json` (was in memory).
+  - MCP: `request_review(summary, recordingId)` writes a pending `Review.json` and starts Studio (`AGENTREEL_STUDIO`,
+    else next to the server via project reference); `get_review(recordingId, waitSeconds)` polls for the verdict
+    (pending/accepted/rejected/feedback). Rejected edits are not deleted automatically; the agent calls delete_recording.
+  - Verified over stdio (Release): 17 s window recording → optimize → add_caption → trim → request_review → Studio
+    showed the chain against the original (17.0 → 8.1 s, cut, two faster pauses, caption). Tests: 36/36 MCP
+    (`EditChainTests`). `RecordingSessionTests.A_stopped_recording_is_not_marked_as_open_in_an_editor` failed once in a
+    full run right after a solution build, then passed 4 times – watch for flakiness.
+  - Not verified yet: keyboard (O compare, shortcuts) and the verdict written by the buttons – waiting for Amir.
+- Open: `Directory.Build.props` stamps every assembly, also the new AgentReel ones, with Company/Copyright
+  "Nicke Manarin" and the ScreenToGif description; the AgentReel projects should get their own values.
+
 Next – START HERE:
-1. Phase 5 (UI). Plan doc: start with WPF UI (lepoco/wpfui, MIT) in `App.xaml` (`ui:ThemesDictionary` +
-   `ui:ControlsDictionary`), then `ui:FluentWindow`. First check how it collides with the app's own themes
-   (`ScreenToGif/Themes/`, Light/Medium/Dark/VeryDark) and implicit styles, and pick a small first increment.
+1. Amir's feedback on the review window, then: show the client's name ("Claude") instead of "Your agent" (MCP
+   clientInfo), register the rebuilt Debug server, dogfood the round trip from Claude Code.
 
 ## Roadmap
 

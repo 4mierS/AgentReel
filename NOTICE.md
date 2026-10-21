@@ -24,3 +24,4 @@ AgentReel (Ms-PL section 3(A)).
 | --- | --- | --- |
 | [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows) (Direct3D11, DXGI, Mathematics) | MIT | DirectX interop for the Desktop Duplication recorder, replaces SharpDX |
 | [SharpGen.Runtime](https://github.com/SharpGenTools/SharpGenTools) | MIT | Runtime of the Vortice bindings |
+| [WPF UI](https://github.com/lepoco/wpfui) | MIT | Fluent controls and theming of AgentReel Studio |
