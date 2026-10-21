@@ -39,7 +39,8 @@ public sealed record TextMatch(PrivacyKind Kind, PrivacySeverity Severity, int S
 /// carry at least 3.5 bits of Shannon entropy per character and switch character classes often (see <see cref="SwitchRatio"/>),
 /// which tells random strings from CamelCase names and paths. Hex-only strings (commit hashes, digests, GUIDs) are
 /// never flagged by entropy alone.</item>
-/// <item>Values after labels like password, Passwort, token, secret or api_key with ':' or '=' are passwords.</item>
+/// <item>After labels like password, Passwort, token, secret or api_key with ':' or '=', the rest of the line is a password
+/// (OCR splits values at random spaces). The same goes for the text after "IBAN", whose digits OCR often misreads.</item>
 /// <item>IBANs need a valid mod-97 checksum, card numbers a valid Luhn checksum; phone numbers need a leading '+'.</item>
 /// <item>IPv4 addresses are only Low, version numbers look the same.</item>
 /// </list>
@@ -72,12 +73,21 @@ public static partial class PrivacyClassifier
         foreach (Match match in ApiKeyRegex().Matches(line))
             Add(PrivacyKind.ApiKey, PrivacySeverity.High, match.Index, match.Length);
 
+        //OCR breaks values apart at random spaces, so everything after the label up to the end of the line is covered.
         foreach (Match match in LabeledValueRegex().Matches(line))
         {
-            var value = match.Groups["value"];
+            var (start, length) = Value(match.Groups["value"]);
 
-            if (!IsPlaceholder(value.Value))
-                Add(PrivacyKind.Password, PrivacySeverity.High, value.Index, value.Length);
+            if (length > 0 && !IsPlaceholder(line.Substring(start, length)))
+                Add(PrivacyKind.Password, PrivacySeverity.High, start, length);
+        }
+
+        foreach (Match match in IbanLabelRegex().Matches(line))
+        {
+            var (start, length) = Value(match.Groups["value"]);
+
+            if (length > 0)
+                Add(PrivacyKind.Iban, PrivacySeverity.High, start, length);
         }
 
         foreach (Match match in EmailRegex().Matches(line))
@@ -221,6 +231,17 @@ public static partial class PrivacyClassifier
         return $"{shown}… ({text.Length} chars)";
     }
 
+    /// <summary>
+    /// A labeled value without the quotes and separators around it.
+    /// </summary>
+    private static (int Start, int Length) Value(Group group)
+    {
+        var text = group.Value;
+        var trimmed = text.TrimEnd().TrimEnd('"', '\'', ',', ';').TrimEnd();
+        var lead = trimmed.Length - trimmed.TrimStart('"', '\'').Length;
+        return (group.Index + lead, trimmed.Length - lead);
+    }
+
     private static bool IsPlaceholder(string value) =>
         (value.All(char.IsAsciiDigit) && value.Length < 6) || value.Trim('*', '•', '●', '.', 'x', 'X').Length == 0 || value.StartsWith("${", StringComparison.Ordinal) || value.StartsWith('<') ||
         value is "null" or "none" or "true" or "false" or "required" or "optional" or "string" or "undefined";
@@ -236,8 +257,11 @@ public static partial class PrivacyClassifier
     [GeneratedRegex(@"\b(?:sk-ant-[A-Za-z0-9_-]{10,}|sk-(?:proj-|live-|test-)?[A-Za-z0-9_-]{16,}|[spr]k_(?:live|test)_[A-Za-z0-9]{10,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|glpat-[A-Za-z0-9_-]{20,}|npm_[A-Za-z0-9]{30,})")]
     private static partial Regex ApiKeyRegex();
 
-    [GeneratedRegex(@"(?i)(?:password|passwort|passwd|kennwort|pwd|secret|token|api[_ -]?key|access[_ -]?key|client[_ -]?secret|private[_ -]?key)(?:_[A-Za-z0-9_]*)?['""]?\s*[:=]\s*['""]?(?<value>[^\s'"",;]{4,})")]
+    [GeneratedRegex(@"(?i)(?:password|passwort|passwd|kennwort|pwd|secret|token|api[_ -]?key|access[_ -]?key|client[_ -]?secret|private[_ -]?key)(?:_[A-Za-z0-9_]*)?['""]?\s*[:=]\s*(?<value>['""]?[^\s'"",;]{4,}.*)$")]
     private static partial Regex LabeledValueRegex();
+
+    [GeneratedRegex(@"(?i)\biban\b\s*:?\s*(?<value>[A-Z]{2}\s?[0-9A-Z€]{2}.*)$")]
+    private static partial Regex IbanLabelRegex();
 
     [GeneratedRegex(@"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")]
     private static partial Regex EmailRegex();

@@ -72,7 +72,16 @@ public class PrivacyClassifierTests
     [InlineData("Passwort: Geheim!2026", "Geheim!2026")]
     [InlineData("client_secret = \"a8Fk2pQ9\"", "a8Fk2pQ9")]
     [InlineData("API_KEY: letmein-now", "letmein-now")]
+    [InlineData("DB PASSWORD=Sommer2026! Blau", "Sommer2026! Blau")]
     public void Values_after_secret_labels_are_passwords(string line, string expected) => Assert.Equal(expected, Single(line, PrivacyKind.Password).Text);
+
+    [Fact]
+    public void An_iban_misread_by_ocr_is_still_found_after_its_label()
+    {
+        var match = Single("Refund IBAN: DE89 3704 0044 €532 €130 eo", PrivacyKind.Iban);
+
+        Assert.Equal("DE89 3704 0044 €532 €130 eo", match.Text);
+    }
 
     [Theory]
     [InlineData("password: ********")]

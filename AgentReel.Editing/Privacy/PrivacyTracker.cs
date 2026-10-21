@@ -124,22 +124,81 @@ public static class PrivacyTracker
         }
 
         done.AddRange(open);
+        return Build(delays, done.Select(s => (s.Kind, s.Severity, s.Masked, (IReadOnlyList<FrameRegion>)s.Regions)));
+    }
 
+    /// <summary>
+    /// OCR misses values in some frames, mostly when other parts of the screen change. If the pixels inside a finding's box
+    /// are the same as in the neighboring frame where it was found, the value is still there: the finding is extended
+    /// forward and backward over such frames. Findings of the same kind that then touch in time and overlap are joined.
+    /// </summary>
+    /// <param name="unchanged">Whether the pixels inside the box are equal in two frames (indexes).</param>
+    public static List<PrivacyFinding> Extend(IReadOnlyList<int> delays, IReadOnlyList<PrivacyFinding> findings, Func<int, int, Box, bool> unchanged)
+    {
+        var regions = findings.Select(s => s.Regions.GroupBy(g => g.Frame).ToDictionary(k => k.Key, v => v.Select(r => r.Box).Aggregate((a, b) => a.Union(b)))).ToList();
+
+        //Frame by frame over all findings, so each pair of frames is compared while both are at hand.
+        for (var frame = 1; frame < delays.Count; frame++)
+        {
+            foreach (var map in regions)
+            {
+                if (map.TryGetValue(frame - 1, out var box) && !map.ContainsKey(frame) && unchanged(frame - 1, frame, box))
+                    map[frame] = box;
+            }
+        }
+
+        for (var frame = delays.Count - 2; frame >= 0; frame--)
+        {
+            foreach (var map in regions)
+            {
+                if (map.TryGetValue(frame + 1, out var box) && !map.ContainsKey(frame) && unchanged(frame + 1, frame, box))
+                    map[frame] = box;
+            }
+        }
+
+        var extended = findings.Select((s, i) => (s.Kind, s.Severity, s.Masked, Regions: regions[i])).OrderBy(o => o.Regions.Keys.Min()).ToList();
+        var joined = new List<(PrivacyKind Kind, PrivacySeverity Severity, string Masked, Dictionary<int, Box> Regions)>();
+
+        foreach (var finding in extended)
+        {
+            var index = joined.FindIndex(f => f.Kind == finding.Kind && finding.Regions.Keys.Min() <= f.Regions.Keys.Max() + 1 &&
+                                              Hull(f.Regions.Values).Intersects(Hull(finding.Regions.Values)));
+
+            if (index < 0)
+            {
+                joined.Add(finding);
+                continue;
+            }
+
+            var target = joined[index];
+
+            foreach (var (frame, box) in finding.Regions)
+                target.Regions[frame] = target.Regions.TryGetValue(frame, out var existing) ? existing.Union(box) : box;
+
+            joined[index] = target with { Severity = (PrivacySeverity)Math.Max((int)target.Severity, (int)finding.Severity) };
+        }
+
+        return Build(delays, joined.Select(s => (s.Kind, s.Severity, s.Masked, (IReadOnlyList<FrameRegion>)s.Regions.Select(r => new FrameRegion(r.Key, r.Value)).ToList())));
+    }
+
+    private static Box Hull(IEnumerable<Box> boxes) => boxes.Aggregate((a, b) => a.Union(b));
+
+    /// <summary>
+    /// Numbers the findings in the order they appear (top to bottom, left to right) and computes their times and boxes.
+    /// </summary>
+    private static List<PrivacyFinding> Build(IReadOnlyList<int> delays, IEnumerable<(PrivacyKind Kind, PrivacySeverity Severity, string Masked, IReadOnlyList<FrameRegion> Regions)> findings)
+    {
         var starts = new int[delays.Count + 1];
 
         for (var i = 0; i < delays.Count; i++)
             starts[i + 1] = starts[i] + delays[i];
 
-        return done
+        return findings
+            .Select(s => s with { Regions = s.Regions.OrderBy(o => o.Frame).ToList() })
             .OrderBy(o => o.Regions[0].Frame)
             .ThenBy(o => o.Regions[0].Box.Y)
             .ThenBy(o => o.Regions[0].Box.X)
-            .Select((s, index) =>
-            {
-                var regions = s.Regions.OrderBy(o => o.Frame).ToList();
-                var box = regions.Skip(1).Aggregate(regions[0].Box, (union, region) => union.Union(region.Box));
-                return new PrivacyFinding($"p{index + 1}", s.Kind, s.Severity, s.Masked, starts[regions[0].Frame], starts[regions[^1].Frame + 1], box, regions);
-            })
+            .Select((s, index) => new PrivacyFinding($"p{index + 1}", s.Kind, s.Severity, s.Masked, starts[s.Regions[0].Frame], starts[s.Regions[^1].Frame + 1], Hull(s.Regions.Select(r => r.Box)), s.Regions))
             .ToList();
     }
 
