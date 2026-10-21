@@ -277,15 +277,32 @@ downloads no upstream translations, has no donate page. Still open (decide with 
 `%AppData%\ScreenToGif` / `%TEMP%\ScreenToGif` (shared with a real ScreenToGif install), webcam/board recorders,
 non-English localization, `Debug (Store)` configuration, ScreenToGif branding strings and About page.
 
-In flight (2026-10-21, worktree branches, to review and merge): Studio pro editor (library, stage, timeline,
-non-destructive edits with undo, save as version), removal of upload services + feedback + `Secret.cs`, Privacy Shield
-prototype (`scan_privacy`, `redact`).
+Independent app (decided 2026-10-21, Amir): AgentReel becomes a new app with no ScreenToGif code at all; everything
+derived from ScreenToGif is rewritten, then the Ms-PL goes (suggest a lawyer check before relicensing). Stay in this repo
+until nothing derived is left, then move the AgentReel.* code into a fresh repo with a clean history. Clean-room rule:
+new implementations are written from specs/behavior, never by reading, translating or copying ScreenToGif source.
+Do not polish the legacy projects anymore, only remove them. Pricing: free basics; Pro subscription $7/month or
+$70/year (AI features); Team later. Languages: English + German. Webcam/board recorders: later, built new. Microsoft
+Store: later. Trademark/domain check for "AgentReel" requested.
+
+Plan (the new code still uses ScreenToGif for these):
+1. Own project model + storage: replace `ProjectInfo`/`FrameInfo` (~65 uses), `UserSettings`, `MutexList`; own
+   format and folders (`%LOCALAPPDATA%\AgentReel`); move `ICaptureService`/`CaptureTarget` (our code, in
+   `ScreenToGif.Core/Capture`) into `AgentReel.Capture`.
+2. Own export (`AgentReel.Export`, in flight on a worktree branch): own GIF and APNG encoders, MP4 via Media Foundation.
+3. Drop `open_in_editor`, the legacy app reference, the characterization tests of the old encoders.
+4. Own resources and localization (EN, DE).
+5. Fresh repo, own license, NOTICE only for third-party libraries.
+
+Merged 2026-10-21: Studio pro editor (`AgentReel.Studio/Editor/`, `AgentReel.Editing/EditDocument.cs` + `Clips.cs`:
+library with versions, stage, timeline, shorten/cut/caption/highlight, undo, save as version; `edit <folder>` argument;
+mouse gestures and shortcuts not runtime-tested), removal of uploads/feedback/`Secret.cs` from the legacy app.
+In flight: Privacy Shield prototype (`scan_privacy`, `redact`), own export, trademark check.
 
 Next – START HERE:
-1. Review and merge the three worktree branches (build, tests, look at the screenshots), then rebuild the registered
-   Debug server.
-2. Then: review of Claude's edits inside the editor (replaces the separate review window), export panel, redaction
-   in the editor, proof-of-work command, self-contained signed installer.
+1. Merge the Privacy Shield and export branches (`git worktree list`), build, tests, screenshots.
+2. Step 1 of the plan (own project model), then 3–5. Export panel in Studio on top of `AgentReel.Export`; Claude's
+   proposals inside the editor (replaces the separate review window).
 
 ## Roadmap
 
