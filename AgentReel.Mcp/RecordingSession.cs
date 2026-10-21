@@ -3,23 +3,22 @@ using AgentReel.Capture;
 using AgentReel.Editing;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
-using ScreenToGif.Core.Capture;
-using ScreenToGif.Model;
+using AgentReel.Core;
 
 namespace AgentReel.Mcp;
 
 /// <summary>
 /// The server's state: at most one running recording, plus the finished recordings of this session.
-/// Recordings are regular app projects in the app's recording folder, so the editor can open them later, and
-/// projects from that folder (earlier server runs, the app) can be used too.
+/// Recordings live in the recording store (<see cref="RecordingStore"/>), so recordings of earlier server runs and of
+/// AgentReel Studio can be used too.
 /// </summary>
 public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingSession> logger) : IAsyncDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private readonly Dictionary<string, ProjectInfo> _recordings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Recording> _recordings = new(StringComparer.OrdinalIgnoreCase);
 
     private ActiveRecording? _active;
-    private ProjectInfo? _autoStopped;
+    private Recording? _autoStopped;
 
     public IReadOnlyList<CaptureTarget> ListTargets() => capture.ListTargets();
 
@@ -34,16 +33,16 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
             _autoStopped = null;
 
-            var project = await ProjectRecording.StartAsync(capture, options);
-            var id = IdOf(project);
+            var run = await ProjectRecording.StartAsync(capture, options);
+            var id = run.Id;
 
             var autoStop = new CancellationTokenSource();
-            _active = new ActiveRecording(id, project, options, DateTime.Now, maxDuration, autoStop);
+            _active = new ActiveRecording(id, run, options, DateTime.Now, maxDuration, autoStop);
 
             //A forgotten recording must not fill the disk.
             _ = Task.Delay(maxDuration, autoStop.Token).ContinueWith(async _ => await AutoStopAsync(id), TaskContinuationOptions.OnlyOnRanToCompletion);
 
-            logger.LogInformation("Recording {Id} started: {Target} at {Framerate} fps into {Folder}", id, options.Target.Name, options.Framerate, project.FullPath);
+            logger.LogInformation("Recording {Id} started: {Target} at {Framerate} fps into {Folder}", id, options.Target.Name, options.Framerate, run.Recording.Folder);
             return _active;
         }
         finally
@@ -56,7 +55,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     /// Stops the running recording. If the last one already stopped itself at its maximum duration and nobody has
     /// asked for it yet, returns that one instead, so a late stop_recording does not look like a failure.
     /// </summary>
-    public async Task<(ProjectInfo Project, bool AutoStopped)> StopAsync()
+    public async Task<(Recording Project, bool AutoStopped)> StopAsync()
     {
         await _gate.WaitAsync();
 
@@ -99,7 +98,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
     /// <summary>
     /// The newest finished recording or edit, the default for the other tools. Includes recordings made outside
-    /// this server (AgentReel Studio, the app), so "my latest recording" means what the user just recorded.
+    /// this server (AgentReel Studio), so "my latest recording" means what the user just recorded.
     /// </summary>
     public string? LatestId => List().FirstOrDefault() is { } project ? IdOf(project) : null;
 
@@ -111,7 +110,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     /// <summary>
     /// A finished recording by id, or the latest one when <paramref name="id"/> is empty.
     /// </summary>
-    public ProjectInfo Get(string? id)
+    public Recording Get(string? id)
     {
         if (string.IsNullOrWhiteSpace(id))
         {
@@ -128,34 +127,34 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
             throw new McpException($"Recording '{id}' is still running. Call stop_recording first.");
 
         //Studio or the user may have deleted it since.
-        if (_recordings.TryGetValue(id, out var project) && Directory.Exists(project.FullPath))
+        if (_recordings.TryGetValue(id, out var project) && Directory.Exists(project.Folder))
             return project;
 
         _recordings.Remove(id);
 
-        //Made before this server started, by an earlier run or by the app.
-        project = ProjectLibrary.Load(FolderOf(id), Warn) ?? throw new McpException($"Unknown recording '{id}'. Call list_recordings for the ids.");
+        //Made before this server started, by an earlier run or by Studio.
+        project = RecordingLibrary.Load(FolderOf(id), Warn) ?? throw new McpException($"Unknown recording '{id}'. Call list_recordings for the ids.");
         _recordings[id] = project;
         return project;
     }
 
     /// <summary>
-    /// Every project with frames in the recording folder, newest first, plus the recordings of this session.
+    /// Every recording with frames in the recording folder, newest first, plus the recordings of this session.
     /// </summary>
-    public IReadOnlyList<ProjectInfo> List()
+    public IReadOnlyList<Recording> List()
     {
-        var list = _recordings.Where(w => Directory.Exists(w.Value.FullPath)).ToDictionary(StringComparer.OrdinalIgnoreCase);
+        var list = _recordings.Where(w => Directory.Exists(w.Value.Folder)).ToDictionary(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (id, project) in ProjectLibrary.Scan(id => list.ContainsKey(id) || id == _active?.Id, Warn))
+        foreach (var (id, project) in RecordingLibrary.Scan(id => list.ContainsKey(id) || id == _active?.Id, Warn))
             list[id] = project;
 
-        return list.Values.OrderByDescending(o => o.CreationDate).ToList();
+        return list.Values.OrderByDescending(o => o.Created).ToList();
     }
 
     /// <summary>
-    /// Deletes a finished recording with its folder. Refused while it runs or is open in the editor.
+    /// Deletes a finished recording with its folder. Refused while it runs or is in use elsewhere.
     /// </summary>
-    public async Task<ProjectInfo> DeleteAsync(string id)
+    public async Task<Recording> DeleteAsync(string id)
     {
         await _gate.WaitAsync();
 
@@ -166,7 +165,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
             try
             {
-                ProjectLibrary.Delete(project);
+                RecordingLibrary.Delete(project);
             }
             catch (InvalidOperationException ex)
             {
@@ -188,10 +187,10 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     }
 
     /// <summary>
-    /// Saves an edit of <paramref name="source"/> as a new project (see <see cref="ProjectLibrary.Derive"/>), which
+    /// Saves an edit of <paramref name="source"/> as a new recording (see <see cref="RecordingLibrary.Derive"/>), which
     /// becomes the latest recording.
     /// </summary>
-    public async Task<ProjectInfo> DeriveAsync(ProjectInfo source, IReadOnlyList<FrameInfo> frames, EditRecord edit, Action<ProjectInfo>? change = null)
+    public async Task<Recording> DeriveAsync(Recording source, IReadOnlyList<RecordedFrame> frames, EditRecord edit, Action<Recording>? change = null)
     {
         if (frames.Count == 0)
             throw new McpException("The edit leaves no frames.");
@@ -200,7 +199,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
         try
         {
-            var project = ProjectLibrary.Derive(source, frames, edit, change);
+            var project = RecordingLibrary.Derive(source, frames, edit, change);
             var id = IdOf(project);
             _recordings[id] = project;
 
@@ -216,15 +215,15 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     /// <summary>
     /// The recording an edit was made from, null for an original recording.
     /// </summary>
-    public string? SourceOf(ProjectInfo project) => ProjectLibrary.SourceOf(project);
+    public string? SourceOf(Recording project) => RecordingLibrary.SourceOf(project);
 
-    public static string IdOf(ProjectInfo project) => ProjectLibrary.IdOf(project);
+    public static string IdOf(Recording project) => RecordingLibrary.IdOf(project);
 
     private static string FolderOf(string id)
     {
         try
         {
-            return ProjectLibrary.FolderOf(id);
+            return RecordingLibrary.FolderOf(id);
         }
         catch (ArgumentException)
         {
@@ -232,7 +231,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
         }
     }
 
-    private void Warn(string file, Exception ex) => logger.LogWarning(ex, "Project {File} could not be read.", file);
+    private void Warn(string file, Exception ex) => logger.LogWarning(ex, "Recording {File} could not be read.", file);
 
     private async Task AutoStopAsync(string id)
     {
@@ -256,14 +255,14 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
         }
     }
 
-    private async Task<ProjectInfo> StopActiveAsync()
+    private async Task<Recording> StopActiveAsync()
     {
         var active = _active!;
         _active = null;
         await active.AutoStop.CancelAsync();
 
-        //Releases the mutex: it means "open in an editor", held by the server it would block the editor and delete_recording.
-        var project = await ProjectRecording.StopAsync(capture, active.Project);
+        //Releases the recording's lock, which marks it as in use while it records.
+        var project = await ProjectRecording.StopAsync(capture, active.Run);
 
         if (project.Frames.Count == 0)
             throw new McpException($"Recording '{active.Id}' captured no frames, so it was deleted. Is the window minimized or hidden?");
@@ -281,6 +280,9 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     }
 }
 
-public sealed record ActiveRecording(string Id, ProjectInfo Project, CaptureOptions Options, DateTime StartedAt, TimeSpan MaxDuration, CancellationTokenSource AutoStop);
+public sealed record ActiveRecording(string Id, CaptureRun Run, CaptureOptions Options, DateTime StartedAt, TimeSpan MaxDuration, CancellationTokenSource AutoStop)
+{
+    public Recording Project => Run.Recording;
+}
 
 public sealed record LiveRecording(ActiveRecording Recording, CaptureProgress Progress);

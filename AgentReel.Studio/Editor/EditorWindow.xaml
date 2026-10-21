@@ -178,7 +178,7 @@
                         <ui:Button x:Name="RedoButton" Width="36" Height="36" Padding="0" Appearance="Transparent" Click="Redo_Click" ToolTip="Redo (Ctrl+Y)" IsEnabled="False">
                             <ui:SymbolIcon Symbol="ArrowRedo24" FontSize="18"/>
                         </ui:Button>
-                        <ui:Button x:Name="ExportButton" Height="36" Margin="12,0,0,0" Appearance="Secondary" Click="Export_Click" ToolTip="Export (Ctrl+E) – comes next" IsEnabled="False">
+                        <ui:Button x:Name="ExportButton" Height="36" Margin="12,0,0,0" Appearance="Secondary" Click="Export_Click" ToolTip="Export as GIF, MP4 or animated PNG (Ctrl+E)" IsEnabled="False">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="ArrowExportUp24" FontSize="16" Margin="0,0,6,0"/>
                                 <TextBlock Text="Export" VerticalAlignment="Center"/>

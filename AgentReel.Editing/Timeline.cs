@@ -1,28 +1,28 @@
 using AgentReel.Editing;
-using ScreenToGif.Model;
+using AgentReel.Core;
 
 namespace AgentReel.Editing;
 
 /// <summary>
 /// Time based operations on a frame list. A frame is visible from the sum of the delays before it for its own delay.
-/// Every method returns new FrameInfo objects that still point at the source images, the input is never changed.
+/// Every method returns new RecordedFrame objects that still point at the source images, the input is never changed.
 /// </summary>
 public static class Timeline
 {
-    public static int Duration(IReadOnlyList<FrameInfo> frames) => frames.Sum(s => s.Delay);
+    public static int Duration(IReadOnlyList<RecordedFrame> frames) => frames.Sum(s => s.Delay);
 
     /// <summary>
     /// Keeps what is visible in [startMs, endMs). Frames cut by a boundary keep only the part inside, so the result
     /// lasts exactly endMs - startMs.
     /// </summary>
-    public static List<FrameInfo> Trim(IReadOnlyList<FrameInfo> frames, int startMs, int endMs)
+    public static List<RecordedFrame> Trim(IReadOnlyList<RecordedFrame> frames, int startMs, int endMs)
     {
         var duration = Duration(frames);
 
         if (startMs < 0 || endMs > duration || startMs >= endMs)
             throw new ArgumentOutOfRangeException(nameof(startMs), $"The range {startMs} to {endMs} ms must lie inside 0 to {duration} ms and must not be empty.");
 
-        var result = new List<FrameInfo>();
+        var result = new List<RecordedFrame>();
         var elapsed = 0;
 
         foreach (var frame in frames)
@@ -46,14 +46,14 @@ public static class Timeline
     /// ends on frame boundaries. A frame cut by a boundary becomes two or three frames with the same image. Returns all
     /// frames and the run of frames inside the range, which an overlay can then change without touching the rest.
     /// </summary>
-    public static (List<FrameInfo> Frames, int First, int Count) Isolate(IReadOnlyList<FrameInfo> frames, int startMs, int endMs)
+    public static (List<RecordedFrame> Frames, int First, int Count) Isolate(IReadOnlyList<RecordedFrame> frames, int startMs, int endMs)
     {
         var duration = Duration(frames);
 
         if (startMs < 0 || endMs > duration || startMs >= endMs)
             throw new ArgumentOutOfRangeException(nameof(startMs), $"The range {startMs} to {endMs} ms must lie inside 0 to {duration} ms and must not be empty.");
 
-        var result = new List<FrameInfo>();
+        var result = new List<RecordedFrame>();
         var first = -1;
         var count = 0;
         var elapsed = 0;
@@ -89,7 +89,7 @@ public static class Timeline
     /// <summary>
     /// The frame visible at <paramref name="ms"/>. Times at or after the end give the last frame.
     /// </summary>
-    public static int FrameAt(IReadOnlyList<FrameInfo> frames, int ms)
+    public static int FrameAt(IReadOnlyList<RecordedFrame> frames, int ms)
     {
         var elapsed = 0;
 
@@ -104,14 +104,14 @@ public static class Timeline
         return frames.Count - 1;
     }
 
-    public static int StartOf(IReadOnlyList<FrameInfo> frames, int index) => frames.Take(index).Sum(s => s.Delay);
+    public static int StartOf(IReadOnlyList<RecordedFrame> frames, int index) => frames.Take(index).Sum(s => s.Delay);
 
     /// <summary>
     /// The source time range of every frame, for frames that still last as long as the source part they show (the
     /// result of Trim, Isolate or Fold, before Retime). <paramref name="offsetMs"/> is where the first frame starts in
     /// the source.
     /// </summary>
-    public static List<SourceSpan> Spans(IReadOnlyList<FrameInfo> frames, int offsetMs = 0)
+    public static List<SourceSpan> Spans(IReadOnlyList<RecordedFrame> frames, int offsetMs = 0)
     {
         var result = new List<SourceSpan>(frames.Count);
         var elapsed = offsetMs;
@@ -129,7 +129,7 @@ public static class Timeline
     /// Up to <paramref name="count"/> distinct frames at evenly spaced times in [startMs, endMs), first and last included.
     /// Fewer come back when the range shows fewer frames.
     /// </summary>
-    public static List<int> Sample(IReadOnlyList<FrameInfo> frames, int count, int startMs, int endMs)
+    public static List<int> Sample(IReadOnlyList<RecordedFrame> frames, int count, int startMs, int endMs)
     {
         if (frames.Count == 0 || count < 1 || endMs <= startMs)
             return [];
@@ -146,9 +146,9 @@ public static class Timeline
     /// (A B A with B shown at most <paramref name="maxFlickerMs"/>), such as a blinking caret. Real changes like typing
     /// never return to an earlier image, so they stay.
     /// </summary>
-    public static List<FrameInfo> Fold(IReadOnlyList<FrameInfo> frames, Func<FrameInfo, FrameInfo, bool> same, int maxFlickerMs)
+    public static List<RecordedFrame> Fold(IReadOnlyList<RecordedFrame> frames, Func<RecordedFrame, RecordedFrame, bool> same, int maxFlickerMs)
     {
-        var result = new List<FrameInfo>();
+        var result = new List<RecordedFrame>();
 
         foreach (var frame in frames)
         {
@@ -176,12 +176,12 @@ public static class Timeline
     /// <paramref name="maxHoldMs"/> down to it. No frame gets shorter than <paramref name="minDelayMs"/>.
     /// Returns the start (in the input) and length of every shortened hold.
     /// </summary>
-    public static (List<FrameInfo> Frames, List<(int StartMs, int FromMs, int ToMs)> Shortened) Retime(IReadOnlyList<FrameInfo> frames, double factor, int? maxHoldMs, int minDelayMs = 10)
+    public static (List<RecordedFrame> Frames, List<(int StartMs, int FromMs, int ToMs)> Shortened) Retime(IReadOnlyList<RecordedFrame> frames, double factor, int? maxHoldMs, int minDelayMs = 10)
     {
         if (factor <= 0)
             throw new ArgumentOutOfRangeException(nameof(factor), "The speed factor must be positive.");
 
-        var result = new List<FrameInfo>();
+        var result = new List<RecordedFrame>();
         var shortened = new List<(int, int, int)>();
         var elapsed = 0;
 
@@ -202,9 +202,5 @@ public static class Timeline
         return (result, shortened);
     }
 
-    internal static FrameInfo CopyOf(FrameInfo frame, int delay) => new(frame.Path, delay, frame.CursorX, frame.CursorY, frame.ButtonClicked, frame.KeyList)
-    {
-        WasClicked = frame.WasClicked,
-        Rect = frame.Rect
-    };
+    internal static RecordedFrame CopyOf(RecordedFrame frame, int delay) => frame.WithDelay(delay);
 }

@@ -1,5 +1,5 @@
 using AgentReel.Editing;
-using ScreenToGif.Model;
+using AgentReel.Core;
 using Xunit;
 
 namespace AgentReel.Mcp.Tests;
@@ -7,7 +7,7 @@ namespace AgentReel.Mcp.Tests;
 public class TimelineTests
 {
     //Visible: #0 0-100, #1 100-300, #2 300-600, #3 600-1000.
-    private static List<FrameInfo> Frames() => [new("0.png", 100), new("1.png", 200), new("2.png", 300), new("3.png", 400)];
+    private static List<RecordedFrame> Frames() => [new("0.png", 100), new("1.png", 200), new("2.png", 300), new("3.png", 400)];
 
     [Fact]
     public void Trim_on_frame_boundaries_keeps_whole_frames()
@@ -71,12 +71,12 @@ public class TimelineTests
     }
 
     //Frames with the same path count as the same image.
-    private static bool SamePath(FrameInfo a, FrameInfo b) => a.Path == b.Path;
+    private static bool SamePath(RecordedFrame a, RecordedFrame b) => a.Path == b.Path;
 
     [Fact]
     public void Fold_merges_repeats_and_keeps_the_duration()
     {
-        List<FrameInfo> frames = [new("a.png", 100), new("a.png", 200), new("b.png", 300), new("c.png", 400)];
+        List<RecordedFrame> frames = [new("a.png", 100), new("a.png", 200), new("b.png", 300), new("c.png", 400)];
         var result = Timeline.Fold(frames, SamePath, 0);
 
         Assert.Equal(["a.png", "b.png", "c.png"], result.Select(s => s.Path));
@@ -87,7 +87,7 @@ public class TimelineTests
     [Fact]
     public void Fold_removes_a_blinking_caret()
     {
-        List<FrameInfo> frames = [new("on.png", 500), new("off.png", 500), new("on.png", 500), new("off.png", 500), new("on.png", 500), new("typed.png", 100)];
+        List<RecordedFrame> frames = [new("on.png", 500), new("off.png", 500), new("on.png", 500), new("off.png", 500), new("on.png", 500), new("typed.png", 100)];
         var result = Timeline.Fold(frames, SamePath, 600);
 
         Assert.Equal(["on.png", "typed.png"], result.Select(s => s.Path));
@@ -97,8 +97,8 @@ public class TimelineTests
     [Fact]
     public void Fold_keeps_changes_that_do_not_return_or_last_long()
     {
-        List<FrameInfo> typing = [new("a.png", 100), new("ab.png", 100), new("abc.png", 100)];
-        List<FrameInfo> dialog = [new("page.png", 500), new("dialog.png", 3000), new("page.png", 500)];
+        List<RecordedFrame> typing = [new("a.png", 100), new("ab.png", 100), new("abc.png", 100)];
+        List<RecordedFrame> dialog = [new("page.png", 500), new("dialog.png", 3000), new("page.png", 500)];
 
         Assert.Equal(3, Timeline.Fold(typing, SamePath, 1000).Count);
         Assert.Equal(3, Timeline.Fold(dialog, SamePath, 1000).Count);

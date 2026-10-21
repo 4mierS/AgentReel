@@ -1,12 +1,12 @@
 using AgentReel.Capture;
+using AgentReel.Editing;
 using AgentReel.Mcp;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ScreenToGif.Core.Capture;
 
-//Before anything touches UserSettings or LocalizationHelper.
-WpfResources.Initialize();
+//Recordings of earlier versions, copied once.
+LegacyImport.RunOnce();
 
 var builder = Host.CreateApplicationBuilder(args);
 

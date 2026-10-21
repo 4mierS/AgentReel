@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
-using ScreenToGif.Model;
+using AgentReel.Core;
 
 namespace AgentReel.Mcp;
 
@@ -37,8 +37,8 @@ public sealed class PrivacyTools(RecordingSession session, ILogger<PrivacyTools>
             throw new McpException(ex.Message, ex);
         }
 
-        var previous = PrivacyFiles.Read(project.FullPath);
-        PrivacyFiles.Write(project.FullPath, new PrivacyRecord(DateTime.Now, scan.Language, scan.Frames, scan.FramesOcr, scan.Findings));
+        var previous = PrivacyFiles.Read(project.Folder);
+        PrivacyFiles.Write(project.Folder, new PrivacyRecord(DateTime.Now, scan.Language, scan.Frames, scan.FramesOcr, scan.Findings));
 
         logger.LogInformation("Privacy scan of {Id}: {Count} findings, {Ocr} of {Frames} frames read ({Language}) in {Elapsed} ms",
             id, scan.Findings.Count, scan.FramesOcr, scan.Frames, scan.Language, (int)scan.Elapsed.TotalMilliseconds);
@@ -78,7 +78,7 @@ public sealed class PrivacyTools(RecordingSession session, ILogger<PrivacyTools>
         if (!Enum.TryParse<RedactionStyle>(style, true, out var redactionStyle) || !Enum.IsDefined(redactionStyle))
             throw new McpException("style must be one of: blur, box.");
 
-        var record = PrivacyFiles.Read(project.FullPath);
+        var record = PrivacyFiles.Read(project.Folder);
         var manual = (regions ?? []).Select(s => s.ToRegion(duration, project.Width, project.Height)).ToList();
 
         if (record != null && record.Frames != project.Frames.Count)
@@ -124,7 +124,7 @@ public sealed class PrivacyTools(RecordingSession session, ILogger<PrivacyTools>
         //DeriveAsync moves the frames to the new folder; the old paths tell which scanned frame each one shows.
         var planPaths = plan.Frames.Select(s => s.Path).ToList();
 
-        ProjectInfo edited;
+        Recording edited;
 
         try
         {
@@ -150,7 +150,7 @@ public sealed class PrivacyTools(RecordingSession session, ILogger<PrivacyTools>
                         Regions = s.Regions.SelectMany(r => newIndexes[r.Frame].Select(n => new FrameRegion(n, r.Box))).ToList()
                     }).ToList();
 
-                    PrivacyFiles.Write(derived.FullPath, record with { Frames = derived.Frames.Count, Findings = findings });
+                    PrivacyFiles.Write(derived.Folder, record with { Frames = derived.Frames.Count, Findings = findings });
                 }
             });
         }

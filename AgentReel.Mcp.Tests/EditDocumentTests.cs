@@ -1,17 +1,18 @@
+using System.IO;
 using System.Windows;
 using AgentReel.Editing;
-using ScreenToGif.Model;
+using AgentReel.Core;
 using Xunit;
 
 namespace AgentReel.Mcp.Tests;
 
 public class EditDocumentTests
 {
-    private static ProjectInfo Project() => new()
+    private static Recording Project() => new(Path.Combine(TestFolders.Recordings, "edit document"))
     {
         Width = 640,
         Height = 360,
-        Frames = [new FrameInfo("0.png", 100), new FrameInfo("1.png", 200), new FrameInfo("2.png", 300), new FrameInfo("3.png", 400)]
+        Frames = [new RecordedFrame("0.png", 100), new RecordedFrame("1.png", 200), new RecordedFrame("2.png", 300), new RecordedFrame("3.png", 400)]
     };
 
     private static CaptionItem Caption(int start, int end) => new(Guid.NewGuid(), start, end, "Hello", CaptionPosition.Bottom);

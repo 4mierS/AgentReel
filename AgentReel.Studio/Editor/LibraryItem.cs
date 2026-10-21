@@ -4,7 +4,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using AgentReel.Editing;
-using ScreenToGif.Model;
+using AgentReel.Core;
 
 namespace AgentReel.Studio.Editor;
 
@@ -16,21 +16,21 @@ public sealed class LibraryItem : INotifyPropertyChanged
     private ImageSource? _thumbnail;
     private bool _isSelected;
 
-    public LibraryItem(ProjectInfo project, EditRecord? edit, ReviewRecord? review, int version)
+    public LibraryItem(Recording project, EditRecord? edit, ReviewRecord? review, int version)
     {
         Project = project;
-        Id = ProjectLibrary.IdOf(project);
+        Id = RecordingLibrary.IdOf(project);
         Edit = edit;
         Review = review;
         Duration = project.Frames.Sum(s => s.Delay);
 
-        Title = edit == null ? When(project.CreationDate) : version > 0 ? $"Version {version}" : "Version";
+        Title = edit == null ? When(project.Created) : version > 0 ? $"Version {version}" : "Version";
         By = edit == null ? "" : edit.Tool == "studio" ? "You" : "Claude";
         Detail = $"{EditFormat.Clock(Duration)} · {project.Frames.Count} frames";
         Steps = edit == null ? Id : string.Join("\n", edit.Steps);
     }
 
-    public ProjectInfo Project { get; }
+    public Recording Project { get; }
 
     public string Id { get; }
 
@@ -96,25 +96,25 @@ public sealed class LibraryItem : INotifyPropertyChanged
     /// </summary>
     public static List<LibraryItem> Scan()
     {
-        var all = ProjectLibrary.Scan().Select(s => s.Project).ToList();
-        var edits = all.ToDictionary(ProjectLibrary.IdOf, p => ReviewFiles.ReadEdit(p.FullPath), StringComparer.OrdinalIgnoreCase);
+        var all = RecordingLibrary.Scan().Select(s => s.Project).ToList();
+        var edits = all.ToDictionary(RecordingLibrary.IdOf, p => ReviewFiles.ReadEdit(p.Folder), StringComparer.OrdinalIgnoreCase);
         var roots = new Dictionary<string, LibraryItem>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var project in all.Where(w => edits[ProjectLibrary.IdOf(w)] == null))
-            roots[ProjectLibrary.IdOf(project)] = new LibraryItem(project, null, null, 0);
+        foreach (var project in all.Where(w => edits[RecordingLibrary.IdOf(w)] == null))
+            roots[RecordingLibrary.IdOf(project)] = new LibraryItem(project, null, null, 0);
 
-        foreach (var project in all.Where(w => edits[ProjectLibrary.IdOf(w)] != null).OrderBy(o => o.CreationDate))
+        foreach (var project in all.Where(w => edits[RecordingLibrary.IdOf(w)] != null).OrderBy(o => o.Created))
         {
-            var edit = edits[ProjectLibrary.IdOf(project)]!;
-            var review = ReviewFiles.ReadReview(project.FullPath);
+            var edit = edits[RecordingLibrary.IdOf(project)]!;
+            var review = ReviewFiles.ReadReview(project.Folder);
 
             if (roots.TryGetValue(edit.OriginalId, out var root))
                 root.Versions.Add(new LibraryItem(project, edit, review, root.Versions.Count + 1));
             else
-                roots[ProjectLibrary.IdOf(project)] = new LibraryItem(project, edit, review, 0);
+                roots[RecordingLibrary.IdOf(project)] = new LibraryItem(project, edit, review, 0);
         }
 
-        return roots.Values.OrderByDescending(o => o.Versions.Select(s => s.Project.CreationDate).Append(o.Project.CreationDate).Max()).ToList();
+        return roots.Values.OrderByDescending(o => o.Versions.Select(s => s.Project.Created).Append(o.Project.Created).Max()).ToList();
     }
 
     public IEnumerable<LibraryItem> SelfAndVersions() => Versions.Prepend(this);
@@ -125,5 +125,5 @@ public sealed class LibraryItem : INotifyPropertyChanged
         return $"{day}, {date.ToString("HH:mm", CultureInfo.CurrentCulture)}";
     }
 
-    public static bool Exists(ProjectInfo project) => Directory.Exists(project.FullPath);
+    public static bool Exists(Recording project) => Directory.Exists(project.Folder);
 }

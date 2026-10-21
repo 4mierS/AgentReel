@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
-using ScreenToGif.Model;
+using AgentReel.Core;
 
 namespace AgentReel.Editing;
 
@@ -120,7 +120,7 @@ public sealed record PlacedOverlay(OverlayItem Item, int StartMs, int EndMs);
 /// <summary>
 /// The edit as it would be saved: frames, overlays to draw on runs of them, and the Edit.json record.
 /// </summary>
-public sealed record RenderPlan(List<FrameInfo> Frames, List<(int First, int Count, Action<DrawingContext, int, int> Draw)> Draws, EditRecord Record);
+public sealed record RenderPlan(List<RecordedFrame> Frames, List<(int First, int Count, Action<DrawingContext, int, int> Draw)> Draws, EditRecord Record);
 
 /// <summary>
 /// A non-destructive edit of one recording: operations and overlays over the untouched source frames, with undo and
@@ -136,13 +136,13 @@ public sealed class EditDocument
     //The clips after each operation, so undo and further operations do not redo the slow folding of optimize.
     private readonly List<(TimeOperation Operation, List<Clip> Clips)> _computed = [];
 
-    public EditDocument(ProjectInfo source)
+    public EditDocument(Recording source)
     {
         Source = source;
         SourceClips = Clips.FromFrames(source.Frames);
     }
 
-    public ProjectInfo Source { get; }
+    public Recording Source { get; }
 
     public IReadOnlyList<Clip> SourceClips { get; }
 
@@ -280,10 +280,10 @@ public sealed class EditDocument
     }
 
     /// <summary>
-    /// Saves the edit as a new version of the source (see <see cref="ProjectLibrary.Derive"/>). The document itself
+    /// Saves the edit as a new version of the source (see <see cref="RecordingLibrary.Derive"/>). The document itself
     /// does not change; open the result to go on editing it.
     /// </summary>
-    public async Task<ProjectInfo> SaveAsync(CancellationToken token = default)
+    public async Task<Recording> SaveAsync(CancellationToken token = default)
     {
         if (State.IsEmpty)
             throw new InvalidOperationException("There is nothing to save.");
@@ -292,7 +292,7 @@ public sealed class EditDocument
         var clips = await ComputeAsync(state, token);
         var plan = Plan(clips, state, Source.Width, Source.Height);
 
-        return await Task.Run(() => ProjectLibrary.Derive(Source, plan.Frames, plan.Record, project =>
+        return await Task.Run(() => RecordingLibrary.Derive(Source, plan.Frames, plan.Record, project =>
         {
             foreach (var (first, count, draw) in plan.Draws)
                 Overlay.Apply(project.Frames.Skip(first).Take(count).Select(s => s.Path), draw);

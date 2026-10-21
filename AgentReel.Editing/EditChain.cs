@@ -1,5 +1,5 @@
 using AgentReel.Editing;
-using ScreenToGif.Model;
+using AgentReel.Core;
 
 namespace AgentReel.Editing;
 
@@ -14,7 +14,7 @@ public static class EditChain
     /// against the original: source ranges mapped through the parent, the parent's marks moved to the new times.
     /// A run that folds across a part the parent cut shows that part as sped up, not as cut.
     /// </summary>
-    public static EditRecord Join(EditRecord parent, IReadOnlyList<FrameInfo> parentFrames, EditRecord step, IReadOnlyList<FrameInfo> frames)
+    public static EditRecord Join(EditRecord parent, IReadOnlyList<RecordedFrame> parentFrames, EditRecord step, IReadOnlyList<RecordedFrame> frames)
     {
         var sources = step.Sources.Select(s => new SourceSpan((int)Math.Round(ToOriginal(parent, parentFrames, s.StartMs, false)), (int)Math.Round(ToOriginal(parent, parentFrames, s.EndMs, true)))).ToList();
         var marks = new List<EditMark>();
@@ -44,7 +44,7 @@ public static class EditChain
     /// The original time shown at <paramref name="ms"/> of the parent. An end (<paramref name="isEnd"/>) belongs to the
     /// frame before it, so a range never reaches into the next frame's source.
     /// </summary>
-    private static double ToOriginal(EditRecord parent, IReadOnlyList<FrameInfo> parentFrames, int ms, bool isEnd)
+    private static double ToOriginal(EditRecord parent, IReadOnlyList<RecordedFrame> parentFrames, int ms, bool isEnd)
     {
         var index = Timeline.FrameAt(parentFrames, isEnd ? Math.Max(0, ms - 1) : ms);
         var start = Timeline.StartOf(parentFrames, index);
@@ -59,7 +59,7 @@ public static class EditChain
     /// The time of the new frames that shows <paramref name="sourceMs"/> of their source. A cut time maps to where it
     /// was cut, a time after the end to the end.
     /// </summary>
-    private static int ToEdit(IReadOnlyList<SourceSpan> spans, IReadOnlyList<FrameInfo> frames, int sourceMs)
+    private static int ToEdit(IReadOnlyList<SourceSpan> spans, IReadOnlyList<RecordedFrame> frames, int sourceMs)
     {
         var elapsed = 0;
 

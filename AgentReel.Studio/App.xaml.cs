@@ -14,12 +14,6 @@ namespace AgentReel.Studio;
 /// </summary>
 public partial class App
 {
-    private static readonly string[] SharedDictionaries =
-    [
-        "Resources/Settings.xaml",
-        "Resources/Localization/StringResources.en.xaml"
-    ];
-
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -39,11 +33,12 @@ public partial class App
             }
         }
 
+        //Recordings of earlier versions, copied once.
+        LegacyImport.RunOnce();
+
         if (e.Args is ["edit", var recording])
         {
-            LoadSharedResources();
-
-            if (ProjectLibrary.Load(recording) is { } project)
+            if (RecordingLibrary.Load(recording) is { } project)
             {
                 EditorWindow.Open(project);
                 return;
@@ -56,9 +51,7 @@ public partial class App
 
         if (e.Args.Length == 0)
         {
-            LoadSharedResources();
-
-            if (ProjectLibrary.Scan().Any())
+            if (RecordingLibrary.Scan().Any())
                 EditorWindow.Open();
             else
                 new SessionWindow().Show();
@@ -68,15 +61,5 @@ public partial class App
 
         MessageBox.Show("Usage: AgentReel.Studio [edit <recording folder> | review <edit folder>]", "AgentReel Studio", MessageBoxButton.OK, MessageBoxImage.Information);
         Shutdown(2);
-    }
-
-    /// <summary>
-    /// UserSettings (the recording folder) reads its defaults through Application.Current. These dictionaries hold
-    /// only values and strings, no styles, so they do not change how Studio looks.
-    /// </summary>
-    private void LoadSharedResources()
-    {
-        foreach (var resource in SharedDictionaries)
-            Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/ScreenToGif;component/" + resource) });
     }
 }

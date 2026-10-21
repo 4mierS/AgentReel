@@ -7,7 +7,7 @@ using AgentReel.Editing;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
-using ScreenToGif.Model;
+using AgentReel.Core;
 
 namespace AgentReel.Mcp;
 
@@ -198,7 +198,7 @@ public sealed class EditTools(RecordingSession session)
     /// </summary>
     private static EditRecord Record(string tool, string description, IReadOnlyList<SourceSpan> sources) => new("", "", tool, [description], sources, [], DateTime.Now);
 
-    private static int EndOf(ProjectInfo project, int startMs, int? endMs)
+    private static int EndOf(Recording project, int startMs, int? endMs)
     {
         var duration = Timeline.Duration(project.Frames);
         var end = endMs ?? duration;

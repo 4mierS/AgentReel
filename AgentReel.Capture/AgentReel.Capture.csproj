@@ -10,7 +10,7 @@
     <Configurations>Debug;Release;Debug (Store)</Configurations>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ScreenToGif.Core\ScreenToGif.Core.csproj" />
+    <ProjectReference Include="..\AgentReel.Core\AgentReel.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="AgentReel.Capture.Tests" />

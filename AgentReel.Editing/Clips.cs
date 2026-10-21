@@ -1,4 +1,4 @@
-using ScreenToGif.Model;
+using AgentReel.Core;
 
 namespace AgentReel.Editing;
 
@@ -6,7 +6,7 @@ namespace AgentReel.Editing;
 /// A frame of an edit that has not been saved yet: the source frame's image, shown for <paramref name="Delay"/>
 /// milliseconds, showing <paramref name="Span"/> of the source recording. A span longer than the delay was sped up.
 /// </summary>
-public sealed record Clip(FrameInfo Frame, int Delay, SourceSpan Span)
+public sealed record Clip(RecordedFrame Frame, int Delay, SourceSpan Span)
 {
     public string Path => Frame.Path;
 }
@@ -17,7 +17,7 @@ public sealed record Clip(FrameInfo Frame, int Delay, SourceSpan Span)
 /// </summary>
 public static class Clips
 {
-    public static List<Clip> FromFrames(IReadOnlyList<FrameInfo> frames)
+    public static List<Clip> FromFrames(IReadOnlyList<RecordedFrame> frames)
     {
         var result = new List<Clip>(frames.Count);
         var elapsed = 0;
@@ -193,7 +193,7 @@ public static class Clips
     /// <summary>
     /// The frames to save: copies of the source frames with the clips' delays.
     /// </summary>
-    public static List<FrameInfo> ToFrames(IReadOnlyList<Clip> clips) => clips.Select(s => Timeline.CopyOf(s.Frame, s.Delay)).ToList();
+    public static List<RecordedFrame> ToFrames(IReadOnlyList<Clip> clips) => clips.Select(s => Timeline.CopyOf(s.Frame, s.Delay)).ToList();
 
     private static List<Clip> Slice(IReadOnlyList<Clip> clips, int startMs, int endMs)
     {

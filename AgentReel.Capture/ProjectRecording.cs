@@ -1,64 +1,75 @@
 using System.IO;
-using ScreenToGif.Core.Capture;
-using ScreenToGif.Domain.Enums;
-using ScreenToGif.Model;
-using ScreenToGif.Util.Settings;
+using AgentReel.Core;
 
 namespace AgentReel.Capture;
 
 /// <summary>
-/// Records into a regular app project in the app's recording folder, so the editor, the MCP server and Studio all
-/// find each other's recordings. Needs the app's settings resources (see UserSettings).
+/// A recording being captured: its folder, and the lock that marks it as in use until it stops.
+/// </summary>
+public sealed class CaptureRun(Recording recording, RecordingLock recordingLock)
+{
+    public Recording Recording { get; } = recording;
+
+    public string Id => Recording.Id;
+
+    internal RecordingLock Lock { get; } = recordingLock;
+}
+
+/// <summary>
+/// Records into a new folder of the recording store, so the MCP server and Studio find each other's recordings.
 /// </summary>
 public static class ProjectRecording
 {
-    public static string RecordingFolder => Path.Combine(UserSettings.All.TemporaryFolderResolved, "ScreenToGif", "Recording");
-
-    public static string IdOf(ProjectInfo project) => project.RelativePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
     /// <summary>
-    /// Creates a project folder and starts recording into it. While recording, the project holds its "open in an
-    /// editor" mutex, which keeps the app's cache cleanup away from the folder.
+    /// Creates a recording folder and starts recording into it. The recording is locked (in use) until it stops.
     /// </summary>
-    public static async Task<ProjectInfo> StartAsync(ICaptureService capture, CaptureOptions options, CancellationToken cancellationToken = default)
+    public static async Task<CaptureRun> StartAsync(ICaptureService capture, CaptureOptions options, CancellationToken cancellationToken = default)
     {
-        var project = new ProjectInfo().CreateProjectFolder(ProjectByType.ScreenRecorder);
+        var folder = RecordingStore.CreateFolder();
+        var recordingLock = RecordingLock.Acquire(folder);
 
         try
         {
-            await capture.StartAsync(options, project.FullPath, cancellationToken);
+            await capture.StartAsync(options, folder, cancellationToken);
         }
         catch
         {
-            project.ReleaseMutex();
-            Directory.Delete(project.FullPath, true);
+            recordingLock.Dispose();
+            Directory.Delete(folder, true);
             throw;
         }
 
-        return project;
+        return new CaptureRun(new Recording(folder), recordingLock);
     }
 
     /// <summary>
-    /// Stops recording, saves the frames as Project.json and releases the mutex, so the editor and other tools may
-    /// open the project. A recording without frames is not a project: its folder is deleted.
+    /// Stops recording, saves recording.json and releases the lock. A recording without frames is not kept: its folder
+    /// is deleted.
     /// </summary>
-    public static async Task<ProjectInfo> StopAsync(ICaptureService capture, ProjectInfo project)
+    public static async Task<Recording> StopAsync(ICaptureService capture, CaptureRun run)
     {
-        var result = await capture.StopAsync();
+        CaptureResult result;
 
-        project.Frames = result.Frames.ToList();
-        project.Width = result.Width;
-        project.Height = result.Height;
-        project.Dpi = result.Dpi;
+        try
+        {
+            result = await capture.StopAsync();
+        }
+        finally
+        {
+            run.Lock.Dispose();
+        }
 
-        if (project.Frames.Count > 0)
-            project.Persist();
+        var recording = run.Recording;
+        recording.Frames = result.Frames.ToList();
+        recording.Width = result.Width;
+        recording.Height = result.Height;
+        recording.Dpi = result.Dpi;
 
-        project.ReleaseMutex();
+        if (recording.Frames.Count > 0)
+            recording.Save();
+        else
+            Directory.Delete(recording.Folder, true);
 
-        if (project.Frames.Count == 0)
-            Directory.Delete(project.FullPath, true);
-
-        return project;
+        return recording;
     }
 }

@@ -8,7 +8,7 @@ using System.Windows.Threading;
 using AgentReel.Editing;
 using AgentReel.Studio.Review;
 using AgentReel.Studio.Session;
-using ScreenToGif.Model;
+using AgentReel.Core;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using Clipboard = System.Windows.Clipboard;
@@ -62,7 +62,7 @@ public partial class EditorWindow : FluentWindow
         _timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(10) };
         _timer.Tick += (_, _) => Tick();
 
-        //Recordings and versions also come from the MCP server (Claude) and the app; the folder is watched for them.
+        //Recordings and versions also come from the MCP server (Claude); the folder is watched for them.
         _rescan = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
         _rescan.Tick += (_, _) =>
         {
@@ -72,8 +72,8 @@ public partial class EditorWindow : FluentWindow
 
         try
         {
-            Directory.CreateDirectory(ProjectLibrary.RecordingFolder);
-            _watcher = new FileSystemWatcher(ProjectLibrary.RecordingFolder) { IncludeSubdirectories = true, EnableRaisingEvents = true };
+            Directory.CreateDirectory(RecordingLibrary.RecordingFolder);
+            _watcher = new FileSystemWatcher(RecordingLibrary.RecordingFolder) { IncludeSubdirectories = true, EnableRaisingEvents = true };
             _watcher.Created += Watcher_Changed;
             _watcher.Changed += Watcher_Changed;
             _watcher.Deleted += Watcher_Changed;
@@ -118,7 +118,7 @@ public partial class EditorWindow : FluentWindow
     /// <summary>
     /// Shows the studio (the one that is open, or a new one) with <paramref name="project"/> selected, or the newest recording.
     /// </summary>
-    public static EditorWindow Open(ProjectInfo? project = null)
+    public static EditorWindow Open(Recording? project = null)
     {
         var window = Application.Current.Windows.OfType<EditorWindow>().FirstOrDefault() ?? new EditorWindow();
         window.Show();
@@ -127,7 +127,7 @@ public partial class EditorWindow : FluentWindow
             window.WindowState = WindowState.Normal;
 
         window.Activate();
-        window.Refresh(project == null ? null : ProjectLibrary.IdOf(project));
+        window.Refresh(project == null ? null : RecordingLibrary.IdOf(project));
         return window;
     }
 
@@ -272,7 +272,7 @@ public partial class EditorWindow : FluentWindow
 
         try
         {
-            new ReviewWindow(ReviewData.Load(item.Project.FullPath)) { Owner = this }.Show();
+            new ReviewWindow(ReviewData.Load(item.Project.Folder)) { Owner = this }.Show();
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
@@ -283,7 +283,7 @@ public partial class EditorWindow : FluentWindow
     private void ShowFolder_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: LibraryItem item })
-            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{item.Project.FullPath}\"") { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{item.Project.Folder}\"") { UseShellExecute = true });
     }
 
     private async void Delete_Click(object sender, RoutedEventArgs e)
@@ -310,7 +310,7 @@ public partial class EditorWindow : FluentWindow
             if (item.Id == _item?.Id)
                 Pause();
 
-            ProjectLibrary.Delete(item.Project);
+            RecordingLibrary.Delete(item.Project);
             _documents.Remove(item.Id);
             Refresh();
         }
@@ -739,7 +739,7 @@ public partial class EditorWindow : FluentWindow
         InfoFrames.Text = _clips.Count != source.Frames.Count ? $"{source.Frames.Count} → {_clips.Count}" : source.Frames.Count.ToString();
         InfoSize.Text = $"{source.Width} × {source.Height}";
         InfoId.Text = _item.Id;
-        InfoId.ToolTip = source.FullPath;
+        InfoId.ToolTip = source.Folder;
 
         _filling = false;
     }
@@ -764,6 +764,7 @@ public partial class EditorWindow : FluentWindow
         UndoButton.IsEnabled = document?.CanUndo == true;
         RedoButton.IsEnabled = document?.CanRedo == true;
         SaveButton.IsEnabled = document?.IsDirty == true;
+        ExportButton.IsEnabled = _item != null;
 
         if (document == null || _item == null)
             return;
@@ -941,7 +942,7 @@ public partial class EditorWindow : FluentWindow
         {
             var saved = await document.SaveAsync();
             _documents.Remove(_item.Id);
-            Refresh(ProjectLibrary.IdOf(saved));
+            Refresh(RecordingLibrary.IdOf(saved));
             Notify("Saved as a new version", "The original stays as it was. Claude sees the version as your latest recording.", ControlAppearance.Success);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or ArgumentException or UnauthorizedAccessException)
@@ -1002,7 +1003,64 @@ public partial class EditorWindow : FluentWindow
 
     private void Save_Click(object sender, RoutedEventArgs e) => _ = SaveAsync();
 
-    private void Export_Click(object sender, RoutedEventArgs e) => Notify("Export comes next", "Until then, ask Claude to export the recording, or open it in the classic editor.", ControlAppearance.Secondary);
+    private void Export_Click(object sender, RoutedEventArgs e) => _ = ExportAsync();
+
+    /// <summary>
+    /// Exports the selected recording as it is saved (GIF, APNG or MP4), with AgentReel's own encoders.
+    /// </summary>
+    private async Task ExportAsync()
+    {
+        CommitDraft();
+
+        if (_item == null)
+            return;
+
+        if (_document is { IsDirty: true })
+        {
+            Notify("Save the version first", "Export takes saved versions, so the original stays as it was. Press Ctrl+S, then export.", ControlAppearance.Secondary);
+            return;
+        }
+
+        var recording = _item.Project;
+        var folder = Path.GetDirectoryName(RecordingExport.DefaultPath(recording, AgentReel.Export.ExportFormat.Gif))!;
+        Directory.CreateDirectory(folder);
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Export recording",
+            FileName = recording.Id,
+            InitialDirectory = folder,
+            Filter = "GIF animation (*.gif)|*.gif|MP4 video (*.mp4)|*.mp4|Animated PNG (*.png)|*.png",
+            AddExtension = true
+        };
+
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        var format = dialog.FilterIndex switch
+        {
+            2 => AgentReel.Export.ExportFormat.Mp4,
+            3 => AgentReel.Export.ExportFormat.Apng,
+            _ => AgentReel.Export.ExportFormat.Gif
+        };
+
+        Pause();
+        ShowBusy("Exporting…");
+
+        try
+        {
+            await RecordingExport.ExportAsync(recording, format, dialog.FileName);
+            Notify("Exported", dialog.FileName, ControlAppearance.Success);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or ArgumentException or UnauthorizedAccessException or NotSupportedException or System.Runtime.InteropServices.COMException)
+        {
+            Notify("Could not export", ex.Message, ControlAppearance.Danger);
+        }
+        finally
+        {
+            HideBusy();
+        }
+    }
 
     private void Play_Click(object sender, RoutedEventArgs e)
     {

@@ -1,5 +1,5 @@
 using AgentReel.Editing.Privacy;
-using ScreenToGif.Model;
+using AgentReel.Core;
 using Xunit;
 
 namespace AgentReel.Mcp.Tests;
@@ -93,7 +93,7 @@ public class PrivacyTrackerTests
     [Fact]
     public void A_plan_maps_findings_to_their_frames_and_splits_frames_for_manual_regions()
     {
-        List<FrameInfo> frames = [new("0.png", 100), new("1.png", 200), new("2.png", 300)];
+        List<RecordedFrame> frames = [new("0.png", 100), new("1.png", 200), new("2.png", 300)];
         var finding = new PrivacyFinding("p1", PrivacyKind.Email, PrivacySeverity.Medium, "ja… (20 chars)", 100, 300, new Box(1, 2, 3, 4), [new FrameRegion(1, new Box(1, 2, 3, 4))]);
         var manual = new ManualRegion(new Box(50, 50, 10, 10), 150, 600);
 
