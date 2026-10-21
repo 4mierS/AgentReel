@@ -51,8 +51,9 @@ public class WgcCaptureServiceTests
             }
 
             //The delays cover the whole recording, a static screen just makes the last frame longer.
+            //They start at the first frame, which can arrive a few hundred ms after StartAsync on a slow CI runner.
             var total = result.Frames.Sum(s => s.Delay);
-            Assert.InRange(total, 1300, 3000);
+            Assert.InRange(total, 1000, 3000);
         }
         finally
         {
