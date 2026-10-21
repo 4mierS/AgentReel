@@ -156,17 +156,6 @@ public partial class ErrorDialog
         viewer.ShowDialog();
     }
 
-    private async void SendButton_Click(object sender, RoutedEventArgs e)
-    {
-        var feedback = new Feedback { Topmost = true };
-
-        if (feedback.ShowDialog() != true)
-            return;
-
-        if (App.MainViewModel != null)
-            await Task.Factory.StartNew(App.MainViewModel.SendFeedback, TaskCreationOptions.LongRunning);
-    }
-
     #endregion
 
     /// <summary>

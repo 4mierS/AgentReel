@@ -373,41 +373,6 @@ internal class ApplicationViewModel : ApplicationBaseViewModel
         }
     }
 
-    public ICommand OpenFeedback
-    {
-        get
-        {
-            return new RelayCommand
-            {
-                CanExecutePredicate = a => true, //TODO: Always let this window opens or check if there's any other recorder active?
-                ExecuteAction = a =>
-                {
-                    var feedback = Application.Current.Windows.OfType<Feedback>().FirstOrDefault();
-
-                    if (feedback == null)
-                    {
-                        feedback = new Feedback();
-                        feedback.Closed += async (sender, args) =>
-                        {
-                            await Task.Factory.StartNew(App.MainViewModel.SendFeedback, TaskCreationOptions.LongRunning);
-
-                            CloseOrNot();
-                        };
-
-                        feedback.ShowDialog();
-                    }
-                    else
-                    {
-                        if (feedback.WindowState == WindowState.Minimized)
-                            feedback.WindowState = WindowState.Normal;
-
-                        feedback.Activate();
-                    }
-                }
-            };
-        }
-    }
-
     public ICommand OpenTroubleshoot
     {
         get
@@ -839,45 +804,6 @@ internal class ApplicationViewModel : ApplicationBaseViewModel
         catch (Exception ex)
         {
             LogWriter.Log(ex, "Error while checking the space left in disk");
-        }
-    }
-
-    internal void SendFeedback()
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(UserSettings.All.TemporaryFolderResolved))
-                return;
-
-            var path = Path.Combine(UserSettings.All.TemporaryFolderResolved, "ScreenToGif", "Feedback");
-
-            if (!Directory.Exists(path))
-                return;
-
-            var list = new DirectoryInfo(path).EnumerateFiles("*.html", SearchOption.TopDirectoryOnly);
-
-            foreach (var file in list)
-            {
-                //Get zip with same name as file
-                var zip = Path.Combine(file.DirectoryName, file.Name.Replace(".html", ".zip"));
-
-                List<string> fileList = null;
-
-                if (File.Exists(zip))
-                    fileList = new List<string> { zip };
-
-                if (!FeedbackHelper.Send(File.ReadAllText(file.FullName), fileList))
-                    continue;
-
-                File.Delete(file.FullName);
-
-                if (File.Exists(zip))
-                    File.Delete(zip);
-            }
-        }
-        catch (Exception ex)
-        {
-            LogWriter.Log(ex, "Automatic feedback");
         }
     }
 

@@ -74,21 +74,6 @@ public class EncoderListViewItem : ListViewItem
         new FrameworkPropertyMetadata());
 
 
-    public static readonly DependencyProperty UploadedProperty = DependencyProperty.Register(nameof(Uploaded), typeof(bool), typeof(EncoderListViewItem),
-        new FrameworkPropertyMetadata(false));
-
-    public static readonly DependencyProperty UploadLinkProperty = DependencyProperty.Register(nameof(UploadLink), typeof(string), typeof(EncoderListViewItem),
-        new FrameworkPropertyMetadata());
-
-    public static readonly DependencyProperty UploadLinkDisplayProperty = DependencyProperty.Register(nameof(UploadLinkDisplay), typeof(string), typeof(EncoderListViewItem),
-        new FrameworkPropertyMetadata());
-
-    public static readonly DependencyProperty DeletionLinkProperty = DependencyProperty.Register(nameof(DeletionLink), typeof(string), typeof(EncoderListViewItem),
-        new FrameworkPropertyMetadata());
-
-    public static readonly DependencyProperty UploadTaskExceptionProperty = DependencyProperty.Register(nameof(UploadTaskException), typeof(Exception), typeof(EncoderListViewItem),
-        new FrameworkPropertyMetadata(null));
-
 
     public static readonly DependencyProperty CopiedToClipboardProperty = DependencyProperty.Register(nameof(CopiedToClipboard), typeof(bool), typeof(EncoderListViewItem),
         new FrameworkPropertyMetadata(false));
@@ -117,9 +102,6 @@ public class EncoderListViewItem : ListViewItem
         new PropertyMetadata(TimeSpan.Zero, TimeSpan_PropertyChanged));
 
     public static readonly DependencyProperty TimeToEncodeProperty = DependencyProperty.Register(nameof(TimeToEncode), typeof(TimeSpan), typeof(EncoderListViewItem),
-        new PropertyMetadata(TimeSpan.Zero, TimeSpan_PropertyChanged));
-
-    public static readonly DependencyProperty TimeToUploadProperty = DependencyProperty.Register(nameof(TimeToUpload), typeof(TimeSpan), typeof(EncoderListViewItem),
         new PropertyMetadata(TimeSpan.Zero, TimeSpan_PropertyChanged));
 
     public static readonly DependencyProperty TimeToCopyProperty = DependencyProperty.Register(nameof(TimeToCopy), typeof(TimeSpan), typeof(EncoderListViewItem),
@@ -305,56 +287,6 @@ public class EncoderListViewItem : ListViewItem
         set => SetCurrentValue(ExceptionProperty, value);
     }
 
-    /// <summary>
-    /// True if the outfile file was uploaded.
-    /// </summary>
-    [Description("True if the outfile file was uploaded.")]
-    public bool Uploaded
-    {
-        get => (bool)GetValue(UploadedProperty);
-        set => SetCurrentValue(UploadedProperty, value);
-    }
-
-    /// <summary>
-    /// The link to the uploaded file.
-    /// </summary>
-    [Description("The link to the uploaded file.")]
-    public string UploadLink
-    {
-        get => (string)GetValue(UploadLinkProperty);
-        set => SetCurrentValue(UploadLinkProperty, value);
-    }
-
-    /// <summary>
-    /// The link to the uploaded file (without the http).
-    /// </summary>
-    [Description("The link to the uploaded file (without the http).")]
-    public string UploadLinkDisplay
-    {
-        get => (string)GetValue(UploadLinkDisplayProperty);
-        set => SetCurrentValue(UploadLinkDisplayProperty, value);
-    }
-
-    /// <summary>
-    /// The link to delete the uploaded file.
-    /// </summary>
-    [Description("The link to delete the uploaded file.")]
-    public string DeletionLink
-    {
-        get => (string)GetValue(DeletionLinkProperty);
-        set => SetCurrentValue(DeletionLinkProperty, value);
-    }
-
-    /// <summary>
-    /// The exception detail about the upload task.
-    /// </summary>
-    [Description("The exception detail about the upload task.")]
-    public Exception UploadTaskException
-    {
-        get => (Exception)GetValue(UploadTaskExceptionProperty);
-        set => SetCurrentValue(UploadTaskExceptionProperty, value);
-    }
-
 
 
     /// <summary>
@@ -448,16 +380,6 @@ public class EncoderListViewItem : ListViewItem
     {
         get => (TimeSpan)GetValue(TimeToEncodeProperty);
         set => SetValue(TimeToEncodeProperty, value);
-    }
-
-    /// <summary>
-    /// The time it took to upload the file.
-    /// </summary>
-    [Description("The time it took to upload the file.")]
-    public TimeSpan TimeToUpload
-    {
-        get => (TimeSpan)GetValue(TimeToUploadProperty);
-        set => SetValue(TimeToUploadProperty, value);
     }
 
     /// <summary>
@@ -561,8 +483,6 @@ public class EncoderListViewItem : ListViewItem
         var copyFailedHyperlink = Template.FindName("CopyFailedHyperlink", this) as Hyperlink;
         var executedHyperlink = Template.FindName("ExecutedHyperlink", this) as Hyperlink;
         var executionFailedHyperlink = Template.FindName("ExecutionFailedHyperlink", this) as Hyperlink;
-        var uploadHyperlink = Template.FindName("UploadHyperlink", this) as Hyperlink;
-        var uploadFailedHyperlink = Template.FindName("UploadFailedHyperlink", this) as Hyperlink;
 
         var fileButton = Template.FindName("FileButton", this) as ExtendedButton;
         var folderButton = Template.FindName("FolderButton", this) as ExtendedButton;
@@ -571,7 +491,6 @@ public class EncoderListViewItem : ListViewItem
         var copyImageMenu = Template.FindName("CopyImageMenuItem", this) as ExtendedMenuItem;
         var copyFilenameMenu = Template.FindName("CopyFilenameMenuItem", this) as ExtendedMenuItem;
         var copyFolderMenu = Template.FindName("CopyFolderMenuItem", this) as ExtendedMenuItem;
-        var copyLinkMenu = Template.FindName("CopyLinkMenuItem", this) as ExtendedMenuItem;
 
         if (cancelButton != null)
             cancelButton.Click += (s, a) => RaiseCancelClickedEvent();
@@ -601,33 +520,6 @@ public class EncoderListViewItem : ListViewItem
                 if (CommandTaskException == null) return;
 
                 var viewer = new ExceptionViewer(CommandTaskException);
-                viewer.ShowDialog();
-            };
-
-        //Upload done.
-        if (uploadHyperlink != null)
-            uploadHyperlink.Click += (s, a) =>
-            {
-                try
-                {
-                    if (string.IsNullOrWhiteSpace(UploadLink))
-                        return;
-
-                    ProcessHelper.StartWithShell(Keyboard.Modifiers != ModifierKeys.Control || string.IsNullOrWhiteSpace(DeletionLink) ? UploadLink : DeletionLink);
-                }
-                catch (Exception e)
-                {
-                    LogWriter.Log(e, "Error while opening the upload link");
-                }
-            };
-
-        //Upload failed.
-        if (uploadFailedHyperlink != null)
-            uploadFailedHyperlink.Click += (s, a) =>
-            {
-                if (UploadTaskException == null) return;
-
-                var viewer = new ExceptionViewer(UploadTaskException);
                 viewer.ShowDialog();
             };
 
@@ -727,20 +619,6 @@ public class EncoderListViewItem : ListViewItem
                 SetClipboard(data);
             };
 
-        // Copy link
-        if (copyLinkMenu != null)
-        {
-            copyLinkMenu.Click += (s, a) =>
-            {
-                if (string.IsNullOrWhiteSpace(UploadLink))
-                    return;
-
-                var data = new DataObject();
-                data.SetText(UploadLink, TextDataFormat.Text);
-
-                SetClipboard(data);
-            };
-        }
     }
 
 
@@ -757,7 +635,7 @@ public class EncoderListViewItem : ListViewItem
         if (!(d is EncoderListViewItem item))
             return;
 
-        item.TotalTime = item.TimeToAnalyze + item.TimeToEncode + item.TimeToUpload + item.TimeToCopy + item.TimeToExecute;
+        item.TotalTime = item.TimeToAnalyze + item.TimeToEncode + item.TimeToCopy + item.TimeToExecute;
     }
 
 

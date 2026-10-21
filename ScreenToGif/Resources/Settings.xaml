@@ -46,9 +46,6 @@
     <!--Video source-->
     <s:Int32 x:Key="VideoImporter">0</s:Int32>
     
-    <!--Feedback-->
-    <!--<s:String x:Key="LatestFeedbackEmail"></s:String>-->
-    
     <!--Options • Application-->
     <s:Boolean x:Key="SingleInstance">True</s:Boolean>
     <s:Boolean x:Key="StartMinimized">False</s:Boolean>
@@ -190,7 +187,6 @@
     <s:Int32 x:Key="ProxyPort">0</s:Int32>
     <!--<s:String x:Key="ProxyUsername"></s:String>-->
     <!--<s:String x:Key="ProxyPassword"></s:String>-->
-    <c:ArrayList x:Key="UploadPresets"/>
 
     <!--Options • Extras-->
     <!--<s:String x:Key="FfmpegLocation"></s:String>-->

@@ -10,8 +10,6 @@ namespace ScreenToGif.Domain.Interfaces
         bool PickLocation { get; set; }
         OverwriteModes OverwriteMode { get; set; }
         bool ExportAsProjectToo { get; set; }
-        bool UploadFile { get; set; }
-        string UploadService { get; set; }
 
         bool ExportPartially { get; set; }
         PartialExportModes PartialExport { get; set; }

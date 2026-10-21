@@ -74,8 +74,33 @@ public static class Migration
             default:
             {
                 properties.RemoveAll(p => p.Key == "Version");
+                RemoveDroppedFeatures(properties);
                 return true;
             }
         }
+    }
+
+    /// <summary>
+    /// AgentReel removed the upload services and the feedback mail. Settings saved before still hold their values, and
+    /// an export preset with an unknown property would not load at all, so those values are dropped on every load.
+    /// </summary>
+    private static void RemoveDroppedFeatures(List<Property> properties)
+    {
+        properties.RemoveAll(p => p.Key is "UploadPresets" or "LatestFeedbackEmail");
+
+        foreach (var property in properties)
+            RemoveUploadOptions(property);
+    }
+
+    private static void RemoveUploadOptions(Property property)
+    {
+        property.Attributes.RemoveAll(a => a.Key is "UploadFile" or "UploadService" or "IsUploadExpanded");
+
+        //Copying the upload link to the clipboard is gone too.
+        foreach (var copyType in property.Attributes.Where(a => a.Key == "CopyType" && a.Value == "Link"))
+            copyType.Value = "File";
+
+        foreach (var child in property.Attributes.Concat(property.Children))
+            RemoveUploadOptions(child);
     }
 }

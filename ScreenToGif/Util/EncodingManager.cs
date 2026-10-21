@@ -21,7 +21,6 @@ using KGySoft.Drawing;
 using KGySoft.Drawing.Imaging;
 using KGySoft.Threading;
 
-using ScreenToGif.Cloud;
 using ScreenToGif.Controls;
 using ScreenToGif.Domain.Enums;
 using ScreenToGif.Domain.Interfaces;
@@ -41,7 +40,6 @@ using ScreenToGif.ViewModel.ExportPresets.AnimatedImage.Webp;
 using ScreenToGif.ViewModel.ExportPresets.Image;
 using ScreenToGif.ViewModel.ExportPresets.Other;
 using ScreenToGif.ViewModel.ExportPresets.Video;
-using ScreenToGif.ViewModel.UploadPresets;
 using ScreenToGif.Windows.Other;
 
 using Color = System.Windows.Media.Color;
@@ -195,9 +193,6 @@ internal class EncodingManager
             case 1: //Encoding.
                 item.TimeToEncode = elapsed;
                 break;
-            case 2: //Upload.
-                item.TimeToUpload = elapsed;
-                break;
             case 3: //Copy.
                 item.TimeToCopy = elapsed;
                 break;
@@ -310,22 +305,6 @@ internal class EncodingManager
     }
 
 
-    private static void SetUpload(int id, bool uploaded, string link, string deleteLink = null, Exception exception = null)
-    {
-        var item = Encodings.FirstOrDefault(x => x.Id == id);
-
-        if (item == null)
-            return;
-
-        item.Uploaded = uploaded;
-        item.UploadLink = link;
-        item.UploadLinkDisplay = !string.IsNullOrWhiteSpace(link) ? link.Replace("https:/", "").Replace("http:/", "").Trim('/') : link;
-        item.DeletionLink = deleteLink;
-        item.UploadTaskException = exception;
-
-        OnEncodingChanged(item);
-    }
-
     private static void SetCopy(int id, bool copied, Exception exception = null)
     {
         var item = Encodings.FirstOrDefault(x => x.Id == id);
@@ -363,12 +342,6 @@ internal class EncodingManager
     {
         return Encodings.FirstOrDefault(f => f.Id == id)?.Status;
     }
-
-    private static string GetUploadLink(int id)
-    {
-        return Encodings.FirstOrDefault(f => f.Id == id)?.UploadLink;
-    }
-
 
     internal static void RemoveEncodings(int id)
     {
@@ -438,12 +411,6 @@ internal class EncodingManager
             item.AreMultipleFiles = current.AreMultipleFiles;
             item.Exception = current.Exception;
 
-            item.Uploaded = current.Uploaded;
-            item.UploadLink = current.UploadLink;
-            item.UploadLinkDisplay = current.UploadLinkDisplay;
-            item.DeletionLink = current.DeletionLink;
-            item.UploadTaskException = current.UploadTaskException;
-
             item.CopiedToClipboard = current.CopiedToClipboard;
             item.CopyTaskException = current.CopyTaskException;
 
@@ -454,7 +421,6 @@ internal class EncodingManager
 
             item.TimeToAnalyze = current.TimeToAnalyze;
             item.TimeToEncode = current.TimeToEncode;
-            item.TimeToUpload = current.TimeToUpload;
             item.TimeToCopy = current.TimeToCopy;
             item.TimeToExecute = current.TimeToExecute;
         }
@@ -511,49 +477,6 @@ internal class EncodingManager
 
             watch.Restart();
 
-            #region Upload
-
-            if (preset.UploadFile && File.Exists(preset.FullPath))
-            {
-                Update(id, "S.Encoder.Uploading", true, true);
-
-                try
-                {
-                    //Get selected preset.
-                    var presetType = preset.Extension == ".zip" ? ExportFormats.Zip : preset.Type;
-                    var uploadPreset = UserSettings.All.UploadPresets.OfType<UploadPreset>().FirstOrDefault(f => (f.AllowedTypes.Count == 0 || f.AllowedTypes.Contains(presetType)) && f.Title == preset.UploadService);
-
-                    if (uploadPreset == null)
-                        throw new Exception($"Missing upload preset called {preset.UploadService}");
-
-                    //TODO: Limit upload by imposed service limits.
-
-                    //Try uploading to the selected service.
-                    var cloud = CloudFactory.CreateCloud(uploadPreset.Type);
-                    var history = await cloud.UploadFileAsync(uploadPreset, preset.FullPath, CancellationToken.None);
-
-                    uploadPreset.History.Add(history);
-                    UserSettings.Save();
-
-                    if (history.Result != 200)
-                        throw new Exception(history.Message);
-
-                    SetUpload(id, true, history.GetLink(uploadPreset), history.DeletionLink);
-                }
-                catch (Exception e)
-                {
-                    LogWriter.Log(e, "It was not possible to upload.");
-                    SetUpload(id, false, null, null, e);
-                }
-                finally
-                {
-                    Update(id, 2, watch.Elapsed);
-                    watch.Restart();
-                }
-            }
-
-            #endregion
-
             #region Copy to clipboard
 
             if (preset.SaveToClipboard && File.Exists(preset.FullPath))
@@ -572,11 +495,6 @@ internal class EncodingManager
                                 break;
                             case CopyModes.FolderPath:
                                 data.SetText(Path.GetDirectoryName(preset.FullPath) ?? preset.FullPath, TextDataFormat.UnicodeText);
-                                break;
-                            case CopyModes.Link:
-                                var link = GetUploadLink(id);
-
-                                data.SetText(string.IsNullOrEmpty(link) ? preset.FullPath : link, TextDataFormat.UnicodeText);
                                 break;
                             default:
                                 data.SetText(preset.FullPath, TextDataFormat.UnicodeText);
@@ -624,7 +542,7 @@ internal class EncodingManager
             {
                 Update(id, "S.Encoder.Executing", true, true);
 
-                var command = preset.CustomCommands.Replace("{p}", "\"" + preset.FullPath + "\"").Replace("{f}", "\"" + Path.GetDirectoryName(preset.OutputFolder) + "\"").Replace("{u}", "\"" + GetUploadLink(id) + "\"");
+                var command = preset.CustomCommands.Replace("{p}", "\"" + preset.FullPath + "\"").Replace("{f}", "\"" + Path.GetDirectoryName(preset.OutputFolder) + "\"");
                 var output = "";
 
                 try
@@ -764,16 +682,6 @@ internal class EncodingItem
     public Exception CommandTaskException { get; set; }
 
 
-    public bool Uploaded { get; set; }
-
-    public string UploadLink { get; set; }
-
-    public string UploadLinkDisplay { get; set; }
-
-    public string DeletionLink { get; set; }
-
-    public Exception UploadTaskException { get; set; }
-
     public Exception Exception { get; set; }
 
     public CancellationTokenSource TokenSource { get; set; }
@@ -782,8 +690,6 @@ internal class EncodingItem
     public TimeSpan TimeToAnalyze { get; set; }
 
     public TimeSpan TimeToEncode { get; set; }
-
-    public TimeSpan TimeToUpload { get; set; }
 
     public TimeSpan TimeToCopy { get; set; }
 

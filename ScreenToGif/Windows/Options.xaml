@@ -44,7 +44,6 @@
                 <c:ExListViewItem Content="{DynamicResource S.Options.Shortcuts}" Icon="{StaticResource Vector.Keyboard}"/>
                 <c:ExListViewItem Content="{DynamicResource S.Options.Language}" Icon="{StaticResource Vector.Translate}"/>
                 <c:ExListViewItem Content="{DynamicResource S.Options.Storage}" Icon="{StaticResource Vector.Temporary}"/>
-                <c:ExListViewItem Content="{DynamicResource S.Options.Upload}" Icon="{StaticResource Vector.Web}"/>
                 <c:ExListViewItem Content="{DynamicResource S.Options.Extras}" Icon="{StaticResource Vector.Extras}"/>
                 <c:ExListViewItem Content="{DynamicResource S.Options.About}" Icon="{StaticResource Vector.Info}"/>
             </ListView>

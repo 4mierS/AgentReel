@@ -96,7 +96,6 @@
                         <Separator/>
                         <n:ExtendedMenuItem Header="{StaticResource S.StartUp.Editor}" Icon="{StaticResource Vector.Editor}" Command="{Binding OpenEditor}" InputGestureText="{Binding EditorGesture, UpdateSourceTrigger=PropertyChanged}" Tag="S.StartUp.Editor"/>
                         <n:ExtendedMenuItem Header="{StaticResource S.StartUp.Options}" Icon="{StaticResource Vector.Options}" Command="{Binding OpenOptions}" InputGestureText="{Binding OptionsGesture, UpdateSourceTrigger=PropertyChanged}" Tag="S.StartUp.Options"/>
-                        <n:ExtendedMenuItem Header="{StaticResource S.Feedback.Feedback}" Icon="{StaticResource Vector.Application}" Command="{Binding OpenFeedback}" Tag="S.Feedback.Feedback"/>
                         <n:ExtendedMenuItem Header="{StaticResource S.Troubleshoot.Title}" Icon="{StaticResource Vector.Warning}" Command="{Binding OpenTroubleshoot}" Tag="S.Troubleshoot.Title"/>
                         <Separator/>
                         <n:ExtendedMenuItem Header="{StaticResource S.Exit}" Icon="{StaticResource Vector.Close}" Command="{Binding ExitApplication}" InputGestureText="{Binding ExitGesture, UpdateSourceTrigger=PropertyChanged}" Tag="S.Exit"/>

@@ -69,8 +69,6 @@
             <n:ExtendedButton Grid.Column="1" x:Name="OkButton" Text="{DynamicResource S.Ok}" Icon="{DynamicResource Vector.Ok}" ContentWidth="18" ContentHeight="18" 
                               Padding="5,0" MinWidth="90" Margin="5" IsDefault="True" Click="OkButton_Click"/>
 
-            <n:ExtendedButton Grid.Column="2" x:Name="SendButton" Text="{DynamicResource S.ErrorDialog.Send}" Icon="{DynamicResource Vector.Email}" ContentWidth="18" ContentHeight="20" 
-                              Padding="4,0" MinWidth="90" Margin="5" Click="SendButton_Click"/>
         </Grid>
     </Grid>
 </n:ExWindow>

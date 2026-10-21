@@ -9,7 +9,6 @@
              xmlns:c="clr-namespace:ScreenToGif.Util.Converters;assembly=ScreenToGif.Util"
              xmlns:e="clr-namespace:ScreenToGif.Domain.Enums;assembly=ScreenToGif.Domain"
              xmlns:t="clr-namespace:ScreenToGif.Util.Settings;assembly=ScreenToGif.Util"
-             xmlns:p="clr-namespace:ScreenToGif.ViewModel.UploadPresets;assembly=ScreenToGif.ViewModel"
              xmlns:uc="clr-namespace:ScreenToGif.UserControls"
              mc:Ignorable="d" d:DesignHeight="450" d:DesignWidth="300" Focusable="False" IsTabStop="False"
              x:Name="ThisPanel" Loaded="Panel_Loaded" Unloaded="ExportPanel_Unloaded">
@@ -75,7 +74,6 @@
 
     <Grid x:Name="MainGrid" DataContext="{Binding ElementName=ThisPanel, Path=CurrentPreset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -1334,7 +1332,7 @@
                 <!--Images-->
                 <Grid x:Name="EmbeddedImageOptionsGrid" Margin="10,0,0,0" Visibility="Collapsed">
                     <n:ExtendedCheckBox Grid.Row="0" x:Name="ImagesZipCheckBox" Margin="0,3,3,3" IsChecked="{Binding ZipFiles, FallbackValue=False}"
-                                        Text="{DynamicResource S.SaveAs.ImageOptions.Zip}" ToolTip="{DynamicResource S.SaveAs.ImageOptions.Zip.Info}" CheckedChanged="ImagesZipCheckBox_CheckedChanged"/>
+                                        Text="{DynamicResource S.SaveAs.ImageOptions.Zip}" ToolTip="{DynamicResource S.SaveAs.ImageOptions.Zip.Info}"/>
                 </Grid>
 
                 <!--Project-->
@@ -1409,9 +1407,6 @@
                                         IsChecked="{Binding ExportAsProjectToo, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                 </Grid>
 
-                <n:ExtendedCheckBox Grid.Row="3" x:Name="UploadFileCheckBox" Text="{DynamicResource S.SaveAs.SaveOptions.UploadFile}" Margin="10,3,3,3"
-                                    IsChecked="{Binding UploadFile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=False}" Unchecked="UploadFileCheckBox_Unchecked"/>
-                
                 <n:ExtendedCheckBox Grid.Row="4" x:Name="CopyFileCheckBox" Text="{DynamicResource S.SaveAs.SaveOptions.CopyToClipboard}" Margin="10,3,3,3"
                                     IsChecked="{Binding SaveToClipboard, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
@@ -1427,11 +1422,6 @@
                     <n:ExtendedRadioButton x:Name="CopyFilePathRadioButton" ContentWidth="0" ContentHeight="0" Padding="0,2,2,2" Text="{DynamicResource S.SaveAs.SaveOptions.CopyToClipboard.FilePath}" 
                                            IsChecked="{Binding CopyType, Converter={StaticResource EnumToBool}, ConverterParameter={x:Static e:CopyModes.FilePath}}"
                                            ToolTip="{DynamicResource S.SaveAs.SaveOptions.CopyToClipboard.FilePath.Info}"/>
-                    <Separator Width="1" Visibility="{Binding ElementName=CopyLinkRadioButton, Path=Visibility}"/>
-                    <n:ExtendedRadioButton x:Name="CopyLinkRadioButton" ContentWidth="0" ContentHeight="0" Padding="0,2,2,2" Text="{DynamicResource S.SaveAs.SaveOptions.CopyToClipboard.Link}"
-                                           IsChecked="{Binding CopyType, Converter={StaticResource EnumToBool}, ConverterParameter={x:Static e:CopyModes.Link}}"
-                                           ToolTip="{DynamicResource S.SaveAs.SaveOptions.CopyToClipboard.Link.Info}"
-                                           Visibility="{Binding ElementName=UploadFileCheckBox, Path=IsChecked, Converter={StaticResource Bool2Visibility}}"/>
                 </WrapPanel>
 
                 <n:ExtendedCheckBox Grid.Row="6" x:Name="CustomCommandsCheckBox" Text="{DynamicResource S.SaveAs.SaveOptions.ExecuteCommands}" Margin="10,3,3,3"
@@ -1597,73 +1587,5 @@
             </Grid>
         </Expander>
 
-        <Expander Grid.Row="6" x:Name="UploadExpander" Header="{DynamicResource S.SaveAs.Upload}" IsExpanded="{Binding IsUploadExpanded, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, FallbackValue=True}"
-                  Visibility="{Binding ElementName=UploadFileCheckBox, Path=IsChecked, Converter={StaticResource Bool2Visibility}}">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <n:ExtendedComboBox Grid.Row="0" x:Name="UploadPresetComboBox" VerticalAlignment="Center" Margin="10,3,5,3" Height="38" ItemTemplate="{StaticResource Template.ComboBox.Simple}"
-                                    SelectedValuePath="Title" SelectedValue="{Binding UploadService, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" ToolTip="{DynamicResource S.SaveAs.Upload.Info}">
-                    <n:ExtendedComboBox.GroupStyle>
-                        <GroupStyle>
-                            <GroupStyle.HeaderTemplate>
-                                <DataTemplate>
-                                    <n:LabelSeparator x:Name="Separator" Text="{Binding Name}"/>
-                                    
-                                    <DataTemplate.Triggers>
-                                        <Trigger Property="Name" Value="{x:Null}">
-                                            <Setter TargetName="Separator" Property="Visibility" Value="Collapsed"/>
-                                        </Trigger>
-                                    </DataTemplate.Triggers>
-                                </DataTemplate>
-                            </GroupStyle.HeaderTemplate>
-                        </GroupStyle>
-                    </n:ExtendedComboBox.GroupStyle>
-                    
-                    <n:ExtendedComboBox.EmptyItem>
-                        <p:UploadPreset Title="{StaticResource S.SaveAs.Upload.Unavailable.Title}" Description="{StaticResource S.SaveAs.Upload.Unavailable.Description}" ImageId="Vector.Info"/>
-                    </n:ExtendedComboBox.EmptyItem>
-
-                    <n:ExtendedComboBox.NoSelectionItem>
-                        <p:UploadPreset Title="{StaticResource S.SaveAs.Upload.Select.Title}" Description="{StaticResource S.SaveAs.Upload.Select.Description}" ImageId="Vector.Info"/>
-                    </n:ExtendedComboBox.NoSelectionItem>
-                </n:ExtendedComboBox>
-
-                <Grid Grid.Row="1" Margin="5,0" Height="35">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition />
-                        <ColumnDefinition Width="30"/>
-                        <ColumnDefinition Width="30"/>
-                        <ColumnDefinition Width="30"/>
-                        <ColumnDefinition Width="30"/>
-                    </Grid.ColumnDefinitions>
-
-                    <Border Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{DynamicResource Brush.StatusBand.Error}" CornerRadius="3" Margin="5,0"
-                            Visibility="{Binding ElementName=UploadPresetComboBox, Path=SelectedItem.HasLimit, Converter={StaticResource Bool2Visibility}, FallbackValue={x:Static Visibility.Collapsed}}" 
-                            ToolTip="{DynamicResource S.SaveAs.Upload.Limit}">
-                        <TextBlock Text="{Binding ElementName=UploadPresetComboBox, Path=SelectedItem.Limit}" Foreground="{DynamicResource Element.Foreground.Medium}" Margin="3,0" Padding="0" VerticalAlignment="Center"/>
-                    </Border>
-
-                    <n:ExtendedButton Grid.Column="1" x:Name="AddUploadPresetButton" Style="{StaticResource Style.Button.NoText}" 
-                                      Icon="{StaticResource Vector.Add}" ContentWidth="15" ContentHeight="15" Click="AddUploadPreset_Click"
-                                      ToolTip="{DynamicResource S.SaveAs.Upload.Add}" ToolTipService.Placement="Bottom"/>
-                    <n:ExtendedButton Grid.Column="2" x:Name="EditUploadPresetButton" Style="{StaticResource Style.Button.NoText}" 
-                                      Icon="{StaticResource Vector.Pen}" ContentWidth="15" ContentHeight="15" Click="EditUploadPreset_Click"
-                                      ToolTip="{DynamicResource S.SaveAs.Upload.Edit}" ToolTipService.Placement="Bottom"
-                                      IsEnabled="{Binding ElementName=UploadPresetComboBox, Path=SelectedItem, Converter={StaticResource ContentToVisibility}}"/>
-                    <n:ExtendedButton Grid.Column="3" x:Name="HistoryUploadPresetButton" Style="{StaticResource Style.Button.NoText}" 
-                                      Icon="{StaticResource Vector.Clock}" ContentWidth="15" ContentHeight="15" Click="HistoryUploadPreset_Click"
-                                      ToolTip="{DynamicResource S.SaveAs.Upload.History}" ToolTipService.Placement="Bottom"
-                                      IsEnabled="{Binding ElementName=UploadPresetComboBox, Path=SelectedItem, Converter={StaticResource ContentToVisibility}}"/>
-                    <n:ExtendedButton Grid.Column="4" x:Name="RemoveUploadPresetButton" Style="{StaticResource Style.Button.NoText}" 
-                                      Icon="{StaticResource Vector.Remove}" ContentWidth="15" ContentHeight="15" Click="RemoveUploadPreset_Click"
-                                      ToolTip="{DynamicResource S.SaveAs.Presets.Remove}" ToolTipService.Placement="Bottom"
-                                      IsEnabled="{Binding ElementName=UploadPresetComboBox, Path=SelectedItem, Converter={StaticResource ContentToVisibility}}"/>
-                </Grid>
-            </Grid>
-        </Expander>
     </Grid>
 </UserControl>

@@ -156,19 +156,6 @@
                             </Hyperlink>
                         </TextBlock>
                     </WrapPanel>
-
-                    <StackPanel x:Name="UploadStackPanel" Orientation="Horizontal" Visibility="Collapsed">
-                        <TextBlock x:Name="UploadedTextBlock" Visibility="Collapsed" ToolTip="{DynamicResource S.Encoder.Completed.Upload.Delete}">
-                            <Hyperlink x:Name="UploadHyperlink">
-                                <Run Text="{TemplateBinding UploadLinkDisplay}"/>
-                            </Hyperlink>
-                        </TextBlock>
-                        <TextBlock x:Name="UploadFailedTextBlock" Visibility="Visible">
-                            <Hyperlink x:Name="UploadFailedHyperlink" ToolTip="{DynamicResource S.Encoder.Error.Info}">
-                                <Run Text="{DynamicResource S.Encoder.Completed.Upload.Fail}"/>
-                            </Hyperlink>
-                        </TextBlock>
-                    </StackPanel>
                 </StackPanel>
 
                 <TextBlock Grid.Column="3" x:Name="TimeTextBlock" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TotalTime, StringFormat={}{0:mm}:{0:ss}}"
@@ -195,9 +182,6 @@
 
                             <TextBlock Grid.Row="2" Grid.Column="0" Text="{DynamicResource S.Encoder.Completed.Elapsed.Encoding}"/>
                             <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TimeToEncode, StringFormat={}{0:mm}:{0:ss}:{0:fff}}"/>
-
-                            <TextBlock Grid.Row="3" Grid.Column="0" x:Name="UploadTimeHeaderTextBlock" Text="{DynamicResource S.Encoder.Completed.Elapsed.Upload}"/>
-                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="UploadTimeTextBlock" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TimeToUpload, StringFormat={}{0:mm}:{0:ss}:{0:fff}}"/>
 
                             <TextBlock Grid.Row="4" Grid.Column="0" x:Name="CopyTimeHeaderTextBlock" Text="{DynamicResource S.Encoder.Completed.Elapsed.Copy}"/>
                             <TextBlock Grid.Row="4" Grid.Column="1" x:Name="CopyTimeTextBlock" Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TimeToCopy, StringFormat={}{0:mm}:{0:ss}:{0:fff}}"/>
@@ -238,7 +222,6 @@
                     <n:ExtendedMenuItem x:Name="CopyImageMenuItem" Header="{DynamicResource S.Encoder.Copy.Image}" Visibility="Collapsed"/>
                     <n:ExtendedMenuItem x:Name="CopyFilenameMenuItem" Header="{DynamicResource S.Encoder.Copy.Filename}"/>
                     <n:ExtendedMenuItem x:Name="CopyFolderMenuItem" Header="{DynamicResource S.Encoder.Copy.Folder}"/>
-                    <n:ExtendedMenuItem x:Name="CopyLinkMenuItem" Header="{DynamicResource S.Encoder.Copy.Link}" Visibility="Collapsed"/>
                 </ContextMenu>
             </Border.ContextMenu>
         </Border>
@@ -317,29 +300,9 @@
             <Trigger Property="AreMultipleFiles" Value="True">
                 <Setter TargetName="FileButton" Property="Visibility" Value="Collapsed"/>
             </Trigger>
-            
-            <Trigger Property="Uploaded" Value="True">
-                <Setter TargetName="UploadedTextBlock" Property="Visibility" Value="Visible"/>
-                <Setter TargetName="CopyLinkMenuItem" Property="Visibility" Value="Visible"/>
-            </Trigger>
-
-            <Trigger Property="UploadTaskException" Value="{x:Null}">
-                <Setter TargetName="UploadFailedTextBlock" Property="Visibility" Value="Collapsed"/>
-            </Trigger>
-
-            <Trigger SourceName="UploadedTextBlock" Property="Visibility" Value="Visible">
-                <Setter TargetName="UploadStackPanel" Property="Visibility" Value="Visible"/>
-            </Trigger>
-            <Trigger SourceName="UploadFailedTextBlock" Property="Visibility" Value="Visible">
-                <Setter TargetName="UploadStackPanel" Property="Visibility" Value="Visible"/>
-            </Trigger>
 
             <Trigger Property="TotalTime" Value="{x:Static s:TimeSpan.Zero}">
                 <Setter TargetName="TimeTextBlock" Property="Visibility" Value="Collapsed"/>
-            </Trigger>
-            <Trigger Property="TimeToUpload" Value="{x:Static s:TimeSpan.Zero}">
-                <Setter TargetName="UploadTimeHeaderTextBlock" Property="Visibility" Value="Collapsed"/>
-                <Setter TargetName="UploadTimeTextBlock" Property="Visibility" Value="Collapsed"/>
             </Trigger>
             <Trigger Property="TimeToCopy" Value="{x:Static s:TimeSpan.Zero}">
                 <Setter TargetName="CopyTimeHeaderTextBlock" Property="Visibility" Value="Collapsed"/>
