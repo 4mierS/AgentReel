@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- AgentReel Studio: the new desktop UI (review-before-apply first). New AgentReel code, not derived from ScreenToGif. -->
+  <!-- AgentReel Studio: the new desktop UI (record, review-before-apply). New AgentReel code, not derived from ScreenToGif. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
@@ -15,6 +15,9 @@
     <PackageReference Include="WPF-UI" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AgentReel.Capture\AgentReel.Capture.csproj" />
     <ProjectReference Include="..\AgentReel.Review\AgentReel.Review.csproj" />
+    <!-- Only for the shared resources (Settings.xaml, string resources) that UserSettings needs for the recording folder. -->
+    <ProjectReference Include="..\ScreenToGif\ScreenToGif.csproj" />
   </ItemGroup>
 </Project>

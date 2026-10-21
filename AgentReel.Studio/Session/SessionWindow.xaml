@@ -1,0 +1,221 @@
+<ui:FluentWindow x:Class="AgentReel.Studio.Session.SessionWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:session="clr-namespace:AgentReel.Studio.Session"
+                 Title="AgentReel Studio" Width="1180" Height="800" MinWidth="760" MinHeight="560"
+                 WindowStartupLocation="CenterScreen" WindowBackdropType="Mica" ExtendsContentIntoTitleBar="True"
+                 FontFamily="Segoe UI Variable Text">
+
+    <ui:FluentWindow.Resources>
+        <!--A card: the target's picture, its icon and name. Selected cards carry the agent's color.-->
+        <DataTemplate x:Key="TargetCard" DataType="{x:Type session:TargetItem}">
+            <Border x:Name="Card" Width="244" Margin="0,0,14,14" Padding="8" CornerRadius="10" BorderThickness="2" Cursor="Hand"
+                    BorderBrush="Transparent" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    MouseLeftButtonDown="Card_MouseLeftButtonDown" ToolTip="{Binding Target.Name}">
+                <StackPanel>
+                    <Border Height="128" CornerRadius="6" Background="#FF0B0B0E" ClipToBounds="True">
+                        <Grid>
+                            <Image Source="{Binding Snapshot}" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                            <!--Screens: only their shape, never their content.-->
+                            <Border x:Name="Shape" Visibility="Collapsed" Width="{Binding ShapeWidth}" Height="{Binding ShapeHeight}"
+                                    CornerRadius="4" BorderThickness="2" BorderBrush="#66FFFFFF" Background="#1AFFFFFF">
+                                <ui:SymbolIcon Symbol="Desktop24" FontSize="28" Foreground="#AAFFFFFF"/>
+                            </Border>
+
+                            <Border Visibility="{Binding PrivacyHint}" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="6" Padding="6,2"
+                                    CornerRadius="999" Background="#CC000000">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="EyeOff16" FontSize="11" Foreground="#FFF5A524" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Everything on it is recorded" FontSize="10" Foreground="#FFF5A524"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <Grid Margin="2,8,2,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Image x:Name="AppIcon" Source="{Binding Icon}" Width="16" Height="16" Margin="0,1,8,0" VerticalAlignment="Top"/>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="{Binding Detail}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsWindow}" Value="False">
+                    <Setter TargetName="Shape" Property="Visibility" Value="Visible"/>
+                    <Setter TargetName="AppIcon" Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter TargetName="Card" Property="BorderBrush" Value="{StaticResource Agent.Gradient}"/>
+                </DataTrigger>
+                <Trigger SourceName="Card" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Card" Property="Background" Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}"/>
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <ItemsPanelTemplate x:Key="Wrap">
+            <WrapPanel/>
+        </ItemsPanelTemplate>
+    </ui:FluentWindow.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="AgentReel Studio" ShowMaximize="True"/>
+
+        <!--1. Pick what to record.-->
+        <Grid x:Name="PickPanel" Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="28,4,28,18">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="What should Claude see?" FontSize="24" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                    <TextBlock x:Name="IntroText" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Text="Pick a window to record. Afterwards, ask Claude in the chat to trim, caption or export it."/>
+                </StackPanel>
+                <ui:TextBox x:Name="SearchBox" Grid.Column="1" Width="260" VerticalAlignment="Bottom" PlaceholderText="Find a window"
+                            Icon="{ui:SymbolIcon Search20}" TextChanged="SearchBox_TextChanged" ClearButtonEnabled="True"/>
+            </Grid>
+
+            <ScrollViewer Grid.Row="1" Padding="28,0,14,0" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="WINDOWS" Style="{StaticResource Section}"/>
+                    <ItemsControl x:Name="WindowList" ItemTemplate="{StaticResource TargetCard}" ItemsPanel="{StaticResource Wrap}"/>
+                    <TextBlock x:Name="NoWindowText" Text="No window matches." Visibility="Collapsed" Style="{StaticResource Hint}" HorizontalAlignment="Left" Margin="0,0,0,18"/>
+
+                    <TextBlock Text="SCREENS" Style="{StaticResource Section}" Margin="0,10,0,10"/>
+                    <ItemsControl x:Name="ScreenList" ItemTemplate="{StaticResource TargetCard}" ItemsPanel="{StaticResource Wrap}"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Row="2" Padding="28,14" BorderThickness="0,1,0,0"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Frames per second" Style="{StaticResource Hint}" Margin="0,0,10,0"/>
+                        <ComboBox x:Name="FramerateBox" Width="90" SelectedIndex="1">
+                            <ComboBoxItem Content="10" Tag="10"/>
+                            <ComboBoxItem Content="15" Tag="15"/>
+                            <ComboBoxItem Content="24" Tag="24"/>
+                            <ComboBoxItem Content="30" Tag="30"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <ui:ToggleSwitch x:Name="CursorSwitch" Grid.Column="1" Margin="28,0,0,0" IsChecked="True" Content="Show the mouse pointer" VerticalAlignment="Center"/>
+
+                    <TextBlock x:Name="SelectionText" Grid.Column="2" Style="{StaticResource Hint}" HorizontalAlignment="Right" Margin="16,0" TextTrimming="CharacterEllipsis"/>
+
+                    <ui:Button x:Name="RecordButton" Grid.Column="3" Height="40" Appearance="Primary" Click="Record_Click" IsEnabled="False" ToolTip="Start recording (Enter)">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="10" Height="10" Fill="#FFE5484D" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Record" VerticalAlignment="Center"/>
+                            <Border Style="{StaticResource Keycap}" Margin="8,0,0,0" Background="#33FFFFFF" BorderBrush="#55FFFFFF">
+                                <TextBlock Text="⏎" Foreground="White" VerticalAlignment="Center"/>
+                            </Border>
+                        </StackPanel>
+                    </ui:Button>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!--2. Recorded: what it is, and what to ask Claude next.-->
+        <Grid x:Name="RecordedPanel" Grid.Row="1" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Margin="28,4,28,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock x:Name="RecordedTitle" Text="Recorded" FontSize="24" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                    <TextBlock x:Name="RecordedDetail" FontSize="13" Margin="0,4,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock x:Name="DurationText" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                    <TextBlock x:Name="DurationDetailText" FontSize="12" HorizontalAlignment="Right" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Row="1" Margin="28,0" CornerRadius="10" Background="#FF0B0B0E" ClipToBounds="True">
+                <Image x:Name="StageImage" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Border>
+
+            <!--Claude works in the chat, so the next step is a sentence to say there.-->
+            <Border Grid.Row="2" Margin="0,16,0,0" Padding="28,16" BorderThickness="0,1,0,0"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12" Background="{StaticResource Agent.Gradient}" VerticalAlignment="Top" Margin="0,0,14,0">
+                        <ui:SymbolIcon Symbol="Sparkle24" Filled="True" FontSize="22" Foreground="White"/>
+                    </Border>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock x:Name="AskText" Text="Ask Claude in the chat, for example (click to copy):" FontSize="13"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,8"/>
+                        <ItemsControl x:Name="SuggestionList" ItemsPanel="{StaticResource Wrap}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="24,0,0,0">
+                        <ui:Button Height="40" Appearance="Transparent" Click="DeleteRecording_Click" ToolTip="Delete this recording">
+                            <ui:SymbolIcon Symbol="Delete24" FontSize="18"/>
+                        </ui:Button>
+                        <ui:Button Height="40" Margin="4,0,0,0" Appearance="Secondary" Click="ShowFolder_Click" ToolTip="Show the recording's folder">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="FolderOpen24" FontSize="16" Margin="0,0,6,0"/>
+                                <TextBlock Text="Folder"/>
+                            </StackPanel>
+                        </ui:Button>
+                        <ui:Button Height="40" Margin="8,0,0,0" Appearance="Primary" Click="RecordAgain_Click" ToolTip="Record something else (N)">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="10" Height="10" Fill="#FFE5484D" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="New recording" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ui:Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <ui:SnackbarPresenter x:Name="Snackbar" Grid.Row="1" VerticalAlignment="Bottom" Margin="0,0,0,90"/>
+    </Grid>
+</ui:FluentWindow>
