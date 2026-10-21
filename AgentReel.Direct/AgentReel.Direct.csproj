@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Shot lists: scripted, re-playable walkthroughs of Windows apps through UI Automation, so a how-to video can be
+       re-shot when the app changes. New AgentReel code, not derived from ScreenToGif. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- UI Automation client (System.Windows.Automation) and WPF imaging for the element crops. -->
+    <UseWPF>True</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platforms>AnyCPU;ARM64;x64;x86</Platforms>
+    <Configurations>Debug;Release;Debug (Store)</Configurations>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AgentReel.Direct.Tests" />
+  </ItemGroup>
+</Project>
