@@ -22,8 +22,7 @@ public static class ContactSheet
         if (tiles.Count == 0)
             throw new ArgumentException("No tiles to render.", nameof(tiles));
 
-        //Visuals need an STA thread, the MCP tools run on the thread pool.
-        return OnSta(() => Draw(tiles, Math.Clamp(columns, 1, tiles.Count), tileWidth));
+        return Sta.Run(() => Draw(tiles, Math.Clamp(columns, 1, tiles.Count), tileWidth), "Rendering the contact sheet failed");
     }
 
     private static byte[] Draw(IReadOnlyList<SheetTile> tiles, int columns, int tileWidth)
@@ -82,29 +81,5 @@ public static class ContactSheet
         image.EndInit();
         image.Freeze();
         return image;
-    }
-
-    private static T OnSta<T>(Func<T> work)
-    {
-        T result = default!;
-        Exception? error = null;
-
-        var thread = new Thread(() =>
-        {
-            try
-            {
-                result = work();
-            }
-            catch (Exception ex)
-            {
-                error = ex;
-            }
-        });
-
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
-
-        return error == null ? result : throw new InvalidOperationException("Rendering the contact sheet failed: " + error.Message, error);
     }
 }

@@ -41,6 +41,51 @@ public static class Timeline
     }
 
     /// <summary>
+    /// Cuts the frames at <paramref name="startMs"/> and <paramref name="endMs"/>, so that [startMs, endMs) begins and
+    /// ends on frame boundaries. A frame cut by a boundary becomes two or three frames with the same image. Returns all
+    /// frames and the run of frames inside the range, which an overlay can then change without touching the rest.
+    /// </summary>
+    public static (List<FrameInfo> Frames, int First, int Count) Isolate(IReadOnlyList<FrameInfo> frames, int startMs, int endMs)
+    {
+        var duration = Duration(frames);
+
+        if (startMs < 0 || endMs > duration || startMs >= endMs)
+            throw new ArgumentOutOfRangeException(nameof(startMs), $"The range {startMs} to {endMs} ms must lie inside 0 to {duration} ms and must not be empty.");
+
+        var result = new List<FrameInfo>();
+        var first = -1;
+        var count = 0;
+        var elapsed = 0;
+
+        foreach (var frame in frames)
+        {
+            var end = elapsed + frame.Delay;
+            var from = elapsed;
+
+            foreach (var cut in new[] { startMs, endMs, end })
+            {
+                if (cut <= from || cut > end)
+                    continue;
+
+                if (from >= startMs && cut <= endMs)
+                {
+                    if (first < 0)
+                        first = result.Count;
+
+                    count++;
+                }
+
+                result.Add(CopyOf(frame, cut - from));
+                from = cut;
+            }
+
+            elapsed = end;
+        }
+
+        return (result, first, count);
+    }
+
+    /// <summary>
     /// The frame visible at <paramref name="ms"/>. Times at or after the end give the last frame.
     /// </summary>
     public static int FrameAt(IReadOnlyList<FrameInfo> frames, int ms)

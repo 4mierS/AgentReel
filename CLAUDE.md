@@ -155,9 +155,14 @@ Phase 4 progress (2026-10-21):
   `FramePixels` (exact, small decode cache). Rejected: the editor's percent similarity (`ImageMethods.CalculateDifference`)
   – a new console line changes < 0.5 % of the pixels, so 99.5 % folded a whole 44-frame recording into one frame.
   Verified over stdio: a 4 s "thinking" pause with a blinking caret became one 1.5 s hold, all output lines kept.
+- `add_caption` (text in a rounded box, top/center/bottom, wraps) and `add_highlight` (rectangle/ellipse outline in
+  recording pixels, optional `dimOutside`) for a time range. `Timeline.Isolate` splits frames cut by the range so the
+  overlay starts and ends exactly there; `Overlay` draws on the copied images inside `DeriveAsync` (new `change` hook;
+  a failed edit deletes its folder). STA helper shared as `Editing/Sta.cs`. Verified over stdio: caption 1000–5500 ms +
+  highlight 2000–6000 ms on a window recording, duration unchanged, GIF export.
 
 Next – START HERE:
-1. Phase 4 continued: `add_caption`, `add_highlight`, `open_in_editor` (existing named pipe), maybe `delete_recording`/`list_recordings`.
+1. Phase 4 continued: `open_in_editor` (existing named pipe), maybe `delete_recording`/`list_recordings`.
 2. Optional MCP polish: a `get_status` tool; decide whether `get_preview` should work during a running recording.
 3. Phase 3 (Vortice instead of SharpDX for the app's capture).
 

@@ -97,8 +97,9 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     /// <summary>
     /// Saves an edit of <paramref name="source"/> as a new project ("&lt;original id&gt; edit &lt;n&gt;") with its own copy
     /// of the images, so the source stays as it was and the editor can open either one. The edit becomes the latest recording.
+    /// <paramref name="change"/> may change the copied images before the project is saved.
     /// </summary>
-    public async Task<ProjectInfo> DeriveAsync(ProjectInfo source, IReadOnlyList<FrameInfo> frames)
+    public async Task<ProjectInfo> DeriveAsync(ProjectInfo source, IReadOnlyList<FrameInfo> frames, Action<ProjectInfo>? change = null)
     {
         if (frames.Count == 0)
             throw new McpException("The edit leaves no frames.");
@@ -126,19 +127,29 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
             Directory.CreateDirectory(project.UndoStackPath);
             Directory.CreateDirectory(project.RedoStackPath);
 
-            foreach (var frame in frames)
+            try
             {
-                var name = project.Frames.Count + ".png";
-                var path = Path.Combine(project.FullPath, name);
-                File.Copy(frame.Path, path, true);
+                foreach (var frame in frames)
+                {
+                    var name = project.Frames.Count + ".png";
+                    var path = Path.Combine(project.FullPath, name);
+                    File.Copy(frame.Path, path, true);
 
-                frame.Path = path;
-                frame.Name = name;
-                frame.Index = project.Frames.Count;
-                project.Frames.Add(frame);
+                    frame.Path = path;
+                    frame.Name = name;
+                    frame.Index = project.Frames.Count;
+                    project.Frames.Add(frame);
+                }
+
+                change?.Invoke(project);
+                project.Persist();
             }
-
-            project.Persist();
+            catch
+            {
+                //A half written edit must not show up as a project in the editor.
+                Directory.Delete(project.FullPath, true);
+                throw;
+            }
 
             var id = IdOf(project);
             _recordings[id] = project;

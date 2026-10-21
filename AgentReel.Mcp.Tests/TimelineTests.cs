@@ -131,4 +131,45 @@ public class TimelineTests
         Assert.Equal([0], Timeline.Sample(Frames(), 1, 0, 1000));
         Assert.Equal([2, 3], Timeline.Sample(Frames(), 3, 300, 1000));
     }
+
+    [Fact]
+    public void Isolate_splits_frames_cut_by_the_range()
+    {
+        var (result, first, count) = Timeline.Isolate(Frames(), 150, 700);
+
+        Assert.Equal(["0.png", "1.png", "1.png", "2.png", "3.png", "3.png"], result.Select(s => s.Path));
+        Assert.Equal([100, 50, 150, 300, 100, 300], result.Select(s => s.Delay));
+        Assert.Equal((2, 3), (first, count));
+        Assert.Equal(1000, Timeline.Duration(result));
+    }
+
+    [Fact]
+    public void Isolate_on_frame_boundaries_splits_nothing()
+    {
+        var (result, first, count) = Timeline.Isolate(Frames(), 100, 600);
+
+        Assert.Equal([100, 200, 300, 400], result.Select(s => s.Delay));
+        Assert.Equal((1, 2), (first, count));
+    }
+
+    [Fact]
+    public void Isolate_inside_one_frame_cuts_it_in_three()
+    {
+        var (result, first, count) = Timeline.Isolate(Frames(), 320, 380);
+
+        Assert.Equal(["0.png", "1.png", "2.png", "2.png", "2.png", "3.png"], result.Select(s => s.Path));
+        Assert.Equal([100, 200, 20, 60, 220, 400], result.Select(s => s.Delay));
+        Assert.Equal((3, 1), (first, count));
+    }
+
+    [Fact]
+    public void Isolate_does_not_change_the_input()
+    {
+        var frames = Frames();
+        var (result, _, _) = Timeline.Isolate(frames, 0, 1000);
+
+        result[0].Delay = 1;
+
+        Assert.Equal(100, frames[0].Delay);
+    }
 }
