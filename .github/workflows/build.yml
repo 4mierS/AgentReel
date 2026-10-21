@@ -44,3 +44,6 @@ jobs:
 
       - name: Test MCP server
         run: dotnet test AgentReel.Mcp.Tests/AgentReel.Mcp.Tests.csproj -c Release --no-build --verbosity normal
+
+      - name: Test export
+        run: dotnet test AgentReel.Export.Tests/AgentReel.Export.Tests.csproj -c Release --no-build --verbosity normal
