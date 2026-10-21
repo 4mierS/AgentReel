@@ -72,7 +72,8 @@ internal class ApplicationViewModel : ApplicationBaseViewModel
 
                         case 4: //Editor.
                         {
-                            OpenEditor.Execute(null);
+                            //With files, an editor that is already open loads them too (they may come from another instance).
+                            OpenEditor.Execute(Arguments.FileNames.Any() ? Arguments.FileNames.ToArray() : null);
                             return;
                         }
 

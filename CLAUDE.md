@@ -160,9 +160,16 @@ Phase 4 progress (2026-10-21):
   overlay starts and ends exactly there; `Overlay` draws on the copied images inside `DeriveAsync` (new `change` hook;
   a failed edit deletes its folder). STA helper shared as `Editing/Sta.cs`. Verified over stdio: caption 1000–5500 ms +
   highlight 2000–6000 ms on a window recording, duration unchanged, GIF export.
+- `open_in_editor` (`AppTools.cs`) starts the app (`AGENTREEL_APP`, else `ScreenToGif.exe` next to the server, copied by
+  the project reference) with the recording's `Project.json`, via shell execute so the app does not inherit the MCP
+  stdio pipes. App changes (Ms-PL files, kept small): `Editor.LoadFromArguments` opens a passed `Project.json` like
+  "Recent projects" (`LoadProjectFile`); `ApplicationViewModel.Open` case 4 passes the files on, so an already open
+  empty editor loads them too (with "single instance" on, args arrive over the existing `InstanceSwitcherChannel` pipe).
+  Verified over stdio: caption edit → `open_in_editor` → the editor shows the edit with all 24 frames. Not verified yet:
+  the single-instance path. Known gap: edits the user makes in the editor are not seen by the server.
 
 Next – START HERE:
-1. Phase 4 continued: `open_in_editor` (existing named pipe), maybe `delete_recording`/`list_recordings`.
+1. Phase 4 rest: maybe `list_recordings`/`delete_recording`; verify `open_in_editor` with "single instance" on.
 2. Optional MCP polish: a `get_status` tool; decide whether `get_preview` should work during a running recording.
 3. Phase 3 (Vortice instead of SharpDX for the app's capture).
 

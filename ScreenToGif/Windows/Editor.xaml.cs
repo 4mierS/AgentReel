@@ -3276,6 +3276,16 @@ namespace ScreenToGif.Windows
             if (Arguments.FileNames.Count < 1)
                 return;
 
+            //An existing project, passed by its Project.json (for example by the AgentReel MCP server).
+            if (Arguments.FileNames.Count == 1 && Path.GetFileName(Arguments.FileNames[0]).Equals("Project.json", StringComparison.OrdinalIgnoreCase))
+            {
+                var file = Arguments.FileNames[0];
+                Arguments.FileNames.Clear();
+
+                LoadProjectFile(file);
+                return;
+            }
+
             #region Validation
 
             var extensionList = Arguments.FileNames.Select(Path.GetExtension).ToList();
@@ -3317,6 +3327,39 @@ namespace ScreenToGif.Windows
         /// <param name="isNew">True if this is a new project.</param>
         /// <param name="clear">True if it should clear the current list of frames.</param>
         /// <param name="createFlag">True if it should create a flag for single use, a mutex.</param>
+        private void LoadProjectFile(string file)
+        {
+            try
+            {
+                ProjectInfo project;
+
+                using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(File.ReadAllText(file))))
+                    project = new DataContractJsonSerializer(typeof(ProjectInfo)).ReadObject(ms) as ProjectInfo;
+
+                if (project == null || project.Frames.Count == 0 || !project.Frames.Any(x => File.Exists(x.Path)))
+                    throw new Exception("The project has no frames: " + file);
+
+                if (Project != null && Project.RelativePath == project.RelativePath)
+                {
+                    StatusList.Warning(LocalizationHelper.Get("S.Recent.Warning.SameProject"));
+                    return;
+                }
+
+                if (MutexList.IsInUse(project.RelativePath))
+                {
+                    StatusList.Warning(LocalizationHelper.Get("S.Recent.Warning.AnotherEditor"));
+                    return;
+                }
+
+                LoadProject(project, true, false, true);
+            }
+            catch (Exception ex)
+            {
+                LogWriter.Log(ex, "Error while trying to load a project from the arguments");
+                ErrorDialog.Ok("AgentReel", "Error while trying to load", ex.Message, ex);
+            }
+        }
+
         internal async void LoadProject(ProjectInfo newProject, bool isNew = true, bool clear = true, bool createFlag = false)
         {
             Cursor = Cursors.AppStarting;
