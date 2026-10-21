@@ -55,27 +55,24 @@ Requires Windows 10 2004+ and the .NET 9 SDK.
 ```powershell
 dotnet build GifRecorder.sln
 dotnet test ScreenToGif.Test/ScreenToGif.Test.csproj
-dotnet run --project Spikes/AgentReel.CaptureSpike -- --seconds 5
-dotnet run --project Spikes/AgentReel.CaptureSpike -- --window "Notepad" --seconds 5
 ```
 
-CI: `.github/workflows/build.yml` (windows-latest, build + test + spike build).
+CI: `.github/workflows/build.yml` (windows-latest, build + tests).
 
 ## Current status (2026-10-20)
 
 Done:
 - Fork created, README/NOTICE rewritten, upstream Discord workflow and FUNDING removed (commit 48205aa4).
 - CI workflow written.
-- Capture spike written: `Spikes/AgentReel.CaptureSpike` (console app, free-threaded `Direct3D11CaptureFramePool`,
-  no UI thread, per-monitor-v2 DPI manifest, saves first/last frame as PNG to `spike-output/`, prints JSON summary).
+- Capture spike written (`Spikes/AgentReel.CaptureSpike`; removed 2026-10-21, superseded by `AgentReel.Capture`).
 
 Verified locally (2026-10-20, .NET SDK 9.0.319 installed user-local in `%LOCALAPPDATA%\Microsoft\dotnet`,
 not on PATH by default):
 - `dotnet build GifRecorder.sln`: 0 errors, 82 warnings (all upstream).
 - Spike builds without changes. Monitor capture: exit 0, 1920x1080 PNG correct. `--window "Notepad"`: exit 0,
   7 frames, correct PNG.
-- Tests: 32/59 pass. The 27 failures are pre-existing upstream issues: ThemeContrastTests for Dark/VeryDark
-  (WCAG contrast), YandexUpload (needs credentials/network), ImageComparison (test data b1.bmp/b2.bmp missing).
+- Tests: the only known failures are ThemeContrastTests for Dark/VeryDark (WCAG contrast in the legacy themes, CI
+  filter `DisplayName!~Dark.xaml`). YandexUpload was removed; ImageComparison only had a wrong data path (fixed).
   CI excludes them via `--filter` (28 tests run, all green).
 - Pushed to `origin`; CI green (run 39474397409).
 - Characterization tests (`ScreenToGif.Test/Characterization/ExportCharacterizationTests.cs`): 8 synthetic
@@ -226,7 +223,7 @@ Phase 5 progress (2026-10-21):
     original and the edit on one time scale with bands between them (gap = cut, narrowing band = faster), caption and
     highlight marks, a joined playhead; clickable change chips; feedback box + Discard (Esc) + Keep edit (Ctrl+Enter).
     Space plays, ←/→ steps frames, Shift+←/→ jumps between changes, typing a letter focuses the feedback box.
-  - `AgentReel.Review` (net9.0): `Edit.json` (`EditRecord`: source id, original id, steps, per-frame source range in
+  - `AgentReel.Review` (net9.0, merged into `AgentReel.Editing` on 2026-10-21): `Edit.json` (`EditRecord`: source id, original id, steps, per-frame source range in
     the original, marks) and `Review.json` (`ReviewRecord`: summary, verdict, feedback). Written atomically.
   - `RecordingSession.DeriveAsync` writes `Edit.json`; an edit of an edit is joined to the chain (`Editing/EditChain`),
     so the review always compares with the original recording. `sourceId` now comes from `Edit.json` (was in memory).
@@ -257,9 +254,38 @@ Phase 5 progress (2026-10-21):
   Discard (races with get_review polling), deletion by Studio (stale server cache), a persistent setting. Verified:
   tests 43/43, menu and both verdicts in Studio via UI Automation.
 
+Product direction (2026-10-21, Amir): AI first, but Studio must also be a pro studio where the user does everything by
+hand; Claude is extra help. A Claude API key inside Studio is postponed. Every MCP edit gets a manual control in Studio.
+USP from market research (doc "AgentReel – Produkt & Geschäftsmodell", https://claude.ai/artifact/A8M4ciJ2qmzNrz7EgvBQpo):
+"your agent shows its work – and nothing private leaks": local auto-redaction (Windows OCR + secret detectors) with
+review-before-apply, proof-of-work videos for PRs, approval trail. Free open core; Pro $69 one-time (12 months of
+updates); Team $12/seat/month. Free rivals on Windows already have auto-zoom and agent PR demos (Recordly, OpenScreen,
+Cap), so those are not the selling point.
+
+Session window (2026-10-21): `AgentReel.Studio` without arguments → `Session/SessionWindow` ("What should Claude see?":
+window cards with a snapshot, screens only as shapes, search, FPS, cursor) and `Session/RecordingBar` (topmost pill,
+`WDA_EXCLUDEFROMCAPTURE`, F8 global hotkey, Discard/Stop; buttons are round because Border does not clip its content).
+`AgentReel.Capture/ProjectRecording` is the shared recording lifecycle. The server's latest recording is the newest
+project on disk (also Studio's and the app's). F8 not verified by Amir yet.
+
+`AgentReel.Editing` (2026-10-21): timeline edits, overlays, contact sheet, edit chain, pixel compare, export presets,
+Edit/Review files and `ProjectLibrary` (load, scan, derive, delete), shared by the MCP server and Studio.
+
+Cleanup (2026-10-21, from a repo audit): removed the spike, `Other/Translator`, dead files, csproj leftovers, upstream
+docs/templates, the YandexUpload test; the legacy app no longer checks upstream for updates, sends no feedback mail,
+downloads no upstream translations, has no donate page. Still open (decide with Amir): own data folders instead of
+`%AppData%\ScreenToGif` / `%TEMP%\ScreenToGif` (shared with a real ScreenToGif install), webcam/board recorders,
+non-English localization, `Debug (Store)` configuration, ScreenToGif branding strings and About page.
+
+In flight (2026-10-21, worktree branches, to review and merge): Studio pro editor (library, stage, timeline,
+non-destructive edits with undo, save as version), removal of upload services + feedback + `Secret.cs`, Privacy Shield
+prototype (`scan_privacy`, `redact`).
+
 Next – START HERE:
-1. Plan the next Studio window with Amir (he left the choice to Claude): proposed one window from record to export
-   (record → agent edits → review → export), reusing `ICaptureService`, `ExportService` and the Edit/Review files.
+1. Review and merge the three worktree branches (build, tests, look at the screenshots), then rebuild the registered
+   Debug server.
+2. Then: review of Claude's edits inside the editor (replaces the separate review window), export panel, redaction
+   in the editor, proof-of-work command, self-contained signed installer.
 
 ## Roadmap
 
@@ -334,5 +360,5 @@ Todos (transcript editing + AI voiceover):
 ## Conventions
 
 - Code, comments, commit messages and docs in English. Talk to Amir in German.
-- Small commits; never commit `spike-output/`, secrets or downloaded encoders.
+- Small commits; never commit secrets or downloaded encoders.
 - Keep upstream mergeable where cheap: prefer new files/projects over editing large upstream files until Phase 1.
