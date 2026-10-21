@@ -20,6 +20,7 @@ internal sealed class Mp4Writer : IAnimationWriter
     private static readonly Guid FrameRate = new("c459a2e8-3d2c-4e44-b132-fee5156c7bb0");
     private static readonly Guid PixelAspectRatio = new("c6376a1e-8d0a-4027-be45-6d9a0ad39bb6");
     private static readonly Guid DefaultStride = new("644b4e48-1e02-4516-b0eb-c01ca9d49ac6");
+    private static readonly Guid Profile = new("ad76a80b-2d5c-4e0b-b375-64e520137036");
     private static readonly Guid VideoMajor = new("73646976-0000-0010-8000-00aa00389b71");
     private static readonly Guid H264 = new("34363248-0000-0010-8000-00aa00389b71");
     private static readonly Guid Rgb32 = new("00000016-0000-0010-8000-00aa00389b71");
@@ -28,6 +29,7 @@ internal sealed class Mp4Writer : IAnimationWriter
     private static readonly Guid ContainerMpeg4 = new("dc6cd05d-b9d0-40ef-bd35-fa622c1ab28a");
 
     private const uint Progressive = 2;
+    private const uint HighProfile = 100;
 
     private readonly int _sourceWidth;
     private readonly int _width;
@@ -52,7 +54,7 @@ internal sealed class Mp4Writer : IAnimationWriter
         if (_width < 2 || _height < 2)
             throw new ArgumentException("An MP4 needs at least 2x2 pixels.");
 
-        var bitrate = options.BitsPerSecond ?? (int)Math.Clamp(_width * (long)_height * _fps / 10, 1_000_000, 16_000_000);
+        var bitrate = options.BitsPerSecond ?? (int)Math.Clamp(_width * (long)_height * _fps / 5, 2_000_000, 24_000_000);
 
         MediaFactory.MFStartup().CheckError();
         _started = true;
@@ -72,6 +74,10 @@ internal sealed class Mp4Writer : IAnimationWriter
             output.Set(FrameSize, Pack(_width, _height));
             output.Set(FrameRate, Pack(_fps, 1));
             output.Set(PixelAspectRatio, Pack(1, 1));
+
+            //High profile (8x8 transforms, CABAC) instead of the default constrained baseline.
+            output.Set(Profile, HighProfile);
+            ColorTags(output, NominalRange.Range16_235);
             _stream = _writer.AddStream(output);
         }
 
@@ -86,6 +92,7 @@ internal sealed class Mp4Writer : IAnimationWriter
 
             //RGB in Media Foundation is bottom-up unless the stride says otherwise; the frames are top-down.
             input.Set(DefaultStride, (uint)(_width * 4));
+            ColorTags(input, NominalRange.Range0_255);
             _writer.SetInputMediaType(_stream, input, null);
         }
 
@@ -150,6 +157,20 @@ internal sealed class Mp4Writer : IAnimationWriter
         }
 
         buffer.CurrentLength = _width * _height * 4;
+    }
+
+    /// <summary>
+    /// Tags the color space. Untagged, players guess (BT.601 for small videos, BT.709 for HD), so colors would shift in
+    /// one of them. The sink writer's RGB to YUV converter uses the BT.601 matrix whatever the type asks for (checked
+    /// against FFmpeg: luma matches BT.601 at 55 dB, BT.709 only at 42 dB), so the matrix is tagged BT.601; the
+    /// primaries and transfer of screen content are sRGB/BT.709. The RGB input is full range, the H.264 output limited.
+    /// </summary>
+    private static void ColorTags(IMFMediaType type, NominalRange range)
+    {
+        type.Set(MediaTypeAttributeKeys.YuvMatrix, (uint)VideoTransferMatrix.Bt601);
+        type.Set(MediaTypeAttributeKeys.VideoPrimaries, (uint)VideoPrimaries.Bt709);
+        type.Set(MediaTypeAttributeKeys.TransferFunction, (uint)VideoTransferFunction.Func709);
+        type.Set(MediaTypeAttributeKeys.VideoNominalRange, (uint)range);
     }
 
     private static ulong Pack(int high, int low) => ((ulong)(uint)high << 32) | (uint)low;
