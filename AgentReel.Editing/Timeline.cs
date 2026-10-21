@@ -202,7 +202,7 @@ public static class Timeline
         return (result, shortened);
     }
 
-    private static FrameInfo CopyOf(FrameInfo frame, int delay) => new(frame.Path, delay, frame.CursorX, frame.CursorY, frame.ButtonClicked, frame.KeyList)
+    internal static FrameInfo CopyOf(FrameInfo frame, int delay) => new(frame.Path, delay, frame.CursorX, frame.CursorY, frame.ButtonClicked, frame.KeyList)
     {
         WasClicked = frame.WasClicked,
         Rect = frame.Rect
