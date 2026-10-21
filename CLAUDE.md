@@ -140,11 +140,22 @@ Phase 2 progress (2026-10-20):
   fixed (CFR), changing `FfmpegMp4Preset.Defaults` would not fix presets users already saved, and it touches Ms-PL
   upstream behavior. Revisit in Phase 5 when the export UI is reworked (or report upstream).
 
+Phase 4 progress (2026-10-21):
+- Edits never change their input: `RecordingSession.DeriveAsync` saves the result as a new project
+  `<original id> edit <n>` (own copy of the images, `sourceId` in the result) and makes it the latest recording.
+  This is the base for review-before-apply: the user compares original and edit and keeps one.
+- `trim` (frame accurate: frames cut by the range keep only the part inside, so the result lasts exactly
+  endMs - startMs) and `get_contact_sheet` (evenly spaced frames as one labeled PNG grid + text list; rendered on an
+  STA thread because WPF visuals need one). Logic in `AgentReel.Mcp/Editing/` (`Timeline`, `ContactSheet`), tools in
+  `EditTools.cs`. Tests in `AgentReel.Mcp.Tests` (in CI).
+- Verified over stdio with a scratch build: window recording → contact sheet → trim 1000–4000 ms (3000 ms) →
+  trim of the edit (`edit 2`) → GIF export.
+
 Next – START HERE:
-1. Rebuild the registered `AgentReel.Mcp` Debug exe (stop the clients first).
+1. Phase 4 continued: `optimize` (dedupe + shorten idle pauses, reuse the app's duplicate-frame detection),
+   `add_caption`, `add_highlight`, `open_in_editor` (existing named pipe), maybe `delete_recording`/`list_recordings`.
 2. Optional MCP polish: a `get_status` tool; decide whether `get_preview` should work during a running recording.
-3. Phase 3 (Vortice instead of SharpDX for the app's capture) or Phase 4 (editing over MCP: `trim`, `add_caption`,
-   `optimize`, `get_contact_sheet`, `open_in_editor`). Phase 4 adds more agent value first.
+3. Phase 3 (Vortice instead of SharpDX for the app's capture).
 
 ## Roadmap
 

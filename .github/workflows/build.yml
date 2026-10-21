@@ -44,5 +44,8 @@ jobs:
       - name: Test capture
         run: dotnet test AgentReel.Capture.Tests/AgentReel.Capture.Tests.csproj -c Release --no-build --verbosity normal
 
+      - name: Test MCP server
+        run: dotnet test AgentReel.Mcp.Tests/AgentReel.Mcp.Tests.csproj -c Release --no-build --verbosity normal
+
       - name: Build capture spike
         run: dotnet build Spikes/AgentReel.CaptureSpike/AgentReel.CaptureSpike.csproj -c Release

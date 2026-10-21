@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Extensions.Logging;
+using AgentReel.Mcp.Editing;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -54,7 +55,7 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
     public async Task<RecordingInfo> StopRecording()
     {
         var (project, autoStopped) = await session.StopAsync();
-        return Describe(project) with { AutoStopped = autoStopped };
+        return Describe(project, session) with { AutoStopped = autoStopped };
     }
 
     [McpServerTool(Name = "get_preview", ReadOnly = true), Description("Returns one frame of a finished recording as a PNG image. Without frame or atMs it returns the last frame.")]
@@ -69,12 +70,12 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         if (project.Frames.Count == 0)
             throw new McpException("The recording has no frames.");
 
-        var index = frame ?? (atMs is { } ms ? FrameAt(project, ms) : project.Frames.Count - 1);
+        var index = frame ?? (atMs is { } ms ? Timeline.FrameAt(project.Frames, ms) : project.Frames.Count - 1);
 
         if (index < 0 || index >= project.Frames.Count)
             throw new McpException($"Frame {index} does not exist. The recording has {project.Frames.Count} frames (0 to {project.Frames.Count - 1}).");
 
-        var start = project.Frames.Take(index).Sum(s => s.Delay);
+        var start = Timeline.StartOf(project.Frames, index);
         var png = Thumbnail(project.Frames[index].Path, Math.Max(16, maxWidth));
 
         return
@@ -202,21 +203,6 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         return new Int32Rect(values[0], values[1], values[2], values[3]);
     }
 
-    private static int FrameAt(ProjectInfo project, int ms)
-    {
-        var elapsed = 0;
-
-        for (var i = 0; i < project.Frames.Count; i++)
-        {
-            elapsed += project.Frames[i].Delay;
-
-            if (ms < elapsed)
-                return i;
-        }
-
-        return project.Frames.Count - 1;
-    }
-
     private static byte[] Thumbnail(string path, int maxWidth)
     {
         BitmapSource source;
@@ -253,8 +239,8 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         return index >= 0 ? Describe(all)[index] : Describe([target])[0];
     }
 
-    private static RecordingInfo Describe(ProjectInfo project) => new(RecordingSession.IdOf(project), project.Frames.Count,
-        project.Frames.Sum(s => s.Delay), project.Width, project.Height, project.FullPath);
+    internal static RecordingInfo Describe(ProjectInfo project, RecordingSession session) => new(RecordingSession.IdOf(project), project.Frames.Count,
+        Timeline.Duration(project.Frames), project.Width, project.Height, project.FullPath, SourceId: session.SourceOf(project));
 
     #endregion
 }
@@ -263,6 +249,6 @@ public sealed record TargetInfo(string Id, string Kind, string Name, int X, int 
 
 public sealed record StartedInfo(string RecordingId, TargetInfo Target, int Framerate, int MaxSeconds);
 
-public sealed record RecordingInfo(string RecordingId, int Frames, int DurationMs, int Width, int Height, string Folder, bool AutoStopped = false);
+public sealed record RecordingInfo(string RecordingId, int Frames, int DurationMs, int Width, int Height, string Folder, bool AutoStopped = false, string? SourceId = null);
 
 public sealed record ExportInfo(string Path, long Bytes, string Format, string Encoder, int Frames, int DurationMs);

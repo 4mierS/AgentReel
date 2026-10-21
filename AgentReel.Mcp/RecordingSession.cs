@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ScreenToGif.Core.Capture;
@@ -15,6 +16,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, ProjectInfo> _recordings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _sources = new(StringComparer.OrdinalIgnoreCase);
 
     private ActiveRecording? _active;
     private ProjectInfo? _autoStopped;
@@ -91,6 +93,71 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
         return _recordings.TryGetValue(id, out var project) ? project : throw new McpException($"Unknown recording '{id}'.");
     }
+
+    /// <summary>
+    /// Saves an edit of <paramref name="source"/> as a new project ("&lt;original id&gt; edit &lt;n&gt;") with its own copy
+    /// of the images, so the source stays as it was and the editor can open either one. The edit becomes the latest recording.
+    /// </summary>
+    public async Task<ProjectInfo> DeriveAsync(ProjectInfo source, IReadOnlyList<FrameInfo> frames)
+    {
+        if (frames.Count == 0)
+            throw new McpException("The edit leaves no frames.");
+
+        await _gate.WaitAsync();
+
+        try
+        {
+            var sourceId = IdOf(source);
+            var baseId = Regex.Replace(sourceId, @" edit \d+$", "");
+            var number = 1;
+
+            var project = source.ShallowCopy();
+            project.RelativePath = $"{baseId} edit {number}{Path.DirectorySeparatorChar}";
+
+            //Folders of earlier server runs count too, they may still be open in the editor.
+            while (Directory.Exists(project.FullPath))
+                project.RelativePath = $"{baseId} edit {++number}{Path.DirectorySeparatorChar}";
+
+            project.CreationDate = DateTime.Now;
+            project.IsNew = true;
+            project.Frames = [];
+
+            Directory.CreateDirectory(project.FullPath);
+            Directory.CreateDirectory(project.UndoStackPath);
+            Directory.CreateDirectory(project.RedoStackPath);
+
+            foreach (var frame in frames)
+            {
+                var name = project.Frames.Count + ".png";
+                var path = Path.Combine(project.FullPath, name);
+                File.Copy(frame.Path, path, true);
+
+                frame.Path = path;
+                frame.Name = name;
+                frame.Index = project.Frames.Count;
+                project.Frames.Add(frame);
+            }
+
+            project.Persist();
+
+            var id = IdOf(project);
+            _recordings[id] = project;
+            _sources[id] = sourceId;
+            _lastId = id;
+
+            logger.LogInformation("Recording {Id} derived from {Source}: {Count} frames", id, sourceId, project.Frames.Count);
+            return project;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// The recording an edit was made from, null for an original recording.
+    /// </summary>
+    public string? SourceOf(ProjectInfo project) => _sources.GetValueOrDefault(IdOf(project));
 
     public static string IdOf(ProjectInfo project) => project.RelativePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
