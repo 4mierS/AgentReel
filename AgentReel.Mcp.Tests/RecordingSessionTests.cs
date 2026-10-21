@@ -40,6 +40,39 @@ public sealed class RecordingSessionTests
         }
     }
 
+    [Fact]
+    public async Task The_running_recording_is_live_only_until_it_stops()
+    {
+        var session = new RecordingSession(new FakeCapture(), NullLogger<RecordingSession>.Instance);
+        var target = new CaptureTarget(CaptureTargetKind.Window, IntPtr.Zero, "Fake", new Int32Rect(0, 0, 10, 10));
+
+        Assert.Null(await session.GetLiveAsync());
+
+        var active = await session.StartAsync(new CaptureOptions(target), TimeSpan.FromMinutes(1));
+
+        try
+        {
+            var live = await session.GetLiveAsync();
+            Assert.NotNull(live);
+            Assert.Equal(active.Id, live.Recording.Id);
+            Assert.Equal(1, live.Progress.LatestWrittenFrame);
+
+            Assert.NotNull(await session.GetLiveAsync(active.Id.ToUpperInvariant()));
+            Assert.Null(await session.GetLiveAsync("some other recording"));
+
+            await session.StopAsync();
+
+            Assert.Null(await session.GetLiveAsync());
+            Assert.Null(await session.GetLiveAsync(active.Id));
+            Assert.Equal(active.Id, session.LatestId);
+        }
+        finally
+        {
+            active.Project.ReleaseMutex();
+            await session.DeleteAsync(active.Id);
+        }
+    }
+
     private sealed class FakeCapture : ICaptureService
     {
         public bool IsRecording { get; private set; }
@@ -51,6 +84,8 @@ public sealed class RecordingSessionTests
             IsRecording = true;
             return Task.CompletedTask;
         }
+
+        public CaptureProgress? GetProgress() => IsRecording ? new CaptureProgress(3, TimeSpan.FromSeconds(1), 1, "1.png", 10, 10) : null;
 
         public Task<CaptureResult> StopAsync()
         {

@@ -58,13 +58,32 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         return Describe(project, session) with { AutoStopped = autoStopped };
     }
 
-    [McpServerTool(Name = "get_preview", ReadOnly = true), Description("Returns one frame of a finished recording as a PNG image. Without frame or atMs it returns the last frame.")]
-    public IEnumerable<ContentBlock> GetPreview(
-        [Description("Recording id from stop_recording. Default: the latest recording.")] string? recordingId = null,
+    [McpServerTool(Name = "get_status", ReadOnly = true), Description("Tells whether a recording is running and how far it is (elapsed time, frames so far, time left until maxSeconds), plus the latest finished recording id.")]
+    public async Task<StatusInfo> GetStatus()
+    {
+        var live = await session.GetLiveAsync();
+
+        if (live == null)
+            return new StatusInfo(false, null, session.LatestId, session.AutoStoppedId);
+
+        var (active, progress) = live;
+        var elapsed = (int)progress.Elapsed.TotalMilliseconds;
+        var info = new LiveInfo(active.Id, Describe(active.Options.Target, session.ListTargets()), elapsed, progress.Frames,
+            (int)active.MaxDuration.TotalSeconds, Math.Max(0, (int)active.MaxDuration.TotalMilliseconds - elapsed), progress.Width, progress.Height);
+
+        return new StatusInfo(true, info, session.LatestId, session.AutoStoppedId);
+    }
+
+    [McpServerTool(Name = "get_preview", ReadOnly = true), Description("Returns one frame of a recording as a PNG image. Without frame or atMs it returns the last frame. While a recording runs and recordingId is empty or its id, it returns the newest frame so far (live; frame and atMs are not supported then).")]
+    public async Task<IEnumerable<ContentBlock>> GetPreview(
+        [Description("Recording id from start_recording or stop_recording. Default: the running recording, else the latest one.")] string? recordingId = null,
         [Description("Zero-based frame index.")] int? frame = null,
         [Description("Time in milliseconds from the start; returns the frame visible at that moment.")] int? atMs = null,
         [Description("The image is scaled down to at most this width.")] int maxWidth = 1280)
     {
+        if (await session.GetLiveAsync(recordingId) is { } live)
+            return LivePreview(live, frame, atMs, maxWidth);
+
         var project = session.Get(recordingId);
 
         if (project.Frames.Count == 0)
@@ -173,6 +192,25 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
 
     #region Helpers
 
+    private static List<ContentBlock> LivePreview(LiveRecording live, int? frame, int? atMs, int maxWidth)
+    {
+        if (frame != null || atMs != null)
+            throw new McpException($"Recording '{live.Recording.Id}' is still running, only its newest frame can be previewed. Call stop_recording to pick a frame or time.");
+
+        var progress = live.Progress;
+
+        if (progress.LatestWrittenPath == null)
+            throw new McpException($"Recording '{live.Recording.Id}' has no frame yet. Try again in a moment.");
+
+        var png = Thumbnail(progress.LatestWrittenPath, Math.Max(16, maxWidth));
+
+        return
+        [
+            new TextContentBlock { Text = $"Live: frame {progress.LatestWrittenFrame} of {progress.Frames} so far, recording for {(int)progress.Elapsed.TotalMilliseconds} ms." },
+            ImageContentBlock.FromBytes(png, "image/png")
+        ];
+    }
+
     private static async Task<bool> FfmpegAvailable()
     {
         //Only for this process: the user's settings file is never written by the server.
@@ -269,6 +307,10 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
 public sealed record TargetInfo(string Id, string Kind, string Name, int X, int Y, int Width, int Height, bool IsPrimary);
 
 public sealed record StartedInfo(string RecordingId, TargetInfo Target, int Framerate, int MaxSeconds);
+
+public sealed record LiveInfo(string RecordingId, TargetInfo Target, int ElapsedMs, int Frames, int MaxSeconds, int RemainingMs, int Width, int Height);
+
+public sealed record StatusInfo(bool Recording, LiveInfo? Active, string? LatestRecordingId, string? AutoStoppedRecordingId);
 
 public sealed record RecordingInfo(string RecordingId, int Frames, int DurationMs, int Width, int Height, string Folder, bool AutoStopped = false, string? SourceId = null);
 

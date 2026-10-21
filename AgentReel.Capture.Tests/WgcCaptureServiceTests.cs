@@ -79,7 +79,15 @@ public class WgcCaptureThrottleTests
         {
             await service.StartAsync(new CaptureOptions(target, Framerate: 10, ShowCursor: false), folder);
             await Task.Delay(2000);
+
+            //The newest complete frame can be read while the recording goes on.
+            var progress = service.GetProgress();
+            Assert.NotNull(progress);
+            Assert.InRange(progress.LatestWrittenFrame, 0, progress.Frames - 1);
+            Assert.NotEmpty(BitmapDecoder.Create(new Uri(progress.LatestWrittenPath!), BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames);
+
             var result = await service.StopAsync();
+            Assert.Null(service.GetProgress());
 
             //The window changes about 60 times per second, so the framerate is the only limit: ~20 frames in 2 s.
             Assert.InRange(result.Frames.Count, 12, 24);

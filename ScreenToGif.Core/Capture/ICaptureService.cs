@@ -23,6 +23,14 @@ public sealed record CaptureOptions(CaptureTarget Target, int Framerate = 15, bo
 public sealed record CaptureResult(IReadOnlyList<FrameInfo> Frames, int Width, int Height, double Dpi);
 
 /// <summary>
+/// A running recording so far.
+/// </summary>
+/// <param name="Frames">Frames taken so far, some of them may still be written.</param>
+/// <param name="LatestWrittenFrame">Index of the newest frame whose PNG file is complete, -1 if none is yet.</param>
+/// <param name="LatestWrittenPath">Path of that PNG file.</param>
+public sealed record CaptureProgress(int Frames, TimeSpan Elapsed, int LatestWrittenFrame, string? LatestWrittenPath, int Width, int Height);
+
+/// <summary>
 /// Records monitors or windows without any UI thread.
 /// </summary>
 public interface ICaptureService : IAsyncDisposable
@@ -35,6 +43,11 @@ public interface ICaptureService : IAsyncDisposable
     /// Starts recording. Frames are written as numbered PNG files into <paramref name="folder"/>.
     /// </summary>
     Task StartAsync(CaptureOptions options, string folder, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The running recording so far, null if none is running.
+    /// </summary>
+    CaptureProgress? GetProgress();
 
     /// <summary>
     /// Stops recording and waits until every frame is written.

@@ -34,6 +34,7 @@ public sealed class WgcCaptureService : ICaptureService
     private Task? _writer;
 
     private List<FrameInfo> _frames = [];
+    private int _written;
     private string _folder = "";
     private Int32Rect _crop;
     private bool _isFullFrame;
@@ -80,6 +81,7 @@ public sealed class WgcCaptureService : ICaptureService
         _dpi = GetDpi(options.Target);
         _folder = folder;
         _frames = [];
+        _written = 0;
         _pending = null;
         _stopping = false;
         _error = null;
@@ -115,6 +117,18 @@ public sealed class WgcCaptureService : ICaptureService
         _ticker = Task.Run(TickAsync);
 
         return Task.CompletedTask;
+    }
+
+    public CaptureProgress? GetProgress()
+    {
+        lock (_gate)
+        {
+            if (!IsRecording)
+                return null;
+
+            var latest = _written - 1;
+            return new CaptureProgress(_frames.Count, _clock.Elapsed, latest, latest >= 0 ? _frames[latest].Path : null, _crop.Width, _crop.Height);
+        }
     }
 
     public async Task<CaptureResult> StopAsync()
@@ -258,6 +272,10 @@ public sealed class WgcCaptureService : ICaptureService
                     lock (_gate)
                         _error ??= e;
                 }
+
+                //Frames are written in order, so every frame up to this one is done (a failed one fails the recording).
+                lock (_gate)
+                    _written++;
             }
         }
     }

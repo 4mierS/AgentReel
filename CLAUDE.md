@@ -181,9 +181,14 @@ Phase 4 progress (2026-10-21):
   (`RecordingSessionTests`). Dogfood run: window recording 25 s → `optimize` (speed 2, 25.0 → 10.7 s) → `add_caption`
   → `add_highlight` with `dimOutside` → GIF export, all correct.
 
+- `get_status` (running?, elapsed, frames so far, time left until `maxSeconds`, latest and auto-stopped id) and live
+  `get_preview` (2026-10-21, decided with Amir): while a recording runs and `recordingId` is empty or its id, it returns
+  the newest frame whose PNG is complete (`ICaptureService.GetProgress`; WGC counts written frames, they are written in
+  order). `frame`/`atMs` are refused while live. Verified over stdio with a scratch build on a window recording: live
+  frames at 3 s and 6 s showed the right console lines, stop/preview/delete afterwards fine.
+
 Next – START HERE:
-1. Phase 4 is done. Optional MCP polish: `get_status`; decide whether `get_preview` should work during a running recording.
-2. Phase 3 (Vortice instead of SharpDX for the app's capture).
+1. Phase 3 (Vortice instead of SharpDX for the app's capture).
 
 ## Roadmap
 

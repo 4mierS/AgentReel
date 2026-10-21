@@ -95,10 +95,43 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     }
 
     /// <summary>
+    /// The running recording so far, if one runs and <paramref name="id"/> is empty or its id. Null otherwise.
+    /// </summary>
+    public async Task<LiveRecording?> GetLiveAsync(string? id = null)
+    {
+        await _gate.WaitAsync();
+
+        try
+        {
+            if (_active == null || (!string.IsNullOrWhiteSpace(id) && !string.Equals(_active.Id, id.Trim(), StringComparison.OrdinalIgnoreCase)))
+                return null;
+
+            return capture.GetProgress() is { } progress ? new LiveRecording(_active, progress) : null;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// The latest finished recording or edit of this session, the default for the other tools.
+    /// </summary>
+    public string? LatestId => _lastId;
+
+    /// <summary>
+    /// The recording that stopped itself at its maximum duration and was not picked up by stop_recording yet.
+    /// </summary>
+    public string? AutoStoppedId => _autoStopped is { } project ? IdOf(project) : null;
+
+    /// <summary>
     /// A finished recording by id, or the latest one when <paramref name="id"/> is empty.
     /// </summary>
     public ProjectInfo Get(string? id)
     {
+        if (string.IsNullOrWhiteSpace(id) && _lastId == null && _active != null)
+            throw new McpException($"Recording '{_active.Id}' is still running. Call stop_recording first.");
+
         if (string.IsNullOrWhiteSpace(id))
             id = _lastId ?? throw new McpException("There is no latest recording in this session. Record one with start_recording and stop_recording, or pass a recordingId from list_recordings.");
 
@@ -342,3 +375,5 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 }
 
 public sealed record ActiveRecording(string Id, ProjectInfo Project, CaptureOptions Options, DateTime StartedAt, TimeSpan MaxDuration, CancellationTokenSource AutoStop);
+
+public sealed record LiveRecording(ActiveRecording Recording, CaptureProgress Progress);
