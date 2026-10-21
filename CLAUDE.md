@@ -128,10 +128,19 @@ Phase 2 progress (2026-10-20):
   `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\`), both with `DOTNET_ROOT` and `AGENTREEL_FFMPEG`.
   A running client locks the Debug exe; stop it before rebuilding `AgentReel.Mcp`.
 
+- **Phase 2 gate passed (2026-10-21)** in a fresh Claude Code session over the registered `agentreel` server, without
+  manual steps: Claude opened a scripted demo console window, recorded it by window title for 22 s
+  (`maxSeconds` auto-stop, 76 frames), checked a frame with `get_preview`, exported MP4. ffprobe: h264 1114x628 CFR
+  25 fps, 22.08 s (recorded 21.98 s). It recorded a window, not the monitor, because the primary monitor showed private
+  mail. Odd window widths (1115) are rounded down to even for x264.
+  Note: `stop_recording` after an auto-stop returns "No recording is running"; the project is saved anyway, and
+  `get_preview`/`export` work on it. The agent cannot tell that from the error.
+
 Next – START HERE:
-1. Gate test in a fresh Claude Code (or Desktop) session: Claude records a 20-second demo on its own and exports MP4.
-2. Update the Phase 2 checklist in the plan doc.
-3. Decide whether to fix the passthrough MP4 duration bug in the app too (Ms-PL code, upstream behavior).
+1. Decide whether to fix the passthrough MP4 duration bug in the app too (Ms-PL code, upstream behavior).
+2. Small MCP polish: `stop_recording` after an auto-stop should return the saved recording instead of an error;
+   maybe a `get_status` tool. Decide whether `get_preview` should work during a running recording.
+3. Phase 3/4 per the roadmap.
 
 ## Roadmap
 
