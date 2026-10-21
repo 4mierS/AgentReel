@@ -17,6 +17,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     private readonly Dictionary<string, ProjectInfo> _recordings = new(StringComparer.OrdinalIgnoreCase);
 
     private ActiveRecording? _active;
+    private ProjectInfo? _autoStopped;
     private string? _lastId;
 
     public IReadOnlyList<CaptureTarget> ListTargets() => capture.ListTargets();
@@ -29,6 +30,8 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
         {
             if (_active != null)
                 throw new McpException($"Recording '{_active.Id}' is still running. Call stop_recording first.");
+
+            _autoStopped = null;
 
             var project = new ProjectInfo().CreateProjectFolder(ProjectByType.ScreenRecorder);
             var id = IdOf(project);
@@ -50,16 +53,24 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
         }
     }
 
-    public async Task<ProjectInfo> StopAsync()
+    /// <summary>
+    /// Stops the running recording. If the last one already stopped itself at its maximum duration and nobody has
+    /// asked for it yet, returns that one instead, so a late stop_recording does not look like a failure.
+    /// </summary>
+    public async Task<(ProjectInfo Project, bool AutoStopped)> StopAsync()
     {
         await _gate.WaitAsync();
 
         try
         {
             if (_active == null)
-                throw new McpException("No recording is running.");
+            {
+                var stopped = _autoStopped ?? throw new McpException("No recording is running.");
+                _autoStopped = null;
+                return (stopped, true);
+            }
 
-            return await StopActiveAsync();
+            return (await StopActiveAsync(), false);
         }
         finally
         {
@@ -93,7 +104,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
                 return;
 
             logger.LogWarning("Recording {Id} reached its maximum duration and was stopped.", id);
-            await StopActiveAsync();
+            _autoStopped = await StopActiveAsync();
         }
         catch (Exception ex)
         {

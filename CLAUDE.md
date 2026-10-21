@@ -133,14 +133,18 @@ Phase 2 progress (2026-10-20):
   (`maxSeconds` auto-stop, 76 frames), checked a frame with `get_preview`, exported MP4. ffprobe: h264 1114x628 CFR
   25 fps, 22.08 s (recorded 21.98 s). It recorded a window, not the monitor, because the primary monitor showed private
   mail. Odd window widths (1115) are rounded down to even for x264.
-  Note: `stop_recording` after an auto-stop returns "No recording is running"; the project is saved anyway, and
-  `get_preview`/`export` work on it. The agent cannot tell that from the error.
+- `stop_recording` after an auto-stop (`maxSeconds`) now returns that recording with `autoStopped: true` instead of
+  "No recording is running" (once; a new `start_recording` clears it). Verified over stdio with a scratch build.
+  The registered Debug exe is not rebuilt yet (locked by the running client).
+- Decided 2026-10-21: the passthrough MP4 duration bug in the app's default preset stays for now. The agent path is
+  fixed (CFR), changing `FfmpegMp4Preset.Defaults` would not fix presets users already saved, and it touches Ms-PL
+  upstream behavior. Revisit in Phase 5 when the export UI is reworked (or report upstream).
 
 Next – START HERE:
-1. Decide whether to fix the passthrough MP4 duration bug in the app too (Ms-PL code, upstream behavior).
-2. Small MCP polish: `stop_recording` after an auto-stop should return the saved recording instead of an error;
-   maybe a `get_status` tool. Decide whether `get_preview` should work during a running recording.
-3. Phase 3/4 per the roadmap.
+1. Rebuild the registered `AgentReel.Mcp` Debug exe (stop the clients first).
+2. Optional MCP polish: a `get_status` tool; decide whether `get_preview` should work during a running recording.
+3. Phase 3 (Vortice instead of SharpDX for the app's capture) or Phase 4 (editing over MCP: `trim`, `add_caption`,
+   `optimize`, `get_contact_sheet`, `open_in_editor`). Phase 4 adds more agent value first.
 
 ## Roadmap
 

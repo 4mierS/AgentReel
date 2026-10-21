@@ -50,8 +50,12 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         return new StartedInfo(active.Id, Describe(resolved, session.ListTargets()), framerate, maxSeconds);
     }
 
-    [McpServerTool(Name = "stop_recording"), Description("Stops the running recording and saves it as a project. Returns its id for get_preview and export.")]
-    public async Task<RecordingInfo> StopRecording() => Describe(await session.StopAsync());
+    [McpServerTool(Name = "stop_recording"), Description("Stops the running recording and saves it as a project. Returns its id for get_preview and export. If the recording already stopped itself at maxSeconds, returns that recording with autoStopped=true.")]
+    public async Task<RecordingInfo> StopRecording()
+    {
+        var (project, autoStopped) = await session.StopAsync();
+        return Describe(project) with { AutoStopped = autoStopped };
+    }
 
     [McpServerTool(Name = "get_preview", ReadOnly = true), Description("Returns one frame of a finished recording as a PNG image. Without frame or atMs it returns the last frame.")]
     public IEnumerable<ContentBlock> GetPreview(
@@ -259,6 +263,6 @@ public sealed record TargetInfo(string Id, string Kind, string Name, int X, int 
 
 public sealed record StartedInfo(string RecordingId, TargetInfo Target, int Framerate, int MaxSeconds);
 
-public sealed record RecordingInfo(string RecordingId, int Frames, int DurationMs, int Width, int Height, string Folder);
+public sealed record RecordingInfo(string RecordingId, int Frames, int DurationMs, int Width, int Height, string Folder, bool AutoStopped = false);
 
 public sealed record ExportInfo(string Path, long Bytes, string Format, string Encoder, int Frames, int DurationMs);
