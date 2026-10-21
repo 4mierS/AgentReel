@@ -118,11 +118,20 @@ Phase 2 progress (2026-10-20):
 - The exe is framework-dependent. With the user-local SDK, every launcher (Claude Desktop/Code config) must set
   `DOTNET_ROOT=%LOCALAPPDATA%\Microsoft\dotnet`, otherwise it fails with "You must install .NET".
 
+- MP4 over stdio verified (2026-10-21) with a local, never-shipped FFmpeg via `AGENTREEL_FFMPEG`. Two fixes on the way:
+  - FFmpeg inherited the host's stdin (= the JSON-RPC pipe), so exports hung until the client closed stdin.
+    `ExportService` now gives every FFmpeg process its own stdin and closes it right away.
+  - With passthrough/vfr, a long-held last frame (idle screen at the end) makes the MP4 header report a shorter
+    duration than what plays (x264 B-frames leave the last DTS behind its PTS). The MCP server forces CFR for video
+    presets in normal mode. The app's own default MP4 preset (passthrough) still has this bug – not fixed there yet.
+- Registered as `agentreel` in Claude Code (user scope) and Claude Desktop (Store build, config under
+  `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\`), both with `DOTNET_ROOT` and `AGENTREEL_FFMPEG`.
+  A running client locks the Debug exe; stop it before rebuilding `AgentReel.Mcp`.
+
 Next – START HERE:
-1. Get FFmpeg locally (app options, PATH or `AGENTREEL_FFMPEG`) and test MP4 export over stdio.
-2. Register the server with an MCP client (Claude Desktop is not installed; Claude Code via `claude mcp add` works too),
-   with `DOTNET_ROOT` in its env, and run the gate: Claude records a 20-second demo on its own and exports MP4.
-3. Update the Phase 2 checklist in the plan doc.
+1. Gate test in a fresh Claude Code (or Desktop) session: Claude records a 20-second demo on its own and exports MP4.
+2. Update the Phase 2 checklist in the plan doc.
+3. Decide whether to fix the passthrough MP4 duration bug in the app too (Ms-PL code, upstream behavior).
 
 ## Roadmap
 
