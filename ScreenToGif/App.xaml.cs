@@ -197,7 +197,6 @@ public partial class App : IDisposable
 
         #endregion
 
-        //var test = new TestField(); test.ShowDialog(); Environment.Exit(1); return;
         //var test = new Windows.EditorEx(); test.ShowDialog(); return;
         //var test = new Windows.NewWebcam(); test.ShowDialog(); return;
         //var test = Settings.UserSettings.All.StartupTop;

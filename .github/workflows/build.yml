@@ -32,20 +32,15 @@ jobs:
           $exe = Get-ChildItem (Join-Path $env:RUNNER_TEMP "ffmpeg") -Recurse -Filter ffmpeg.exe | Select-Object -First 1
           "AGENTREEL_FFMPEG=$($exe.FullName)" >> $env:GITHUB_ENV
 
-      # Excluded tests already fail upstream (v2.43.2):
-      # - ThemeContrastTests for Dark/VeryDark: hyperlink and DataGrid header brushes miss WCAG 4.5:1.
-      # - YandexUpload: needs real credentials and network.
-      # - ImageComparison: test data b1.bmp/b2.bmp is missing from the upstream repo.
+      # Excluded: ThemeContrastTests for Dark/VeryDark already fail upstream (v2.43.2): hyperlink and DataGrid header
+      # brushes miss WCAG 4.5:1 in the legacy themes.
       - name: Test
         run: >
           dotnet test ScreenToGif.Test/ScreenToGif.Test.csproj -c Release --no-build --verbosity normal
-          --filter "DisplayName!~Dark.xaml&FullyQualifiedName!~YandexUpload&FullyQualifiedName!~ImageComparison"
+          --filter "DisplayName!~Dark.xaml"
 
       - name: Test capture
         run: dotnet test AgentReel.Capture.Tests/AgentReel.Capture.Tests.csproj -c Release --no-build --verbosity normal
 
       - name: Test MCP server
         run: dotnet test AgentReel.Mcp.Tests/AgentReel.Mcp.Tests.csproj -c Release --no-build --verbosity normal
-
-      - name: Build capture spike
-        run: dotnet build Spikes/AgentReel.CaptureSpike/AgentReel.CaptureSpike.csproj -c Release

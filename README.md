@@ -3,7 +3,8 @@
 AgentReel is a Windows screen recorder and GIF/video editor that AI agents such as Claude can drive over the
 Model Context Protocol (MCP): record a window or monitor, review frames, trim, caption, redact and export.
 
-> **Status:** early fork, phase 0 (build, CI, capture spike). Not ready for use yet.
+> **Status:** in development, not released yet. Working today: the MCP server (record, preview, trim, optimize,
+> caption, highlight, export, review-before-apply) and AgentReel Studio (record, review).
 
 ## Origin and license
 
@@ -21,14 +22,10 @@ dotnet build GifRecorder.sln -c Debug
 dotnet test ScreenToGif.Test/ScreenToGif.Test.csproj
 ```
 
-## Capture spike
+## Projects
 
-`Spikes/AgentReel.CaptureSpike` checks that Windows.Graphics.Capture works headless from a console app,
-which is what the MCP server will need.
-
-```powershell
-dotnet run --project Spikes/AgentReel.CaptureSpike -- --seconds 5
-dotnet run --project Spikes/AgentReel.CaptureSpike -- --window "Notepad" --seconds 5
-```
-
-It prints a JSON summary (frames, fps, size) and writes the first and last frame as PNG to `spike-output/`.
+- `AgentReel.Studio`: the new desktop app (record, edit, review).
+- `AgentReel.Mcp`: the MCP server (stdio) that agents use.
+- `AgentReel.Editing`: edits, overlays, edit/review files and export presets, shared by both.
+- `AgentReel.Capture`: Windows.Graphics.Capture recorder.
+- `ScreenToGif.*`: the Ms-PL code this fork is based on (export, legacy app and editor).

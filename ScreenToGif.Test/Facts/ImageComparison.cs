@@ -10,13 +10,13 @@ namespace ScreenToGif.Test.Fact
         {
             var f1 = new FrameInfo()
             {
-                Path = "./Data/b1.bmp",
+                Path = "./Data/ImageComparison/b1.bmp",
                 Index = 0
             };
 
             var f2 = new FrameInfo()
             {
-                Path = "./Data/b2.bmp",
+                Path = "./Data/ImageComparison/b2.bmp",
                 Index = 1
             };
 

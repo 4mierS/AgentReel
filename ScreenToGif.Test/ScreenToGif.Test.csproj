@@ -21,15 +21,12 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Data\ImageComparison\" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\ScreenToGif.ViewModel\ScreenToGif.ViewModel.csproj" />
     <ProjectReference Include="..\ScreenToGif\ScreenToGif.csproj" />
     <ProjectReference Include="..\ScreenToGif.Core\ScreenToGif.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Update="Data\Upload\Test.txt">
+    <None Update="Data\ImageComparison\*.bmp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
