@@ -1,12 +1,15 @@
 using System.IO;
 using System.Windows;
+using AgentReel.Editing;
+using AgentReel.Studio.Editor;
 using AgentReel.Studio.Review;
 using AgentReel.Studio.Session;
 
 namespace AgentReel.Studio;
 
 /// <summary>
-/// Command line: no arguments opens the session window (pick a target, record).
+/// Command line: no arguments opens the studio (library and editor), or the session window (pick a target, record)
+/// when there is no recording yet. <c>AgentReel.Studio edit &lt;recording folder&gt;</c> opens that recording in the studio.
 /// <c>AgentReel.Studio review &lt;edit folder&gt;</c> shows an edit next to its source.
 /// </summary>
 public partial class App
@@ -36,14 +39,34 @@ public partial class App
             }
         }
 
-        if (e.Args.Length == 0)
+        if (e.Args is ["edit", var recording])
         {
             LoadSharedResources();
-            new SessionWindow().Show();
+
+            if (ProjectLibrary.Load(recording) is { } project)
+            {
+                EditorWindow.Open(project);
+                return;
+            }
+
+            MessageBox.Show($"There is no recording with frames in {recording}.", "AgentReel Studio", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
             return;
         }
 
-        MessageBox.Show("Usage: AgentReel.Studio [review <edit folder>]", "AgentReel Studio", MessageBoxButton.OK, MessageBoxImage.Information);
+        if (e.Args.Length == 0)
+        {
+            LoadSharedResources();
+
+            if (ProjectLibrary.Scan().Any())
+                EditorWindow.Open();
+            else
+                new SessionWindow().Show();
+
+            return;
+        }
+
+        MessageBox.Show("Usage: AgentReel.Studio [edit <recording folder> | review <edit folder>]", "AgentReel Studio", MessageBoxButton.OK, MessageBoxImage.Information);
         Shutdown(2);
     }
 
