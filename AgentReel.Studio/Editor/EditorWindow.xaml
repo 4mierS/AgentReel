@@ -1,0 +1,459 @@
+<ui:FluentWindow x:Class="AgentReel.Studio.Editor.EditorWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:editor="clr-namespace:AgentReel.Studio.Editor"
+                 Title="AgentReel Studio" Width="1480" Height="920" MinWidth="1100" MinHeight="700"
+                 WindowStartupLocation="CenterScreen" WindowBackdropType="Mica" ExtendsContentIntoTitleBar="True"
+                 FontFamily="Segoe UI Variable Text">
+
+    <ui:FluentWindow.Resources>
+        <!--A version below its recording: smaller, indented, marked by who made it.-->
+        <DataTemplate x:Key="VersionRow" DataType="{x:Type editor:LibraryItem}">
+            <Border x:Name="Row" Margin="30,2,0,0" Padding="8,5" CornerRadius="6" Cursor="Hand" Background="Transparent" BorderThickness="1" BorderBrush="Transparent"
+                    MouseLeftButtonDown="Item_MouseLeftButtonDown" ToolTip="{Binding Steps}">
+                <Border.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Show in folder" Click="ShowFolder_Click"/>
+                        <MenuItem Header="Delete" Click="Delete_Click"/>
+                    </ContextMenu>
+                </Border.ContextMenu>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <Border CornerRadius="5" Background="{StaticResource Agent.Gradient}" Visibility="{Binding ByClaudeVisibility}">
+                            <ui:SymbolIcon Symbol="Sparkle16" Filled="True" FontSize="10" Foreground="White"/>
+                        </Border>
+                        <Border CornerRadius="5" Background="{DynamicResource ControlStrongFillColorDefaultBrush}" Visibility="{Binding ByYouVisibility}">
+                            <ui:SymbolIcon Symbol="Edit16" FontSize="10" Foreground="{DynamicResource TextFillColorInverseBrush}"/>
+                        </Border>
+                    </Grid>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock FontSize="12" Foreground="{DynamicResource TextFillColorPrimaryBrush}" TextTrimming="CharacterEllipsis">
+                            <Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" · "/><Run Text="{Binding By, Mode=OneWay}"/>
+                        </TextBlock>
+                        <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
+                    <Border Grid.Column="2" Visibility="{Binding ReviewVisibility}" Padding="6,1" CornerRadius="999" Background="{StaticResource Agent.Gradient}"
+                            VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonDown="Review_MouseLeftButtonDown" ToolTip="Claude asked you to review this version">
+                        <TextBlock Text="Review" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                    </Border>
+                </Grid>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}"/>
+                    <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource Agent.Gradient}"/>
+                </DataTrigger>
+                <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Row" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}"/>
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!--A recording: thumbnail, when it was made, how long it is; its versions below.-->
+        <DataTemplate x:Key="RecordingCard" DataType="{x:Type editor:LibraryItem}">
+            <StackPanel Margin="0,0,0,10">
+                <Border x:Name="Card" Padding="6" CornerRadius="8" Cursor="Hand" BorderThickness="1" BorderBrush="Transparent"
+                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" MouseLeftButtonDown="Item_MouseLeftButtonDown" ToolTip="{Binding Steps}">
+                    <Border.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Show in folder" Click="ShowFolder_Click"/>
+                            <MenuItem Header="Delete" Click="Delete_Click"/>
+                        </ContextMenu>
+                    </Border.ContextMenu>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="80" Height="46" CornerRadius="5" Background="#FF0B0B0E" ClipToBounds="True">
+                            <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="10,2,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="{Binding Detail}" FontSize="11" Margin="0,2,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <ItemsControl ItemsSource="{Binding Versions}" ItemTemplate="{StaticResource VersionRow}"/>
+            </StackPanel>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter TargetName="Card" Property="BorderBrush" Value="{StaticResource Agent.Gradient}"/>
+                    <Setter TargetName="Card" Property="Background" Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}"/>
+                </DataTrigger>
+                <Trigger SourceName="Card" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Card" Property="Background" Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}"/>
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <Style x:Key="Value" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+
+        <Style x:Key="Key" TargetType="TextBlock" BasedOn="{StaticResource Hint}">
+            <Setter Property="Margin" Value="0,0,12,6"/>
+        </Style>
+
+        <Style x:Key="Panel" TargetType="StackPanel">
+            <Setter Property="Margin" Value="0,0,0,26"/>
+        </Style>
+    </ui:FluentWindow.Resources>
+
+    <Grid x:Name="Root" Focusable="True" FocusVisualStyle="{x:Null}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="AgentReel Studio" ShowMaximize="True"/>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="290"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="330"/>
+            </Grid.ColumnDefinitions>
+
+            <!--Library-->
+            <Grid Grid.Column="0" Margin="20,4,8,20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Grid Margin="0,0,0,14">
+                    <TextBlock Text="LIBRARY" Style="{StaticResource Section}" VerticalAlignment="Center" Margin="0"/>
+                    <ui:Button x:Name="NewRecordingButton" HorizontalAlignment="Right" Height="32" Padding="10,0" Appearance="Secondary" Click="NewRecording_Click" ToolTip="New recording (N)">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="9" Height="9" Fill="#FFE5484D" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Record" VerticalAlignment="Center"/>
+                            <Border Style="{StaticResource Keycap}" Margin="8,0,0,0">
+                                <TextBlock Text="N" VerticalAlignment="Center"/>
+                            </Border>
+                        </StackPanel>
+                    </ui:Button>
+                </Grid>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
+                    <ItemsControl x:Name="LibraryList" ItemTemplate="{StaticResource RecordingCard}"/>
+                </ScrollViewer>
+
+                <TextBlock x:Name="LibraryEmptyText" Grid.Row="1" Style="{StaticResource Hint}" TextWrapping="Wrap" VerticalAlignment="Top" Visibility="Collapsed"
+                           Text="No recordings yet. Record a window, then edit it here or ask Claude in the chat."/>
+            </Grid>
+
+            <!--Stage, transport, timeline-->
+            <Grid Grid.Column="1" Margin="8,4,8,20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="TitleText" Text="AgentReel Studio" FontSize="20" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock x:Name="SubtitleText" FontSize="12" Margin="0,2,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:Button x:Name="UndoButton" Width="36" Height="36" Padding="0" Appearance="Transparent" Click="Undo_Click" ToolTip="Undo (Ctrl+Z)" IsEnabled="False">
+                            <ui:SymbolIcon Symbol="ArrowUndo24" FontSize="18"/>
+                        </ui:Button>
+                        <ui:Button x:Name="RedoButton" Width="36" Height="36" Padding="0" Appearance="Transparent" Click="Redo_Click" ToolTip="Redo (Ctrl+Y)" IsEnabled="False">
+                            <ui:SymbolIcon Symbol="ArrowRedo24" FontSize="18"/>
+                        </ui:Button>
+                        <ui:Button x:Name="ExportButton" Height="36" Margin="12,0,0,0" Appearance="Secondary" Click="Export_Click" ToolTip="Export (Ctrl+E) – comes next" IsEnabled="False">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="ArrowExportUp24" FontSize="16" Margin="0,0,6,0"/>
+                                <TextBlock Text="Export" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ui:Button>
+                        <ui:Button x:Name="SaveButton" Height="36" Margin="8,0,0,0" Appearance="Primary" Click="Save_Click" ToolTip="Save the changes as a new version (Ctrl+S); the original stays as it is" IsEnabled="False">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="Save24" FontSize="16" Margin="0,0,6,0"/>
+                                <TextBlock Text="Save version" VerticalAlignment="Center"/>
+                                <Border Style="{StaticResource Keycap}" Margin="8,0,0,0" Background="#33FFFFFF" BorderBrush="#55FFFFFF">
+                                    <TextBlock Text="Ctrl S" Foreground="White" VerticalAlignment="Center"/>
+                                </Border>
+                            </StackPanel>
+                        </ui:Button>
+                    </StackPanel>
+                </Grid>
+
+                <!--The stage: the frame at the playhead with the overlays drawn live over it.-->
+                <Border Grid.Row="1" CornerRadius="10" Background="#FF0B0B0E" ClipToBounds="True">
+                    <Grid>
+                        <Viewbox x:Name="StageBox" Stretch="Uniform" Margin="0" Visibility="Collapsed">
+                            <Grid x:Name="StageCanvas">
+                                <Image x:Name="StageImage" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                <editor:OverlayLayer x:Name="Layer"/>
+                            </Grid>
+                        </Viewbox>
+
+                        <Border x:Name="BusyBadge" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="14" Padding="10,5" CornerRadius="999" Background="#CC000000"
+                                IsHitTestVisible="False" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:ProgressRing IsIndeterminate="True" Width="14" Height="14" Margin="0,0,8,0"/>
+                                <TextBlock x:Name="BusyText" Text="Working…" FontSize="12" Foreground="White"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!--Nothing open yet.-->
+                        <StackPanel x:Name="EmptyStage" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420">
+                            <Border Width="56" Height="56" CornerRadius="16" Background="{StaticResource Agent.Gradient}" HorizontalAlignment="Center">
+                                <ui:SymbolIcon Symbol="Video24" Filled="True" FontSize="28" Foreground="White"/>
+                            </Border>
+                            <TextBlock Text="Record something to begin" FontSize="20" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display" Margin="0,16,0,6"
+                                       HorizontalAlignment="Center" Foreground="White"/>
+                            <TextBlock TextAlignment="Center" TextWrapping="Wrap" FontSize="13" Foreground="#B3FFFFFF"
+                                       Text="Pick a window, record it, then trim, caption and highlight it here – or let Claude do it from the chat."/>
+                            <ui:Button HorizontalAlignment="Center" Margin="0,18,0,0" Height="40" Appearance="Primary" Click="NewRecording_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="10" Height="10" Fill="#FFE5484D" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="New recording" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </ui:Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!--Transport and tools.-->
+                <Grid x:Name="TransportBar" Grid.Row="2" Margin="0,12,0,8" IsEnabled="False">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <ui:Button x:Name="PlayButton" Appearance="Secondary" Width="40" Height="36" Padding="0" Click="Play_Click" ToolTip="Play / pause (Space)">
+                            <ui:SymbolIcon x:Name="PlayIcon" Symbol="Play24" Filled="True" FontSize="18"/>
+                        </ui:Button>
+                        <TextBlock x:Name="TimeText" FontSize="14" FontFamily="Segoe UI Variable Display" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock x:Name="LengthText" Style="{StaticResource Hint}" Margin="14,0,0,0"/>
+                        <!--What is on the stage: the original, a saved version, or a preview with unsaved changes.-->
+                        <Border x:Name="StageBadge" Margin="14,0,0,0" Padding="10,4" CornerRadius="999" VerticalAlignment="Center" Visibility="Collapsed"
+                                Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse x:Name="StageBadgeDot" Width="7" Height="7" Fill="#FFF5A524" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="StageBadgeText" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <ui:Button x:Name="CutButton" Height="34" Appearance="Transparent" Click="Cut_Click" ToolTip="Cut the selection (Del). Select by dragging on the timeline or with I and O.">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="Cut24" FontSize="16" Margin="0,0,6,0"/>
+                                <TextBlock Text="Cut" VerticalAlignment="Center"/>
+                                <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="Del" VerticalAlignment="Center"/></Border>
+                            </StackPanel>
+                        </ui:Button>
+                        <ui:Button x:Name="CaptionButton" Height="34" Margin="4,0,0,0" Appearance="Transparent" Click="Caption_Click" ToolTip="Add a caption at the playhead or over the selection (T)">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="ClosedCaption24" FontSize="16" Margin="0,0,6,0"/>
+                                <TextBlock Text="Caption" VerticalAlignment="Center"/>
+                                <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="T" VerticalAlignment="Center"/></Border>
+                            </StackPanel>
+                        </ui:Button>
+                        <ui:Button x:Name="HighlightButton" Height="34" Margin="4,0,0,0" Appearance="Transparent" Click="Highlight_Click" ToolTip="Add a highlight at the playhead (H), or drag on the picture">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="SquareHint24" FontSize="16" Margin="0,0,6,0"/>
+                                <TextBlock Text="Highlight" VerticalAlignment="Center"/>
+                                <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="H" VerticalAlignment="Center"/></Border>
+                            </StackPanel>
+                        </ui:Button>
+                    </StackPanel>
+                </Grid>
+
+                <Border Grid.Row="3" Padding="6,8,6,6" CornerRadius="10" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                        BorderThickness="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                    <editor:EditorTimeline x:Name="Timeline"/>
+                </Border>
+            </Grid>
+
+            <!--Inspector-->
+            <Grid Grid.Column="2" Margin="8,4,20,20">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,14,0" Margin="0,0,0,14">
+                    <StackPanel x:Name="Inspector" Visibility="Collapsed">
+
+                        <!--Caption-->
+                        <StackPanel x:Name="CaptionPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
+                            <Grid>
+                                <TextBlock Text="CAPTION" Style="{StaticResource Section}"/>
+                                <TextBlock x:Name="CaptionTime" Style="{StaticResource Hint}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                            </Grid>
+                            <ui:TextBox x:Name="CaptionBox" MinHeight="72" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="What happens here?"
+                                        TextChanged="CaptionBox_TextChanged" LostKeyboardFocus="CaptionBox_LostKeyboardFocus" PreviewKeyDown="CaptionBox_PreviewKeyDown"/>
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,12" Text="Enter applies, Shift+Enter starts a new line."/>
+                            <UniformGrid Rows="1">
+                                <RadioButton x:Name="TopRadio" Content="Top" GroupName="CaptionPosition" Checked="CaptionPosition_Checked"/>
+                                <RadioButton x:Name="CenterRadio" Content="Center" GroupName="CaptionPosition" Checked="CaptionPosition_Checked"/>
+                                <RadioButton x:Name="BottomRadio" Content="Bottom" GroupName="CaptionPosition" Checked="CaptionPosition_Checked"/>
+                            </UniformGrid>
+                            <ui:Button Margin="0,14,0,0" Appearance="Transparent" Click="DeleteOverlay_Click" HorizontalAlignment="Left" Padding="8,4">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="Delete20" FontSize="14" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Remove caption"/>
+                                    <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="Del" VerticalAlignment="Center"/></Border>
+                                </StackPanel>
+                            </ui:Button>
+                        </StackPanel>
+
+                        <!--Highlight-->
+                        <StackPanel x:Name="HighlightPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
+                            <Grid>
+                                <TextBlock Text="HIGHLIGHT" Style="{StaticResource Section}"/>
+                                <TextBlock x:Name="HighlightTime" Style="{StaticResource Hint}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                            </Grid>
+                            <UniformGrid Rows="1" Margin="0,0,0,12">
+                                <RadioButton x:Name="RectangleRadio" Content="Rectangle" GroupName="HighlightShape" Checked="HighlightShape_Checked"/>
+                                <RadioButton x:Name="EllipseRadio" Content="Ellipse" GroupName="HighlightShape" Checked="HighlightShape_Checked"/>
+                            </UniformGrid>
+                            <ui:ToggleSwitch x:Name="DimSwitch" Content="Darken everything else" Checked="Dim_Changed" Unchecked="Dim_Changed"/>
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0" TextWrapping="Wrap" Text="Drag it on the picture to move it, drag a corner to resize it. Drag its bar on the timeline to change when it shows."/>
+                            <ui:Button Margin="0,14,0,0" Appearance="Transparent" Click="DeleteOverlay_Click" HorizontalAlignment="Left" Padding="8,4">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="Delete20" FontSize="14" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Remove highlight"/>
+                                    <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="Del" VerticalAlignment="Center"/></Border>
+                                </StackPanel>
+                            </ui:Button>
+                        </StackPanel>
+
+                        <!--Selection-->
+                        <StackPanel x:Name="SelectionPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
+                            <Grid>
+                                <TextBlock Text="SELECTION" Style="{StaticResource Section}"/>
+                                <TextBlock x:Name="SelectionTime" Style="{StaticResource Hint}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                            </Grid>
+                            <UniformGrid Columns="2">
+                                <ui:Button Margin="0,0,4,8" Appearance="Secondary" HorizontalAlignment="Stretch" Click="Cut_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:SymbolIcon Symbol="Cut20" FontSize="14" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Cut"/>
+                                    </StackPanel>
+                                </ui:Button>
+                                <ui:Button Margin="4,0,0,8" Appearance="Secondary" HorizontalAlignment="Stretch" Click="KeepSelection_Click" ToolTip="Keep only the selection (K)">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:SymbolIcon Symbol="ArrowMinimize20" FontSize="14" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Keep only"/>
+                                    </StackPanel>
+                                </ui:Button>
+                                <ui:Button Margin="0,0,4,0" Appearance="Secondary" HorizontalAlignment="Stretch" Click="Caption_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:SymbolIcon Symbol="ClosedCaption20" FontSize="14" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Caption"/>
+                                    </StackPanel>
+                                </ui:Button>
+                                <ui:Button Margin="4,0,0,0" Appearance="Secondary" HorizontalAlignment="Stretch" Click="Highlight_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:SymbolIcon Symbol="SquareHint20" FontSize="14" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Highlight"/>
+                                    </StackPanel>
+                                </ui:Button>
+                            </UniformGrid>
+                        </StackPanel>
+
+                        <!--Shorten: the optimize tool by hand.-->
+                        <StackPanel x:Name="ShortenPanel" Style="{StaticResource Panel}">
+                            <TextBlock Text="SHORTEN" Style="{StaticResource Section}"/>
+                            <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,0,0,14"
+                                       Text="Folds repeated frames and blinking cursors, cuts long waits and speeds up the whole recording."/>
+                            <Grid>
+                                <TextBlock Text="Longest pause" Style="{StaticResource Key}"/>
+                                <TextBlock x:Name="PauseValue" Style="{StaticResource Value}"/>
+                            </Grid>
+                            <Slider x:Name="PauseSlider" Minimum="0" Maximum="5000" Value="1500" TickFrequency="250" IsSnapToTickEnabled="True" ValueChanged="Shorten_ValueChanged"/>
+                            <Grid Margin="0,10,0,0">
+                                <TextBlock Text="Speed" Style="{StaticResource Key}"/>
+                                <TextBlock x:Name="SpeedValue" Style="{StaticResource Value}"/>
+                            </Grid>
+                            <Slider x:Name="SpeedSlider" Minimum="0.5" Maximum="4" Value="1" Ticks="0.5,0.75,1,1.25,1.5,2,2.5,3,4" IsSnapToTickEnabled="True" ValueChanged="Shorten_ValueChanged"/>
+                            <ui:Button x:Name="ShortenButton" Margin="0,14,0,0" HorizontalAlignment="Stretch" Appearance="Secondary" Click="Shorten_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:SymbolIcon Symbol="FastForward20" FontSize="14" Margin="0,0,6,0"/>
+                                    <TextBlock Text="Shorten"/>
+                                </StackPanel>
+                            </ui:Button>
+                        </StackPanel>
+
+                        <!--Changes-->
+                        <StackPanel Style="{StaticResource Panel}">
+                            <TextBlock Text="CHANGES" Style="{StaticResource Section}"/>
+                            <ItemsControl x:Name="ChangeList"/>
+                            <TextBlock x:Name="NoChangesText" Style="{StaticResource Hint}" TextWrapping="Wrap"
+                                       Text="Nothing changed yet. Edits are only previews until you save a version, and every step can be undone."/>
+                        </StackPanel>
+
+                        <!--Recording-->
+                        <StackPanel Style="{StaticResource Panel}">
+                            <TextBlock Text="RECORDING" Style="{StaticResource Section}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Length" Style="{StaticResource Key}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="InfoLength" Style="{StaticResource Value}"/>
+                                <TextBlock Grid.Row="1" Text="Frames" Style="{StaticResource Key}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="InfoFrames" Style="{StaticResource Value}"/>
+                                <TextBlock Grid.Row="2" Text="Size" Style="{StaticResource Key}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="InfoSize" Style="{StaticResource Value}"/>
+                                <TextBlock Grid.Row="3" Text="Id" Style="{StaticResource Key}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="InfoId" Style="{StaticResource Value}"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!--Claude works in the chat over MCP; this card says what to ask. Claude's proposals (pending reviews) will show here too.-->
+                <Border x:Name="ClaudeCard" Grid.Row="1" Padding="16" CornerRadius="12" BorderThickness="1" BorderBrush="{StaticResource Agent.Gradient}"
+                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <Border Width="28" Height="28" CornerRadius="8" Background="{StaticResource Agent.Gradient}">
+                                <ui:SymbolIcon Symbol="Sparkle20" Filled="True" FontSize="15" Foreground="White"/>
+                            </Border>
+                            <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="ASK CLAUDE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Agent.Brush}"/>
+                                <TextBlock x:Name="ClaudeHint" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Text="In the chat · click to copy"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ItemsControl x:Name="PromptList"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <ui:SnackbarPresenter x:Name="Snackbar" Grid.Row="1" VerticalAlignment="Bottom" Margin="0,0,0,24"/>
+    </Grid>
+</ui:FluentWindow>

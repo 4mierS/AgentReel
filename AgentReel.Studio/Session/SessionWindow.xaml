@@ -93,10 +93,21 @@
                     <TextBlock Text="What should Claude see?" FontSize="24" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display"
                                Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
                     <TextBlock x:Name="IntroText" FontSize="13" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                               Text="Pick a window to record. Afterwards, ask Claude in the chat to trim, caption or export it."/>
+                               Text="Pick a window to record. Afterwards, edit it in the studio or ask Claude in the chat to do it."/>
                 </StackPanel>
-                <ui:TextBox x:Name="SearchBox" Grid.Column="1" Width="260" VerticalAlignment="Bottom" PlaceholderText="Find a window"
-                            Icon="{ui:SymbolIcon Search20}" TextChanged="SearchBox_TextChanged" ClearButtonEnabled="True"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
+                    <ui:Button x:Name="BackButton" Height="36" Margin="0,0,10,0" Appearance="Transparent" Click="Back_Click" Visibility="Collapsed" ToolTip="Back to the studio (Esc)">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="ArrowLeft20" FontSize="14" Margin="0,0,6,0"/>
+                            <TextBlock Text="Studio" VerticalAlignment="Center"/>
+                            <Border Style="{StaticResource Keycap}" Margin="8,0,0,0">
+                                <TextBlock Text="Esc" VerticalAlignment="Center"/>
+                            </Border>
+                        </StackPanel>
+                    </ui:Button>
+                    <ui:TextBox x:Name="SearchBox" Width="260" PlaceholderText="Find a window"
+                                Icon="{ui:SymbolIcon Search20}" TextChanged="SearchBox_TextChanged" ClearButtonEnabled="True"/>
+                </StackPanel>
             </Grid>
 
             <ScrollViewer Grid.Row="1" Padding="28,0,14,0" VerticalScrollBarVisibility="Auto">
@@ -143,75 +154,6 @@
                             </Border>
                         </StackPanel>
                     </ui:Button>
-                </Grid>
-            </Border>
-        </Grid>
-
-        <!--2. Recorded: what it is, and what to ask Claude next.-->
-        <Grid x:Name="RecordedPanel" Grid.Row="1" Visibility="Collapsed">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <Grid Grid.Row="0" Margin="28,4,28,16">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel>
-                    <TextBlock x:Name="RecordedTitle" Text="Recorded" FontSize="24" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display"
-                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
-                    <TextBlock x:Name="RecordedDetail" FontSize="13" Margin="0,4,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <TextBlock x:Name="DurationText" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
-                    <TextBlock x:Name="DurationDetailText" FontSize="12" HorizontalAlignment="Right" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-                </StackPanel>
-            </Grid>
-
-            <Border Grid.Row="1" Margin="28,0" CornerRadius="10" Background="#FF0B0B0E" ClipToBounds="True">
-                <Image x:Name="StageImage" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
-            </Border>
-
-            <!--Claude works in the chat, so the next step is a sentence to say there.-->
-            <Border Grid.Row="2" Margin="0,16,0,0" Padding="28,16" BorderThickness="0,1,0,0"
-                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12" Background="{StaticResource Agent.Gradient}" VerticalAlignment="Top" Margin="0,0,14,0">
-                        <ui:SymbolIcon Symbol="Sparkle24" Filled="True" FontSize="22" Foreground="White"/>
-                    </Border>
-
-                    <StackPanel Grid.Column="1">
-                        <TextBlock x:Name="AskText" Text="Ask Claude in the chat, for example (click to copy):" FontSize="13"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,8"/>
-                        <ItemsControl x:Name="SuggestionList" ItemsPanel="{StaticResource Wrap}"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="24,0,0,0">
-                        <ui:Button Height="40" Appearance="Transparent" Click="DeleteRecording_Click" ToolTip="Delete this recording">
-                            <ui:SymbolIcon Symbol="Delete24" FontSize="18"/>
-                        </ui:Button>
-                        <ui:Button Height="40" Margin="4,0,0,0" Appearance="Secondary" Click="ShowFolder_Click" ToolTip="Show the recording's folder">
-                            <StackPanel Orientation="Horizontal">
-                                <ui:SymbolIcon Symbol="FolderOpen24" FontSize="16" Margin="0,0,6,0"/>
-                                <TextBlock Text="Folder"/>
-                            </StackPanel>
-                        </ui:Button>
-                        <ui:Button Height="40" Margin="8,0,0,0" Appearance="Primary" Click="RecordAgain_Click" ToolTip="Record something else (N)">
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="10" Height="10" Fill="#FFE5484D" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="New recording" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </ui:Button>
-                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>
