@@ -62,7 +62,7 @@ public static class ReviewFiles
     /// <summary>
     /// Null if the file is missing or cannot be read (yet).
     /// </summary>
-    private static T? Read<T>(string path) where T : class
+    internal static T? Read<T>(string path) where T : class
     {
         try
         {
@@ -77,7 +77,7 @@ public static class ReviewFiles
     /// <summary>
     /// Writes to a temporary file first, so a reader polling the file never sees half of it.
     /// </summary>
-    private static void Write<T>(string path, T value)
+    internal static void Write<T>(string path, T value)
     {
         var temporary = path + ".tmp";
         File.WriteAllText(temporary, JsonSerializer.Serialize(value, Options));
