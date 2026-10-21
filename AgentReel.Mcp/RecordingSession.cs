@@ -1,14 +1,10 @@
 using System.IO;
 using AgentReel.Capture;
-using AgentReel.Mcp.Editing;
-using AgentReel.Review;
-using System.Runtime.Serialization.Json;
-using System.Text.RegularExpressions;
+using AgentReel.Editing;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ScreenToGif.Core.Capture;
 using ScreenToGif.Model;
-using ScreenToGif.Util;
 
 namespace AgentReel.Mcp;
 
@@ -138,7 +134,7 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
         _recordings.Remove(id);
 
         //Made before this server started, by an earlier run or by the app.
-        project = Load(FolderOf(id)) ?? throw new McpException($"Unknown recording '{id}'. Call list_recordings for the ids.");
+        project = ProjectLibrary.Load(FolderOf(id), Warn) ?? throw new McpException($"Unknown recording '{id}'. Call list_recordings for the ids.");
         _recordings[id] = project;
         return project;
     }
@@ -150,16 +146,8 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     {
         var list = _recordings.Where(w => Directory.Exists(w.Value.FullPath)).ToDictionary(StringComparer.OrdinalIgnoreCase);
 
-        if (Directory.Exists(RecordingFolder))
-        {
-            foreach (var folder in Directory.EnumerateDirectories(RecordingFolder))
-            {
-                var id = Path.GetFileName(folder);
-
-                if (!list.ContainsKey(id) && id != _active?.Id && Load(folder) is { } project)
-                    list[id] = project;
-            }
-        }
+        foreach (var (id, project) in ProjectLibrary.Scan(id => list.ContainsKey(id) || id == _active?.Id, Warn))
+            list[id] = project;
 
         return list.Values.OrderByDescending(o => o.CreationDate).ToList();
     }
@@ -176,10 +164,14 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
             var project = Get(id);
             id = IdOf(project);
 
-            if (MutexList.IsInUse(project.RelativePath))
-                throw new McpException($"Recording '{id}' is open in the editor. Close it there first.");
-
-            Directory.Delete(project.FullPath, true);
+            try
+            {
+                ProjectLibrary.Delete(project);
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new McpException(ex.Message);
+            }
 
             _recordings.Remove(id);
 
@@ -196,74 +188,23 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     }
 
     /// <summary>
-    /// Saves an edit of <paramref name="source"/> as a new project ("&lt;original id&gt; edit &lt;n&gt;") with its own copy
-    /// of the images, so the source stays as it was and the editor can open either one. The edit becomes the latest recording.
-    /// <paramref name="change"/> may change the copied images before the project is saved. <paramref name="edit"/>
-    /// describes the step against <paramref name="source"/>; it is saved as Edit.json, joined to the chain when the
-    /// source is an edit itself.
+    /// Saves an edit of <paramref name="source"/> as a new project (see <see cref="ProjectLibrary.Derive"/>), which
+    /// becomes the latest recording.
     /// </summary>
     public async Task<ProjectInfo> DeriveAsync(ProjectInfo source, IReadOnlyList<FrameInfo> frames, EditRecord edit, Action<ProjectInfo>? change = null)
     {
         if (frames.Count == 0)
             throw new McpException("The edit leaves no frames.");
 
-        if (edit.Sources.Count != frames.Count)
-            throw new ArgumentException("Every frame needs its source range.", nameof(edit));
-
         await _gate.WaitAsync();
 
         try
         {
-            var sourceId = IdOf(source);
-            var baseId = Regex.Replace(sourceId, @" edit \d+$", "");
-            var number = 1;
-
-            var project = source.ShallowCopy();
-            project.RelativePath = $"{baseId} edit {number}{Path.DirectorySeparatorChar}";
-
-            //Folders of earlier server runs count too, they may still be open in the editor.
-            while (Directory.Exists(project.FullPath))
-                project.RelativePath = $"{baseId} edit {++number}{Path.DirectorySeparatorChar}";
-
-            project.CreationDate = DateTime.Now;
-            project.IsNew = true;
-            project.Frames = [];
-
-            Directory.CreateDirectory(project.FullPath);
-            Directory.CreateDirectory(project.UndoStackPath);
-            Directory.CreateDirectory(project.RedoStackPath);
-
-            try
-            {
-                foreach (var frame in frames)
-                {
-                    var name = project.Frames.Count + ".png";
-                    var path = Path.Combine(project.FullPath, name);
-                    File.Copy(frame.Path, path, true);
-
-                    frame.Path = path;
-                    frame.Name = name;
-                    frame.Index = project.Frames.Count;
-                    project.Frames.Add(frame);
-                }
-
-                change?.Invoke(project);
-                var step = edit with { SourceId = sourceId, OriginalId = sourceId, Created = project.CreationDate };
-                var parent = ReviewFiles.ReadEdit(source.FullPath);
-                ReviewFiles.WriteEdit(project.FullPath, parent == null ? step : EditChain.Join(parent, source.Frames, step, project.Frames));
-                project.Persist();
-            }
-            catch
-            {
-                //A half written edit must not show up as a project in the editor.
-                Directory.Delete(project.FullPath, true);
-                throw;
-            }
-
+            var project = ProjectLibrary.Derive(source, frames, edit, change);
             var id = IdOf(project);
             _recordings[id] = project;
 
-            logger.LogInformation("Recording {Id} derived from {Source}: {Count} frames", id, sourceId, project.Frames.Count);
+            logger.LogInformation("Recording {Id} derived from {Source}: {Count} frames", id, IdOf(source), project.Frames.Count);
             return project;
         }
         finally
@@ -275,48 +216,23 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
     /// <summary>
     /// The recording an edit was made from, null for an original recording.
     /// </summary>
-    public string? SourceOf(ProjectInfo project) => ReviewFiles.ReadEdit(project.FullPath)?.SourceId;
+    public string? SourceOf(ProjectInfo project) => ProjectLibrary.SourceOf(project);
 
-    public static string IdOf(ProjectInfo project) => ProjectRecording.IdOf(project);
+    public static string IdOf(ProjectInfo project) => ProjectLibrary.IdOf(project);
 
-    private static string RecordingFolder => ProjectRecording.RecordingFolder;
-
-    /// <summary>
-    /// The folder of a recording id. Only direct subfolders of the recording folder, so an id cannot reach anything else.
-    /// </summary>
     private static string FolderOf(string id)
     {
-        if (id.Trim() != id || id.Trim('.').Length == 0 || id.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-            throw new McpException($"'{id}' is not a recording id. Call list_recordings for the ids.");
-
-        return Path.Combine(RecordingFolder, id);
-    }
-
-    /// <summary>
-    /// A project from its folder, null if there is none or it has no frames left (like the editor's recent projects).
-    /// </summary>
-    private ProjectInfo? Load(string folder)
-    {
-        var file = Path.Combine(folder, "Project.json");
-
-        if (!File.Exists(file))
-            return null;
-
         try
         {
-            using var stream = File.OpenRead(file);
-
-            if (new DataContractJsonSerializer(typeof(ProjectInfo)).ReadObject(stream) is not ProjectInfo project || project.Frames.Count == 0 || !project.Frames.All(a => File.Exists(a.Path)))
-                return null;
-
-            return project;
+            return ProjectLibrary.FolderOf(id);
         }
-        catch (Exception ex)
+        catch (ArgumentException)
         {
-            logger.LogWarning(ex, "Project {File} could not be read.", file);
-            return null;
+            throw new McpException($"'{id}' is not a recording id. Call list_recordings for the ids.");
         }
     }
+
+    private void Warn(string file, Exception ex) => logger.LogWarning(ex, "Project {File} could not be read.", file);
 
     private async Task AutoStopAsync(string id)
     {

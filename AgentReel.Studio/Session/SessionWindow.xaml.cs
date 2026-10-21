@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using AgentReel.Capture;
+using AgentReel.Editing;
 using AgentReel.Studio.Review;
 using ScreenToGif.Core.Capture;
 using ScreenToGif.Model;
@@ -218,7 +219,7 @@ public partial class SessionWindow : FluentWindow
         _recorded = project;
 
         var duration = project.Frames.Sum(s => (double)s.Delay);
-        var id = ProjectRecording.IdOf(project);
+        var id = ProjectLibrary.IdOf(project);
         RecordedTitle.Text = _selected is { IsWindow: true } item ? $"Recorded “{item.Target.Name}”" : "Recorded";
         RecordedDetail.Text = $"Saved as “{id}”. Claude finds it as your latest recording.";
         DurationText.Text = Clock.Format(duration);
@@ -319,16 +320,15 @@ public partial class SessionWindow : FluentWindow
 
     private bool DeleteFolder(ProjectInfo project)
     {
-        if (MutexList.IsInUse(project.RelativePath))
-        {
-            Notify("Still open", "The recording is open in the editor. Close it there first.", ControlAppearance.Caution);
-            return false;
-        }
-
         try
         {
-            Directory.Delete(project.FullPath, true);
+            ProjectLibrary.Delete(project);
             return true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            Notify("Still open", ex.Message, ControlAppearance.Caution);
+            return false;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

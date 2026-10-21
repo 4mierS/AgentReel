@@ -1,5 +1,4 @@
-using AgentReel.Mcp.Editing;
-using AgentReel.Review;
+using AgentReel.Editing;
 using ScreenToGif.Model;
 using Xunit;
 

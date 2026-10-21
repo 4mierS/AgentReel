@@ -1,4 +1,3 @@
-using ModelContextProtocol;
 using ScreenToGif.Domain.Enums;
 using ScreenToGif.Util.Settings;
 using ScreenToGif.ViewModel.ExportPresets;
@@ -11,12 +10,12 @@ using ScreenToGif.ViewModel.ExportPresets.Video.Mov;
 using ScreenToGif.ViewModel.ExportPresets.Video.Mp4;
 using ScreenToGif.ViewModel.ExportPresets.Video.Webm;
 
-namespace AgentReel.Mcp;
+namespace AgentReel.Editing;
 
 /// <summary>
 /// Picks the export preset for a format: the one the user last selected in the app, otherwise the built-in default.
 /// </summary>
-internal static class ExportPresets
+public static class ExportPresets
 {
     public static readonly string[] Formats = ["gif", "apng", "webp", "mp4", "webm", "mkv", "mov"];
 
@@ -25,7 +24,7 @@ internal static class ExportPresets
         var name = format.Trim().TrimStart('.');
 
         if (!Formats.Contains(name, StringComparer.OrdinalIgnoreCase) || !Enum.TryParse<ExportFormats>(name, true, out var type))
-            throw new McpException($"Unsupported format '{format}'. Use one of: {string.Join(", ", Formats)}.");
+            throw new ArgumentException($"Unsupported format '{format}'. Use one of: {string.Join(", ", Formats)}.");
 
         return type;
     }
@@ -66,6 +65,6 @@ internal static class ExportPresets
         ExportFormats.Webm => FfmpegWebmPreset.Defaults[0],
         ExportFormats.Mkv => FfmpegMkvPreset.Defaults[0],
         ExportFormats.Mov => FfmpegMovPreset.Defaults[0],
-        _ => throw new McpException($"Unsupported format '{type}'.")
+        _ => throw new ArgumentException($"Unsupported format '{type}'.")
     };
 }

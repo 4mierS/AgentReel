@@ -1,7 +1,8 @@
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace AgentReel.Review;
+namespace AgentReel.Editing;
 
 /// <summary>
 /// What an edit changed, saved as Edit.json next to the edit's Project.json. An edit of an edit describes the whole

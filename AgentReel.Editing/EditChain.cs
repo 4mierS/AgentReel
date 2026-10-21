@@ -1,7 +1,7 @@
-using AgentReel.Review;
+using AgentReel.Editing;
 using ScreenToGif.Model;
 
-namespace AgentReel.Mcp.Editing;
+namespace AgentReel.Editing;
 
 /// <summary>
 /// Joins an edit to the chain of edits before it, so its record is measured against the original recording.

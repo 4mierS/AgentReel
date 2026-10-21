@@ -4,7 +4,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Extensions.Logging;
-using AgentReel.Mcp.Editing;
+using AgentReel.Editing;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -113,7 +113,17 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         CancellationToken cancellationToken = default)
     {
         var project = session.Get(recordingId);
-        var type = ExportPresets.Parse(format);
+        ExportFormats type;
+
+        try
+        {
+            type = ExportPresets.Parse(format);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new McpException(ex.Message);
+        }
+
         var preset = ExportPresets.For(type);
 
         var path = Path.GetFullPath(outputPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "AgentReel", RecordingSession.IdOf(project) + preset.DefaultExtension));

@@ -2,7 +2,7 @@ using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-namespace AgentReel.Mcp.Editing;
+namespace AgentReel.Editing;
 
 /// <summary>
 /// Exact pixel comparison of frame images. Keeps the last few decoded images, because Timeline.Fold compares each

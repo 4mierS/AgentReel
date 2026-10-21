@@ -16,7 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AgentReel.Capture\AgentReel.Capture.csproj" />
-    <ProjectReference Include="..\AgentReel.Review\AgentReel.Review.csproj" />
+    <ProjectReference Include="..\AgentReel.Editing\AgentReel.Editing.csproj" />
     <!-- Only for the shared resources (Settings.xaml, string resources) that UserSettings needs for the recording folder. -->
     <ProjectReference Include="..\ScreenToGif\ScreenToGif.csproj" />
   </ItemGroup>

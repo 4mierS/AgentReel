@@ -1,7 +1,7 @@
 using System.IO;
 using System.Windows;
 using AgentReel.Capture;
-using AgentReel.Review;
+using AgentReel.Editing;
 using Microsoft.Extensions.Logging.Abstractions;
 using ScreenToGif.Core.Capture;
 using ScreenToGif.Model;

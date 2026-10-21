@@ -1,7 +1,7 @@
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using AgentReel.Mcp.Editing;
+using AgentReel.Editing;
 using Xunit;
 
 namespace AgentReel.Mcp.Tests;

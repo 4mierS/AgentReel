@@ -1,7 +1,7 @@
-using AgentReel.Review;
+using AgentReel.Editing;
 using ScreenToGif.Model;
 
-namespace AgentReel.Mcp.Editing;
+namespace AgentReel.Editing;
 
 /// <summary>
 /// Time based operations on a frame list. A frame is visible from the sum of the delays before it for its own delay.

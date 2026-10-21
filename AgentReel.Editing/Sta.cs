@@ -1,4 +1,4 @@
-namespace AgentReel.Mcp.Editing;
+namespace AgentReel.Editing;
 
 /// <summary>
 /// WPF visuals need an STA thread, the MCP tools run on the thread pool.
