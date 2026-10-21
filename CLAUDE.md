@@ -208,10 +208,12 @@ Phase 3 progress (2026-10-21):
   other languages fall back to English). NOTICE.md lists the bundled MIT libraries. The old `sharpdx` case in
   `Downloader.xaml.cs` (legacy download mode) is left untouched.
 
+- Decided 2026-10-21 (Amir): WGC stays MCP-only for now; the app keeps its DXGI/GDI recorders. Phase 3 is closed.
+
 Next – START HERE:
-1. Phase 3, part 2: decide whether the app gets a Windows.Graphics.Capture recorder (an `ICapture` on top of
-   `AgentReel.Capture`) next to the DXGI/GDI ones, or whether WGC stays MCP-only for now.
-2. Phase 5 (UI).
+1. Phase 5 (UI). Plan doc: start with WPF UI (lepoco/wpfui, MIT) in `App.xaml` (`ui:ThemesDictionary` +
+   `ui:ControlsDictionary`), then `ui:FluentWindow`. First check how it collides with the app's own themes
+   (`ScreenToGif/Themes/`, Light/Medium/Dark/VeryDark) and implicit styles, and pick a small first increment.
 
 ## Roadmap
 
