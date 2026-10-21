@@ -5,6 +5,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Extensions.Logging;
 using AgentReel.Editing;
+using AgentReel.Editing.Privacy;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -104,7 +105,7 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
         ];
     }
 
-    [McpServerTool(Name = "export"), Description("Exports a finished recording to a file. Video formats and webp need FFmpeg (configured in the app, on PATH, or AGENTREEL_FFMPEG).")]
+    [McpServerTool(Name = "export"), Description("Exports a finished recording to a file. Video formats and webp need FFmpeg (configured in the app, on PATH, or AGENTREEL_FFMPEG). The result has a privacyWarning when the recording was not scanned with scan_privacy or still shows private data; tell the user before the file is shared.")]
     public async Task<ExportInfo> Export(
         [Description("Recording id from stop_recording. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null,
         [Description("One of: gif, apng, webp, mp4, webm, mkv, mov.")] string format = "gif",
@@ -176,7 +177,23 @@ public sealed class RecorderTools(RecordingSession session, ILogger<RecorderTool
             throw new McpException("Export was canceled.");
 
         var duration = project.Frames.Sum(s => s.Delay);
-        return new ExportInfo(path, new FileInfo(path).Length, type.ToString().ToLowerInvariant(), preset.Encoder.ToString(), project.Frames.Count, duration);
+        return new ExportInfo(path, new FileInfo(path).Length, type.ToString().ToLowerInvariant(), preset.Encoder.ToString(), project.Frames.Count, duration, PrivacyWarning(project));
+    }
+
+    /// <summary>
+    /// A warning for the agent, not a block: the user may want to share a recording of a test machine as it is.
+    /// </summary>
+    private static string? PrivacyWarning(ProjectInfo project)
+    {
+        var status = PrivacyFiles.StatusOf(project.FullPath);
+
+        if (!status.Scanned)
+            return "Not scanned for private data. If it shows a real desktop, run scan_privacy and redact before sharing the file.";
+
+        if (status.Open.Count == 0)
+            return null;
+
+        return $"{status.Open.Count} private finding(s) are still visible ({string.Join(", ", status.Open.Take(8).Select(s => $"{s.Id} {RedactionPlan.Name(s.Kind)}"))}). Redact them before sharing the file, or confirm with the user that they may stay.";
     }
 
     [McpServerTool(Name = "list_recordings", ReadOnly = true), Description("Lists the finished recordings in the app's recording folder, newest first: this session's recordings and edits, earlier ones and those made in the app. Every id works with the other tools.")]
@@ -326,4 +343,5 @@ public sealed record RecordingInfo(string RecordingId, int Frames, int DurationM
 
 public sealed record RecordingListItem(string RecordingId, DateTime Created, int Frames, int DurationMs, int Width, int Height, string? SourceId, bool OpenInEditor);
 
-public sealed record ExportInfo(string Path, long Bytes, string Format, string Encoder, int Frames, int DurationMs);
+/// <param name="PrivacyWarning">Set when the recording was not scanned for private data, or a scan found data that is still visible.</param>
+public sealed record ExportInfo(string Path, long Bytes, string Format, string Encoder, int Frames, int DurationMs, string? PrivacyWarning = null);
