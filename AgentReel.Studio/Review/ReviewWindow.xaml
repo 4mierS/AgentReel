@@ -31,7 +31,7 @@
             </Border>
 
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock Text="YOUR AGENT SUGGESTS" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Agent.Brush}" Margin="0,0,0,2"/>
+                <TextBlock x:Name="AgentText" Text="YOUR AGENT SUGGESTS" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Agent.Brush}" Margin="0,0,0,2"/>
                 <TextBlock x:Name="DescriptionText" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="900" HorizontalAlignment="Left"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
                 <TextBlock x:Name="SummaryText" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}" MaxWidth="900" HorizontalAlignment="Left"/>
@@ -131,12 +131,12 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <ui:TextBox x:Name="FeedbackBox" Grid.Column="0" PlaceholderText="Tell the agent what to change, e.g. &quot;keep the first second&quot; or &quot;caption shorter&quot;"
+                    <ui:TextBox x:Name="FeedbackBox" Grid.Column="0"
                                 Icon="{ui:SymbolIcon Sparkle20}" MinHeight="40" VerticalContentAlignment="Center" AcceptsReturn="False"
                                 TextChanged="FeedbackBox_TextChanged" KeyDown="FeedbackBox_KeyDown"/>
 
                     <ui:Button x:Name="SendButton" Grid.Column="1" Margin="8,0,0,0" Height="40" Appearance="Secondary" IsEnabled="False" Click="Send_Click"
-                               ToolTip="Send feedback to the agent (Enter)">
+                               ToolTip="Send feedback (Enter)">
                         <StackPanel Orientation="Horizontal">
                             <ui:SymbolIcon Symbol="Send24" FontSize="16" Margin="0,0,6,0"/>
                             <TextBlock Text="Send"/>

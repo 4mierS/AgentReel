@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using AgentReel.Review;
 using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace AgentReel.Mcp;
@@ -18,6 +19,7 @@ public sealed class ReviewTools(RecordingSession session)
 
     [McpServerTool(Name = "request_review"), Description("Shows an edit to the user in AgentReel Studio: the edit and its original at the same moment, a timeline of what was cut, sped up or drawn, and your summary. The user keeps it, rejects it or writes feedback. Returns at once; call get_review for the answer. Only edits (recordings with a sourceId) can be reviewed.")]
     public ReviewInfo RequestReview(
+        McpServer server,
         [Description("What you changed and why, in one to three short sentences, written for the user.")] string summary,
         [Description("Recording id of the edit. Default: the latest recording.")] string? recordingId = null)
     {
@@ -28,7 +30,7 @@ public sealed class ReviewTools(RecordingSession session)
         var id = RecordingSession.IdOf(project);
         var edit = ReviewFiles.ReadEdit(project.FullPath) ?? throw new McpException($"'{id}' is not an edit, there is nothing to compare it with. Review an edit made by trim, optimize, add_caption or add_highlight.");
 
-        ReviewFiles.WriteReview(project.FullPath, new ReviewRecord(summary.Trim(), DateTime.Now));
+        ReviewFiles.WriteReview(project.FullPath, new ReviewRecord(summary.Trim(), DateTime.Now, Agent: AgentName(server.ClientInfo)));
         var studio = StudioPath();
 
         try
@@ -67,6 +69,22 @@ public sealed class ReviewTools(RecordingSession session)
 
             await Task.Delay(PollInterval, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// The name the user knows the client by. Claude's clients send technical names (claude-code, claude-ai), all of
+    /// them are "Claude"; other clients show their title or name.
+    /// </summary>
+    internal static string? AgentName(Implementation? client)
+    {
+        if (client == null)
+            return null;
+
+        if (client.Name.Contains("claude", StringComparison.OrdinalIgnoreCase))
+            return "Claude";
+
+        var name = string.IsNullOrWhiteSpace(client.Title) ? client.Name : client.Title;
+        return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
     }
 
     /// <summary>

@@ -28,6 +28,7 @@ public partial class ReviewWindow : FluentWindow
     private bool _showOriginal;
     private string? _shownPath;
     private bool _decided;
+    private readonly string _agent;
 
     public ReviewWindow(ReviewData data)
     {
@@ -39,6 +40,12 @@ public partial class ReviewWindow : FluentWindow
         _timer.Tick += (_, _) => Tick();
 
         Loaded += (_, _) => SystemThemeWatcher.Watch(this, WindowBackdropType.Mica, true);
+
+        //Named after the client that asked ("Claude"), so the window speaks about someone, not something.
+        var agent = data.Review?.Agent;
+        _agent = string.IsNullOrWhiteSpace(agent) ? "the agent" : agent;
+        AgentText.Text = (string.IsNullOrWhiteSpace(agent) ? "Your agent" : agent).ToUpperInvariant() + " SUGGESTS";
+        FeedbackBox.PlaceholderText = $"Tell {_agent} what to change, e.g. \"keep the first second\" or \"caption shorter\"";
 
         //The agent's own words lead; the technical steps follow in small type. Without a summary the steps lead.
         var steps = string.Join("  ·  ", data.Record.Steps);
@@ -275,9 +282,9 @@ public partial class ReviewWindow : FluentWindow
 
         (DoneIcon.Symbol, DoneIcon.Foreground, DoneText.Text) = verdict switch
         {
-            ReviewVerdict.Accepted => (SymbolRegular.CheckmarkCircle24, (Brush)FindResource("Agent.Brush"), "Kept. The agent continues with this edit."),
-            ReviewVerdict.Rejected => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), "Discarded. The agent will drop this edit."),
-            _ => (SymbolRegular.Sparkle24, (Brush)FindResource("Agent.Brush"), $"Sent to the agent: “{feedback}”")
+            ReviewVerdict.Accepted => (SymbolRegular.CheckmarkCircle24, (Brush)FindResource("Agent.Brush"), $"Kept. {Capitalized(_agent)} continues with this edit."),
+            ReviewVerdict.Rejected => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), $"Discarded. {Capitalized(_agent)} will drop this edit."),
+            _ => (SymbolRegular.Sparkle24, (Brush)FindResource("Agent.Brush"), $"Sent to {_agent}: “{feedback}”")
         };
 
         if (!closing)
@@ -291,6 +298,8 @@ public partial class ReviewWindow : FluentWindow
         };
         close.Start();
     }
+
+    private static string Capitalized(string text) => char.ToUpperInvariant(text[0]) + text[1..];
 
     private void Keep_Click(object sender, RoutedEventArgs e) => Decide(ReviewVerdict.Accepted);
 

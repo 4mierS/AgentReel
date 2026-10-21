@@ -237,13 +237,18 @@ Phase 5 progress (2026-10-21):
     showed the chain against the original (17.0 → 8.1 s, cut, two faster pauses, caption). Tests: 36/36 MCP
     (`EditChainTests`). `RecordingSessionTests.A_stopped_recording_is_not_marked_as_open_in_an_editor` failed once in a
     full run right after a solution build, then passed 4 times – watch for flakiness.
-  - Not verified yet: keyboard (O compare, shortcuts) and the verdict written by the buttons – waiting for Amir.
+  - Amir tried the window: "sieht gut aus" (2026-10-21).
+  - The client's name is shown (header "CLAUDE SUGGESTS", "Tell Claude what to change…", confirmation texts):
+    `request_review` takes `McpServer.ClientInfo`; `ReviewTools.AgentName` maps every name containing "claude"
+    (claude-code, claude-ai) to "Claude", else title or name. Stored as `agent` in `Review.json`; Studio falls back to
+    "Your agent". Verified over stdio with clientInfo `claude-code`; tests 41/41.
 - Open: `Directory.Build.props` stamps every assembly, also the new AgentReel ones, with Company/Copyright
   "Nicke Manarin" and the ScreenToGif description; the AgentReel projects should get their own values.
 
 Next – START HERE:
-1. Amir's feedback on the review window, then: show the client's name ("Claude") instead of "Your agent" (MCP
-   clientInfo), register the rebuilt Debug server, dogfood the round trip from Claude Code.
+1. Rebuild the registered Debug server (stop the running `AgentReel.Mcp` under `\dev\AgentReel\`, then
+   `dotnet build AgentReel.Mcp/AgentReel.Mcp.csproj`, Amir reconnects `/mcp`), dogfood request_review/get_review from
+   Claude Code, delete the test recordings `2026-10-21 11-18-29` (+ edit 1–3).
 
 ## Roadmap
 

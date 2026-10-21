@@ -35,7 +35,8 @@ public enum ReviewVerdict
 /// </summary>
 /// <param name="Summary">What the agent changed and why, shown above the edit.</param>
 /// <param name="Feedback">What the user wants changed, for <see cref="ReviewVerdict.Feedback"/>.</param>
-public sealed record ReviewRecord(string Summary, DateTime Requested, ReviewVerdict Verdict = ReviewVerdict.Pending, string? Feedback = null, DateTime? Decided = null);
+/// <param name="Agent">The name of the agent that asked, like "Claude", null if unknown.</param>
+public sealed record ReviewRecord(string Summary, DateTime Requested, ReviewVerdict Verdict = ReviewVerdict.Pending, string? Feedback = null, DateTime? Decided = null, string? Agent = null);
 
 public static class ReviewFiles
 {
