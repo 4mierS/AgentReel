@@ -39,10 +39,20 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
             _autoStopped = null;
 
+            //Creating the folder also takes the project's mutex, which keeps the app's cache cleanup away while recording.
             var project = new ProjectInfo().CreateProjectFolder(ProjectByType.ScreenRecorder);
             var id = IdOf(project);
 
-            await capture.StartAsync(options, project.FullPath);
+            try
+            {
+                await capture.StartAsync(options, project.FullPath);
+            }
+            catch
+            {
+                project.ReleaseMutex();
+                Directory.Delete(project.FullPath, true);
+                throw;
+            }
 
             var autoStop = new CancellationTokenSource();
             _active = new ActiveRecording(id, project, options, DateTime.Now, maxDuration, autoStop);
@@ -313,6 +323,9 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
         project.Height = result.Height;
         project.Dpi = result.Dpi;
         project.Persist();
+
+        //The mutex means "open in an editor": held by the server, it would block the editor and delete_recording.
+        project.ReleaseMutex();
 
         _recordings[active.Id] = project;
         _lastId = active.Id;

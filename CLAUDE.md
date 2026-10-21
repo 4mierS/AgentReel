@@ -174,6 +174,12 @@ Phase 4 progress (2026-10-21):
   in the editor). `RecordingSession.Get` loads unknown ids from disk (`Project.json`), so recordings of earlier runs and
   of the app work with every tool. Ids must be plain folder names (no `..`, no separators). Verified over stdio across
   two server runs: load from disk → trim → delete all.
+- Fixed (found by dogfooding over the registered server, 2026-10-21): `ProjectInfo.CreateProjectFolder` takes the
+  project's "open in an editor" mutex, and the server never released it. So every recording of the running server showed
+  `openInEditor: true`, `delete_recording` refused it, and the app's "Recent projects" refused to open it. The server now
+  holds the mutex only while recording (keeps the app's cache cleanup away) and releases it on stop
+  (`RecordingSessionTests`). Dogfood run: window recording 25 s → `optimize` (speed 2, 25.0 → 10.7 s) → `add_caption`
+  → `add_highlight` with `dimOutside` → GIF export, all correct.
 
 Next – START HERE:
 1. Phase 4 is done. Optional MCP polish: `get_status`; decide whether `get_preview` should work during a running recording.

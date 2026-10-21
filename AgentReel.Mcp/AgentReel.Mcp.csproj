@@ -16,6 +16,9 @@
     <PackageReference Include="ModelContextProtocol" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="AgentReel.Mcp.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\AgentReel.Capture\AgentReel.Capture.csproj" />
     <ProjectReference Include="..\ScreenToGif.Core\ScreenToGif.Core.csproj" />
     <!-- Only for the shared resources (Settings.xaml, string resources) that UserSettings and LocalizationHelper need. -->
