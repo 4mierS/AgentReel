@@ -646,15 +646,35 @@ public partial class EditorWindow : FluentWindow
         var stepId = (StepCombo.SelectedItem as ComboBoxItem)?.Tag as string;
         var anchor = stepId == null ? null : new OverlayAnchor(stepId);
 
+        //Anchoring to a step that does not play while the overlay shows moves the overlay onto the step.
+        var step = _steps.FirstOrDefault(f => f.Step.StepId == stepId);
+        var moved = step != null && (item.SourceStartMs >= step.EndMs || item.SourceEndMs <= step.StartMs)
+            ? item with { SourceStartMs = step.StartMs, SourceEndMs = step.EndMs }
+            : item;
+
         if (_draft?.Id == item.Id && _draftIsNew)
         {
+            _draft = (CaptionItem)moved;
             _draftAnchor = anchor;
+            Layer.Preview(_draft);
             UpdateInspector();
             ShowStepMarks();
             return;
         }
 
-        _document.SetAnchor(item.Id, anchor);
+        var state = _document.State;
+        var index = state.Overlays.FindIndex(f => f.Id == item.Id);
+        _document.Apply(state with
+        {
+            Overlays = index < 0 ? state.Overlays : state.Overlays.SetItem(index, moved),
+            Anchors = anchor == null ? state.Anchors.Remove(item.Id) : state.Anchors.SetItem(item.Id, anchor)
+        });
+
+        if (moved != item)
+        {
+            Pause();
+            ShowAt(Clips.EditRange(_clips, moved.SourceStartMs, moved.SourceEndMs)?.StartMs ?? _position);
+        }
     }
 
     private void Follow_Changed(object sender, RoutedEventArgs e)

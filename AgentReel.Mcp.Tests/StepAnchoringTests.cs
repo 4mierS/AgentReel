@@ -51,6 +51,9 @@ public class StepAnchoringTests
         Assert.Equal(new StepAnchor("export", 300, 400), TakeClock.Anchor(V1(), "export", 1300, 1700));
         Assert.Equal(new StepAnchor("export", 300), TakeClock.Anchor(V1(), "export", 1300, 2000));
         Assert.Equal(new StepAnchor("refresh", 0, null, "save"), TakeClock.Anchor(V1(), "refresh", 500, 3000));
+
+        //A range before its step keeps its length.
+        Assert.Equal(new StepAnchor("export", 0, 600), TakeClock.Anchor(V1(), "export", 0, 600));
     }
 
     [Fact]

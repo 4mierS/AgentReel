@@ -151,7 +151,8 @@ public sealed class TakeClock
         var index = take.Steps.ToList().IndexOf(step);
         var last = take.Steps.Skip(index + 1).FirstOrDefault(f => f.Played && Math.Abs(endMs - f.EndMs) <= SnapMs);
 
-        return last != null ? new StepAnchor(step.StepId, offset, null, last.StepId) : new StepAnchor(step.StepId, offset, Math.Max(1, endMs - Math.Max(startMs, step.StartMs + offset)));
+        //A range that starts before its step keeps its length from the step's start.
+        return last != null ? new StepAnchor(step.StepId, offset, null, last.StepId) : new StepAnchor(step.StepId, offset, Math.Max(1, startMs < step.StartMs ? endMs - startMs : endMs - (step.StartMs + offset)));
     }
 
     /// <summary>
