@@ -5,7 +5,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using AgentReel.Direct;
 using AgentReel.Editing;
+using AgentReel.Editing.Shots;
 using AgentReel.Studio.Review;
 using AgentReel.Studio.Session;
 using AgentReel.Core;
@@ -49,8 +51,15 @@ public partial class EditorWindow : FluentWindow
     private double _position;
     private string? _shownPath;
 
+    //For a recording filmed from a shot list: its take, its steps in recording time and in edit time, the picked step.
+    private TakeClock? _take;
+    private List<PlacedStep> _steps = [];
+    private List<PlacedStep> _editSteps = [];
+    private string? _pickedStep;
+
     private Guid? _selectedOverlay;
     private CaptionItem? _draft;
+    private OverlayAnchor? _draftAnchor;
     private bool _draftIsNew;
     private bool _filling;
     private bool _closeConfirmed;
@@ -90,13 +99,21 @@ public partial class EditorWindow : FluentWindow
             Pause();
             ShowAt(ms);
         };
-        Timeline.SelectionChanged += _ => UpdateInspector();
+        Timeline.SelectionChanged += selection =>
+        {
+            //Changing the selection by hand lets go of the picked step.
+            if (_pickedStep != null && selection != PickedRange())
+                PickStep(null);
+
+            UpdateInspector();
+        };
         Timeline.OverlaySelected += id => SelectOverlay(id, fromTimeline: true);
         Timeline.TrimRequested += (start, end) => Add(new TrimOperation(start, end));
         Timeline.OverlayChanged += MoveOverlay;
+        Timeline.StepClicked += StepClicked;
 
-        Layer.HighlightDrawn += bounds => AddHighlight(bounds);
-        Layer.HighlightChanged += (item, bounds) => _document?.Update(item with { Bounds = bounds });
+        Layer.AreaDrawn += (bounds, redaction) => AddArea(redaction, bounds);
+        Layer.AreaChanged += MoveArea;
         Layer.OverlayClicked += id => SelectOverlay(id);
 
         Loaded += (_, _) =>
@@ -197,7 +214,13 @@ public partial class EditorWindow : FluentWindow
         _document = null;
         _clips = [];
         _placed = [];
+        _take = null;
+        _steps = [];
+        _editSteps = [];
+        _pickedStep = null;
         Timeline.SetContent([], []);
+        Layer.SetElement(null);
+        ShotEditsPanel.Visibility = Visibility.Collapsed;
         StageImage.Source = null;
         StageBox.Visibility = Visibility.Collapsed;
         StageBadge.Visibility = Visibility.Collapsed;
@@ -237,6 +260,12 @@ public partial class EditorWindow : FluentWindow
         Timeline.ResetZoom();
 
         var project = item.Project;
+        _take = TakeClock.Of(project);
+        _steps = _take?.Steps() ?? [];
+        _pickedStep = null;
+        _draftAnchor = null;
+        FillShotEdits();
+
         _frames = new FrameCache(48, Math.Min(DecodeLimit, Math.Max(1, project.Width)));
         StageCanvas.Width = Layer.Width = Math.Max(1, project.Width);
         StageCanvas.Height = Layer.Height = Math.Max(1, project.Height);
@@ -410,9 +439,17 @@ public partial class EditorWindow : FluentWindow
         if (_selectedOverlay is { } id && _placed.All(a => a.Item.Id != id) && _draft?.Id != id)
             _selectedOverlay = null;
 
-        Timeline.SetContent(clips, _placed);
+        //Steps cut from the edit leave the step track.
+        _editSteps = _steps.Select(s => Clips.EditRange(clips, s.StartMs, s.EndMs) is { } range ? s with { StartMs = range.StartMs, EndMs = range.EndMs } : null)
+            .OfType<PlacedStep>().ToList();
+
+        if (_pickedStep != null && _editSteps.All(a => a.Step.StepId != _pickedStep))
+            _pickedStep = null;
+
+        Timeline.SetContent(clips, _placed, _editSteps, state.Anchors);
         Timeline.SelectOverlay(_selectedOverlay);
         Layer.SetContent(_placed, _position, _selectedOverlay);
+        ShowStepMarks();
 
         _shownPath = null;
         ShowAt(_position);
@@ -465,6 +502,7 @@ public partial class EditorWindow : FluentWindow
 
         //A caption starts as a draft: it becomes an edit when it has text.
         _draft = new CaptionItem(Guid.NewGuid(), from, to, "", CaptionPosition.Bottom);
+        _draftAnchor = DefaultAnchor(from);
         _draftIsNew = true;
         _selectedOverlay = _draft.Id;
         Timeline.Select(null);
@@ -476,7 +514,11 @@ public partial class EditorWindow : FluentWindow
         CaptionBox.Focus();
     }
 
-    private void AddHighlight(Rect? bounds = null)
+    /// <summary>
+    /// Adds a highlight or a redaction over <paramref name="bounds"/> (default: the middle of the picture), for the
+    /// selection or a few seconds from the playhead. <paramref name="follow"/> covers the picked step's element.
+    /// </summary>
+    private void AddArea(bool redaction, Rect? bounds = null, bool follow = false)
     {
         if (_document == null || _clips.Count == 0)
             return;
@@ -484,15 +526,237 @@ public partial class EditorWindow : FluentWindow
         CommitDraft();
         var width = _document.Source.Width;
         var height = _document.Source.Height;
-        var area = bounds ?? new Rect(Math.Round(width * 0.3), Math.Round(height * 0.3), Math.Round(width * 0.4), Math.Round(height * 0.4));
+        var area = bounds ?? (redaction
+            ? new Rect(Math.Round(width * 0.3), Math.Round(height * 0.42), Math.Round(width * 0.4), Math.Round(height * 0.16))
+            : new Rect(Math.Round(width * 0.3), Math.Round(height * 0.3), Math.Round(width * 0.4), Math.Round(height * 0.4)));
         var (start, end) = OverlayRange();
         var (from, to) = SourceRange(start, end);
-        var item = new HighlightItem(Guid.NewGuid(), from, to, area, HighlightShape.Rectangle, false);
+        OverlayItem item = redaction ? new RedactionItem(Guid.NewGuid(), from, to, area) : new HighlightItem(Guid.NewGuid(), from, to, area, HighlightShape.Rectangle, false);
+        var anchor = DefaultAnchor(from);
 
         _selectedOverlay = item.Id;
         Timeline.Select(null);
-        _document.Add(item);
+        AddAnchored(item, anchor == null ? null : anchor with { FollowElement = follow });
     }
+
+    /// <summary>
+    /// Adds the overlay and its anchor as one undo step.
+    /// </summary>
+    private void AddAnchored(OverlayItem item, OverlayAnchor? anchor)
+    {
+        if (_document == null)
+            return;
+
+        var state = _document.State;
+        _document.Apply(state with { Overlays = state.Overlays.Add(item), Anchors = anchor == null ? state.Anchors : state.Anchors.SetItem(item.Id, anchor) });
+    }
+
+    /// <summary>
+    /// The anchor a new overlay of a filmed take gets: the picked step, else the step playing at its start. Null for
+    /// other recordings.
+    /// </summary>
+    private OverlayAnchor? DefaultAnchor(int sourceStart) =>
+        _take == null ? null : (_pickedStep ?? _take.StepAt(sourceStart)?.StepId) is { } stepId ? new OverlayAnchor(stepId) : null;
+
+    /// <summary>
+    /// A highlight or redaction moved by hand stops following its element (the user put it somewhere on purpose).
+    /// </summary>
+    private void MoveArea(OverlayItem item, Rect bounds)
+    {
+        if (_document == null || item is not IAreaOverlay area)
+            return;
+
+        var state = _document.State;
+        var index = state.Overlays.FindIndex(f => f.Id == item.Id);
+
+        if (index < 0)
+            return;
+
+        var anchors = state.AnchorOf(item.Id) is { FollowElement: true } anchor ? state.Anchors.SetItem(item.Id, anchor with { FollowElement = false }) : state.Anchors;
+        _document.Apply(state with { Overlays = state.Overlays.SetItem(index, area.WithBounds(bounds)), Anchors = anchors });
+    }
+
+    #region Steps
+
+    private PlacedStep? PickedStep => _pickedStep == null ? null : _editSteps.FirstOrDefault(f => f.Step.StepId == _pickedStep);
+
+    private (int Start, int End)? PickedRange() => PickedStep is { } step ? (step.StartMs, step.EndMs) : null;
+
+    private void StepClicked(PlacedStep step)
+    {
+        CommitDraft();
+        _selectedOverlay = null;
+        Timeline.SelectOverlay(null);
+
+        //Selecting first, so the selection handler does not let go of the step picked now.
+        _pickedStep = null;
+        Timeline.Select((step.StartMs, step.EndMs));
+        PickStep(step.Step.StepId);
+
+        Pause();
+        ShowAt(step.StartMs);
+        Layer.SetContent(_placed, _position, null);
+        UpdateInspector();
+    }
+
+    private void PickStep(string? stepId)
+    {
+        _pickedStep = stepId;
+        ShowStepMarks();
+    }
+
+    /// <summary>
+    /// Outlines the step of the selected overlay (else the picked step) on the step track, and its element on the picture.
+    /// </summary>
+    private void ShowStepMarks()
+    {
+        var stepId = (SelectedItem is { } item ? AnchorOf(item.Id)?.StepId : null) ?? _pickedStep;
+        Timeline.SelectedStep = stepId;
+        Layer.SetElement(stepId != null && _take != null && _document != null ? _take.ElementArea(stepId, 0, _document.Source.Width, _document.Source.Height) : null);
+    }
+
+    private OverlayAnchor? AnchorOf(Guid id) => _draft?.Id == id && _draftIsNew ? _draftAnchor : _document?.State.AnchorOf(id);
+
+    private void HighlightElement_Click(object sender, RoutedEventArgs e) => AddForElement(redaction: false);
+
+    private void RedactElement_Click(object sender, RoutedEventArgs e) => AddForElement(redaction: true);
+
+    /// <summary>
+    /// A highlight or redaction of the picked step's element, for the whole step, that follows the element in later takes.
+    /// </summary>
+    private void AddForElement(bool redaction)
+    {
+        if (_take == null || _document == null || PickedStep is not { } step)
+            return;
+
+        if (_take.ElementArea(step.Step.StepId, 6, _document.Source.Width, _document.Source.Height) is not { } area)
+        {
+            Notify("This step has no element", "Draw the area on the picture instead.", ControlAppearance.Secondary);
+            return;
+        }
+
+        AddArea(redaction, area, follow: true);
+    }
+
+    private void StepCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_filling || SelectedItem is not { } item || _document == null)
+            return;
+
+        var stepId = (StepCombo.SelectedItem as ComboBoxItem)?.Tag as string;
+        var anchor = stepId == null ? null : new OverlayAnchor(stepId);
+
+        //Anchoring to a step that does not play while the overlay shows moves the overlay onto the step.
+        var step = _steps.FirstOrDefault(f => f.Step.StepId == stepId);
+        var moved = step != null && (item.SourceStartMs >= step.EndMs || item.SourceEndMs <= step.StartMs)
+            ? item with { SourceStartMs = step.StartMs, SourceEndMs = step.EndMs }
+            : item;
+
+        if (_draft?.Id == item.Id && _draftIsNew)
+        {
+            _draft = (CaptionItem)moved;
+            _draftAnchor = anchor;
+            Layer.Preview(_draft);
+            UpdateInspector();
+            ShowStepMarks();
+            return;
+        }
+
+        var state = _document.State;
+        var index = state.Overlays.FindIndex(f => f.Id == item.Id);
+        _document.Apply(state with
+        {
+            Overlays = index < 0 ? state.Overlays : state.Overlays.SetItem(index, moved),
+            Anchors = anchor == null ? state.Anchors.Remove(item.Id) : state.Anchors.SetItem(item.Id, anchor)
+        });
+
+        if (moved != item)
+        {
+            Pause();
+            ShowAt(Clips.EditRange(_clips, moved.SourceStartMs, moved.SourceEndMs)?.StartMs ?? _position);
+        }
+    }
+
+    private void Follow_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_filling || _document == null || _take == null || SelectedItem is not IAreaOverlay area || AnchorOf(area.Id) is not { } anchor)
+            return;
+
+        var follow = FollowSwitch.IsChecked == true;
+        var state = _document.State;
+        var index = state.Overlays.FindIndex(f => f.Id == area.Id);
+
+        if (index < 0)
+            return;
+
+        //Following snaps the area onto the element.
+        var overlays = follow && _take.ElementArea(anchor.StepId, anchor.Padding, _document.Source.Width, _document.Source.Height) is { } element
+            ? state.Overlays.SetItem(index, area.WithBounds(element))
+            : state.Overlays;
+
+        _document.Apply(state with { Overlays = overlays, Anchors = state.Anchors.SetItem(area.Id, anchor with { FollowElement = follow }) });
+    }
+
+    /// <summary>
+    /// The edits saved with the shot list (edits.json), which every re-shoot places on the new take.
+    /// </summary>
+    private void FillShotEdits()
+    {
+        if (_take == null)
+        {
+            ShotEditsPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var folder = new ShotListStore().FolderOf(_take.Take.ShotList);
+        var edits = ShotEdits.Load(folder).Edits;
+
+        ShotEditsPanel.Visibility = Visibility.Visible;
+        ShotEditsTitle.Text = $"SHOT LIST “{_take.Take.ShotList.ToUpperInvariant()}”";
+        NoShotEditsText.Visibility = edits.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ShotEditList.ItemsSource = edits.Select(s => ShotEditRow(s, folder)).ToList();
+    }
+
+    private FrameworkElement ShotEditRow(AnchoredEdit edit, string folder)
+    {
+        var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+
+        var remove = new Wpf.Ui.Controls.Button
+        {
+            Content = new SymbolIcon { Symbol = SymbolRegular.Dismiss16, FontSize = 12 },
+            Appearance = ControlAppearance.Transparent,
+            Padding = new Thickness(4),
+            Focusable = false,
+            VerticalAlignment = VerticalAlignment.Top,
+            ToolTip = "Remove from the shot list: later re-shoots no longer get it (saved versions keep it)"
+        };
+        remove.Click += (_, _) =>
+        {
+            try
+            {
+                ShotEdits.Load(folder).Remove(edit.Id).Save(folder);
+                FillShotEdits();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Notify("Could not change the shot list", ex.Message, ControlAppearance.Danger);
+            }
+        };
+        DockPanel.SetDock(remove, Dock.Right);
+        row.Children.Add(remove);
+
+        var mark = new Border { Width = 4, Height = 14, CornerRadius = new CornerRadius(2), Margin = new Thickness(2, 2, 10, 0), VerticalAlignment = VerticalAlignment.Top };
+        mark.SetResourceReference(Border.BackgroundProperty, "Step.Brush");
+        DockPanel.SetDock(mark, Dock.Left);
+        row.Children.Add(mark);
+
+        var text = new TextBlock { Text = edit.Describe(), FontSize = 12, TextWrapping = TextWrapping.Wrap };
+        text.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        row.Children.Add(text);
+        return row;
+    }
+
+    #endregion
 
     private void MoveOverlay(Guid id, int start, int end)
     {
@@ -523,6 +787,7 @@ public partial class EditorWindow : FluentWindow
         }
 
         Layer.SetContent(_placed, _position, id);
+        ShowStepMarks();
         UpdateInspector();
     }
 
@@ -571,7 +836,7 @@ public partial class EditorWindow : FluentWindow
         var text = draft with { Text = draft.Text.Trim() };
 
         if (_draftIsNew)
-            _document.Add(text);
+            AddAnchored(text, _draftAnchor);
         else if (_document.State.Overlays.FirstOrDefault(f => f.Id == draft.Id) is CaptionItem current && current != text)
             _document.Update(text);
     }
@@ -699,6 +964,11 @@ public partial class EditorWindow : FluentWindow
 
         CaptionPanel.Visibility = selected is CaptionItem ? Visibility.Visible : Visibility.Collapsed;
         HighlightPanel.Visibility = selected is HighlightItem ? Visibility.Visible : Visibility.Collapsed;
+        RedactionPanel.Visibility = selected is RedactionItem ? Visibility.Visible : Visibility.Collapsed;
+        RedactionTime.Text = time;
+
+        FillAnchor(selected);
+        FillStep(selected == null ? PickedStep : null);
 
         if (selected is CaptionItem caption)
         {
@@ -719,7 +989,7 @@ public partial class EditorWindow : FluentWindow
             DimSwitch.IsChecked = highlight.DimOutside;
         }
 
-        if (Timeline.Selection is { } range && selected == null)
+        if (Timeline.Selection is { } range && selected == null && PickedStep == null)
         {
             SelectionPanel.Visibility = Visibility.Visible;
             SelectionTime.Text = $"{EditFormat.Clock(range.Start)} – {EditFormat.Clock(range.End)} · {EditFormat.Seconds(range.End - range.Start)}";
@@ -742,6 +1012,67 @@ public partial class EditorWindow : FluentWindow
         InfoId.ToolTip = source.Folder;
 
         _filling = false;
+    }
+
+    /// <summary>
+    /// The step panel of the selected overlay: which step it is anchored to, and whether it follows the element.
+    /// Must be called while <see cref="_filling"/> is set.
+    /// </summary>
+    private void FillAnchor(OverlayItem? selected)
+    {
+        if (selected == null || _take == null || _document == null)
+        {
+            AnchorPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        AnchorPanel.Visibility = Visibility.Visible;
+        var anchor = AnchorOf(selected.Id);
+
+        var items = new List<ComboBoxItem> { new() { Content = "Not anchored (this version only)", Tag = null } };
+        items.AddRange(_take.Take.Steps.Where(w => w.Played).Select(s => new ComboBoxItem { Content = new PlacedStep(s, 0, 0).Label, Tag = s.StepId }));
+        StepCombo.ItemsSource = items;
+        StepCombo.SelectedItem = items.FirstOrDefault(f => (f.Tag as string) == anchor?.StepId) ?? items[0];
+
+        var element = anchor != null && _take.Take.Find(anchor.StepId)?.Element is { IsEmpty: false };
+        FollowSwitch.Visibility = selected is IAreaOverlay ? Visibility.Visible : Visibility.Collapsed;
+        FollowSwitch.IsEnabled = element;
+        FollowSwitch.IsChecked = anchor?.FollowElement == true;
+
+        AnchorHint.Text = anchor == null
+            ? $"Only in this version. Anchor it to a step, and every re-shoot of “{_take.Take.ShotList}” puts it there again."
+            : anchor.FollowElement
+                ? "Saved with the shot list when you save. In every re-shoot it covers the element, wherever it moved."
+                : $"Saved with the shot list when you save. Every re-shoot shows it on this step, even if the step takes longer.{(selected is IAreaOverlay && !element ? " The step has no element to follow." : "")}";
+    }
+
+    /// <summary>
+    /// The panel of the step picked on the step track: what it does, how it fared in this take, what to do with it.
+    /// </summary>
+    private void FillStep(PlacedStep? step)
+    {
+        if (step == null || _take == null)
+        {
+            StepPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        StepPanel.Visibility = Visibility.Visible;
+        StepTime.Text = $"{EditFormat.Clock(step.StartMs)} – {EditFormat.Clock(step.EndMs)}";
+        StepTitle.Text = step.Label;
+
+        var drift = step.Step.Drift switch
+        {
+            AgentReel.Direct.Drift.Moved => " · moved in this build",
+            AgentReel.Direct.Drift.Changed => " · changed in this build",
+            _ => ""
+        };
+
+        StepDetail.Text = $"{step.Step.Action} “{step.Step.StepId}”{drift}";
+
+        var element = step.Step.Element is { IsEmpty: false };
+        StepHighlightButton.IsEnabled = element;
+        StepRedactButton.IsEnabled = element;
     }
 
     private static FrameworkElement ChangeRow(string step)
@@ -940,10 +1271,22 @@ public partial class EditorWindow : FluentWindow
 
         try
         {
+            var state = document.State;
+            var take = _take;
             var saved = await document.SaveAsync();
+
+            //Anchored edits go to the shot list, so every re-shoot gets them.
+            var anchored = take == null ? [] : EditDocument.AnchoredEdits(state, take);
+
+            if (take != null)
+                ShotEdits.Remember(take.Take.ShotList, anchored);
+
             _documents.Remove(_item.Id);
             Refresh(RecordingLibrary.IdOf(saved));
-            Notify("Saved as a new version", "The original stays as it was. Claude sees the version as your latest recording.", ControlAppearance.Success);
+            Notify("Saved as a new version", anchored.Count == 0
+                ? "The original stays as it was. Claude sees the version as your latest recording."
+                : $"The original stays as it was. {anchored.Count} {(anchored.Count == 1 ? "edit is" : "edits are")} anchored to steps of “{take!.Take.ShotList}”, so every re-shoot gets {(anchored.Count == 1 ? "it" : "them")}.",
+                ControlAppearance.Success);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or ArgumentException or UnauthorizedAccessException)
         {
@@ -976,7 +1319,40 @@ public partial class EditorWindow : FluentWindow
             return;
         }
 
-        Add(new CutOperation(range.Start, range.End));
+        var cut = new CutOperation(range.Start, range.End);
+
+        //In a filmed take, a cut of whole steps is anchored to them, so re-shoots leave those steps out too. Part of a
+        //step is not: the same milliseconds may show something else in the next take.
+        if (_take != null && _document != null && StepCut(range) is { } anchor)
+        {
+            CommitDraft();
+            Timeline.Select(null);
+            var state = _document.State;
+            _document.Apply(state with { Operations = state.Operations.Add(cut), AnchoredCuts = state.AnchoredCuts.Add(anchor) });
+            return;
+        }
+
+        if (_take != null)
+            Notify("Cut this take only", "It covers part of a step, so re-shoots keep that part. Pick steps on the step track to cut them from every take.", ControlAppearance.Secondary);
+
+        Add(cut);
+    }
+
+    /// <summary>
+    /// The anchor of a cut over <paramref name="range"/> (edit time) if it covers whole steps, else null.
+    /// </summary>
+    private StepAnchor? StepCut((int Start, int End) range)
+    {
+        if (_take == null)
+            return null;
+
+        var (from, to) = SourceRange(range.Start, range.End);
+
+        if ((_pickedStep ?? _take.StepAt(from)?.StepId) is not { } stepId)
+            return null;
+
+        var anchor = _take.Anchor(stepId, from, to);
+        return anchor is { OffsetMs: 0, DurationMs: null } ? anchor : null;
     }
 
     private void KeepSelection()
@@ -1076,7 +1452,9 @@ public partial class EditorWindow : FluentWindow
 
     private void Caption_Click(object sender, RoutedEventArgs e) => AddCaption();
 
-    private void Highlight_Click(object sender, RoutedEventArgs e) => AddHighlight();
+    private void Highlight_Click(object sender, RoutedEventArgs e) => AddArea(redaction: false);
+
+    private void Redact_Click(object sender, RoutedEventArgs e) => AddArea(redaction: true);
 
     private void DeleteOverlay_Click(object sender, RoutedEventArgs e) => DeleteSelectedOverlay();
 
@@ -1170,7 +1548,11 @@ public partial class EditorWindow : FluentWindow
                 break;
 
             case Key.H when !control:
-                AddHighlight();
+                AddArea(redaction: false);
+                break;
+
+            case Key.R when !control:
+                AddArea(redaction: true);
                 break;
 
             case Key.N when !control:

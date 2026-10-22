@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using AgentReel.Editing;
+using AgentReel.Editing.Shots;
 using AgentReel.Studio.Review;
 
 namespace AgentReel.Studio.Editor;
@@ -18,7 +19,8 @@ public sealed class EditorTimeline : FrameworkElement
     private const double RulerHeight = 20;
     private const double StripTop = 24;
     private const double StripHeight = 56;
-    private const double RowTop = StripTop + StripHeight + 8;
+    private const double StepsTop = StripTop + StripHeight + 8;
+    private const double StepHeight = 22;
     private const double RowHeight = 18;
     private const double HandleWidth = 10;
     private const double DragThreshold = 4;
@@ -30,16 +32,19 @@ public sealed class EditorTimeline : FrameworkElement
     private IReadOnlyList<Clip> _clips = [];
     private List<int> _starts = [];
     private IReadOnlyList<PlacedOverlay> _overlays = [];
+    private IReadOnlyList<PlacedStep> _steps = [];
+    private IReadOnlyDictionary<Guid, OverlayAnchor> _anchors = new Dictionary<Guid, OverlayAnchor>();
     private int _duration;
     private double _zoom = 1;
     private double _offset;
 
-    private enum Drag { None, Seek, Pending, Select, TrimStart, TrimEnd, Move, ResizeStart, ResizeEnd }
+    private enum Drag { None, Seek, Pending, Select, TrimStart, TrimEnd, Move, ResizeStart, ResizeEnd, Step }
 
     private Drag _drag;
     private Point _down;
     private double _downMs;
     private PlacedOverlay? _dragged;
+    private PlacedStep? _clickedStep;
     private (int Start, int End)? _preview;
     private int _trimStart;
     private int _trimEnd;
@@ -50,6 +55,11 @@ public sealed class EditorTimeline : FrameworkElement
         Focusable = false;
         ClipToBounds = true;
     }
+
+    /// <summary>
+    /// The overlay rows sit below the step track when the recording was filmed from a shot list.
+    /// </summary>
+    private double RowTop => _steps.Count > 0 ? StepsTop + StepHeight + 6 : StepsTop;
 
     public FrameCache? Thumbnails { get; set; }
 
@@ -86,10 +96,35 @@ public sealed class EditorTimeline : FrameworkElement
     /// </summary>
     public event Action<Guid, int, int>? OverlayChanged;
 
-    public void SetContent(IReadOnlyList<Clip> clips, IReadOnlyList<PlacedOverlay> overlays)
+    /// <summary>
+    /// The user clicked a step on the step track.
+    /// </summary>
+    public event Action<PlacedStep>? StepClicked;
+
+    /// <summary>
+    /// The step that is picked on the step track (or that the selected overlay is anchored to), drawn outlined.
+    /// </summary>
+    public string? SelectedStep
+    {
+        get => _selectedStep;
+        set
+        {
+            _selectedStep = value;
+            InvalidateVisual();
+        }
+    }
+
+    private string? _selectedStep;
+
+    /// <param name="steps">The steps of a filmed shot list in edit time, empty for other recordings.</param>
+    /// <param name="anchors">Overlays anchored to steps, marked on their bars.</param>
+    public void SetContent(IReadOnlyList<Clip> clips, IReadOnlyList<PlacedOverlay> overlays, IReadOnlyList<PlacedStep>? steps = null, IReadOnlyDictionary<Guid, OverlayAnchor>? anchors = null)
     {
         _clips = clips;
         _overlays = overlays;
+        _anchors = anchors ?? new Dictionary<Guid, OverlayAnchor>();
+        _steps = steps ?? [];
+        Height = RowTop + 2 * RowHeight + 6;
         _duration = Clips.Duration(clips);
         _starts = new List<int>(clips.Count);
 
@@ -179,6 +214,7 @@ public sealed class EditorTimeline : FrameworkElement
 
         DrawRuler(dc, text, dpi);
         DrawStrip(dc, lane);
+        DrawSteps(dc, dpi);
         DrawRows(dc, lane, dpi);
 
         //Selection over ruler and strip.
@@ -289,10 +325,56 @@ public sealed class EditorTimeline : FrameworkElement
         }
     }
 
+    /// <summary>
+    /// The steps of the shot list as blocks: the shot list's caption (or action and id), a dot for steps that moved or
+    /// changed in this build, an outline for the picked step.
+    /// </summary>
+    private void DrawSteps(DrawingContext dc, double dpi)
+    {
+        if (_steps.Count == 0)
+            return;
+
+        var step = Brush("Step.Brush", Color.FromRgb(0x14, 0xB8, 0xA6));
+        var faster = Brush("Change.Faster", Color.FromRgb(0xF5, 0xA5, 0x24));
+        var fill = step.Clone();
+        fill.Opacity = 0.28;
+        var picked = step.Clone();
+        picked.Opacity = 0.6;
+
+        foreach (var placed in _steps)
+        {
+            var area = StepRect(placed);
+            var selected = placed.Step.StepId == SelectedStep;
+            dc.DrawRoundedRectangle(selected ? picked : fill, new Pen(selected ? Brushes.White : step, selected ? 1.5 : 1), area, 4, 4);
+
+            var left = area.Left + 6;
+
+            if (placed.Step.Drift is AgentReel.Direct.Drift.Moved or AgentReel.Direct.Drift.Changed)
+            {
+                dc.DrawEllipse(faster, null, new Point(left + 3, area.Top + area.Height / 2), 3, 3);
+                left += 10;
+            }
+
+            var label = new FormattedText(placed.Label, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Segoe UI Variable Text"), 10.5,
+                Brush("TextFillColorPrimaryBrush", Colors.White), dpi)
+            {
+                MaxTextWidth = Math.Max(1, area.Right - left - 4),
+                MaxLineCount = 1,
+                Trimming = TextTrimming.CharacterEllipsis
+            };
+
+            if (area.Right - left > 14)
+                dc.DrawText(label, new Point(left, area.Top + (area.Height - label.Height) / 2));
+        }
+    }
+
+    private Rect StepRect(PlacedStep step) => new(X(step.StartMs) + 1, StepsTop, Math.Max(3, (step.EndMs - step.StartMs) * Scale - 2), StepHeight);
+
     private void DrawRows(DrawingContext dc, Brush lane, double dpi)
     {
         var caption = Brush("Change.Caption", Color.FromRgb(0x3B, 0x82, 0xF6));
         var highlight = Brush("Change.Highlight", Color.FromRgb(0xE8, 0x79, 0xF9));
+        var redaction = Brush("Change.Redaction", Color.FromRgb(0x71, 0x71, 0x7A));
         var faint = lane.Clone();
         faint.Opacity = 0.35;
 
@@ -307,7 +389,7 @@ public sealed class EditorTimeline : FrameworkElement
             if (_overlays.Any(a => a.Item is CaptionItem == (row == 0)))
                 continue;
 
-            var name = new FormattedText(row == 0 ? "Captions  ·  T" : "Highlights  ·  H, or drag on the picture", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+            var name = new FormattedText(row == 0 ? "Captions  ·  T" : "Highlights and redactions  ·  H, R, or drag on the picture", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
                 new Typeface("Segoe UI Variable Text"), 10, hint, dpi);
             dc.DrawText(name, new Point(Math.Max(X(0), Pad) + 8, top + (RowHeight - 3 - name.Height) / 2));
         }
@@ -318,18 +400,37 @@ public sealed class EditorTimeline : FrameworkElement
             var area = BarRect(placed.Item, range.Item1, range.Item2);
             var selected = placed.Item.Id == SelectedOverlay;
 
-            dc.DrawRoundedRectangle(placed.Item is CaptionItem ? caption : highlight, selected ? new Pen(Brushes.White, 1.5) : null, area, 4, 4);
+            dc.DrawRoundedRectangle(placed.Item switch { CaptionItem => caption, RedactionItem => redaction, _ => highlight }, selected ? new Pen(Brushes.White, 1.5) : null, area, 4, 4);
 
-            var label = new FormattedText(placed.Item is CaptionItem c ? c.Text.ReplaceLineEndings(" ") : "Highlight", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-                new Typeface("Segoe UI Variable Text"), 10.5, Brushes.White, dpi)
+            //Anchored overlays carry the step's mark at their start.
+            var left = area.Left + 5;
+
+            if (_anchors.ContainsKey(placed.Item.Id) && area.Width > 14)
             {
-                MaxTextWidth = Math.Max(1, area.Width - 10),
+                var mark = new Rect(area.Left + 3, area.Top + 3, 4, area.Height - 6);
+                dc.DrawRoundedRectangle(Brush("Step.Brush", Color.FromRgb(0x14, 0xB8, 0xA6)), new Pen(Brushes.White, 0.8), mark, 1.5, 1.5);
+                left += 6;
+            }
+
+            var text = placed.Item switch
+            {
+                CaptionItem c => c.Text.ReplaceLineEndings(" "),
+                RedactionItem => "Redaction",
+                _ => "Highlight"
+            };
+
+            if (_anchors.TryGetValue(placed.Item.Id, out var anchor))
+                text += anchor.FollowElement ? $"  ·  follows {anchor.StepId}" : $"  ·  {anchor.StepId}";
+
+            var label = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Segoe UI Variable Text"), 10.5, Brushes.White, dpi)
+            {
+                MaxTextWidth = Math.Max(1, area.Right - left - 5),
                 MaxLineCount = 1,
                 Trimming = TextTrimming.CharacterEllipsis
             };
 
-            if (area.Width > 18)
-                dc.DrawText(label, new Point(area.Left + 5, area.Top + (area.Height - label.Height) / 2));
+            if (area.Right - left > 13)
+                dc.DrawText(label, new Point(left, area.Top + (area.Height - label.Height) / 2));
         }
     }
 
@@ -410,6 +511,7 @@ public sealed class EditorTimeline : FrameworkElement
             {
                 Drag.TrimStart or Drag.TrimEnd or Drag.ResizeStart or Drag.ResizeEnd => Cursors.SizeWE,
                 Drag.Move => Cursors.SizeAll,
+                Drag.Step => Cursors.Hand,
                 _ => Cursors.Arrow
             };
             return;
@@ -484,6 +586,10 @@ public sealed class EditorTimeline : FrameworkElement
                 TrimRequested?.Invoke(_trimStart, _trimEnd);
                 break;
 
+            case Drag.Step when _clickedStep is { } step && StepRect(step).Contains(e.GetPosition(this)):
+                StepClicked?.Invoke(step);
+                break;
+
             case Drag.Move or Drag.ResizeStart or Drag.ResizeEnd when _dragged != null && _preview is { } preview:
                 if (preview != (_dragged.StartMs, _dragged.EndMs))
                     OverlayChanged?.Invoke(_dragged.Item.Id, preview.Start, preview.End);
@@ -493,6 +599,7 @@ public sealed class EditorTimeline : FrameworkElement
         }
 
         _dragged = null;
+        _clickedStep = null;
         _preview = null;
         InvalidateVisual();
     }
@@ -537,6 +644,17 @@ public sealed class EditorTimeline : FrameworkElement
                 return Drag.TrimEnd;
 
             return Drag.Pending;
+        }
+
+        if (_steps.Count > 0 && point.Y < RowTop - 2)
+        {
+            if (_steps.FirstOrDefault(f => StepRect(f).Contains(point)) is not { } step)
+                return Drag.Seek;
+
+            if (!peek)
+                _clickedStep = step;
+
+            return Drag.Step;
         }
 
         //Overlay rows: the selected overlay first, so it can be grabbed where overlays overlap.

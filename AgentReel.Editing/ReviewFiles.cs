@@ -40,6 +40,68 @@ public enum ReviewVerdict
 /// <param name="DeleteEdit">For <see cref="ReviewVerdict.Rejected"/>: the user wants the edit deleted, not just dropped.</param>
 public sealed record ReviewRecord(string Summary, DateTime Requested, ReviewVerdict Verdict = ReviewVerdict.Pending, string? Feedback = null, DateTime? Decided = null, string? Agent = null, bool DeleteEdit = false);
 
+/// <summary>
+/// A review summary as the review window shows it: one headline, the rest as a list.
+/// </summary>
+public static class ReviewSummary
+{
+    /// <summary>
+    /// A headline longer than this is cut after its first sentence.
+    /// </summary>
+    public const int HeadlineLength = 110;
+
+    /// <summary>
+    /// The first line is the headline, every further line a detail. A long first line keeps only its first sentence;
+    /// the other sentences become the first details.
+    /// </summary>
+    public static (string Headline, List<string> Details) Split(string? summary)
+    {
+        var lines = (summary ?? "").Split('\n').Select(s => s.Trim()).Where(w => w.Length > 0).ToList();
+
+        if (lines.Count == 0)
+            return ("", []);
+
+        var headline = lines[0];
+        var details = lines.Skip(1).ToList();
+
+        if (headline.Length > HeadlineLength)
+        {
+            var sentences = Sentences(headline);
+
+            if (sentences.Count > 1)
+            {
+                headline = sentences[0];
+                details.InsertRange(0, sentences.Skip(1));
+            }
+        }
+
+        return (headline, details);
+    }
+
+    /// <summary>
+    /// Splits after ". ", "! " and "? ", so "0.5 s" and "v2.1" stay whole.
+    /// </summary>
+    private static List<string> Sentences(string text)
+    {
+        var sentences = new List<string>();
+        var start = 0;
+
+        for (var i = 0; i < text.Length - 1; i++)
+        {
+            if (text[i] is '.' or '!' or '?' && text[i + 1] == ' ')
+            {
+                sentences.Add(text[start..(i + 1)].Trim());
+                start = i + 1;
+            }
+        }
+
+        if (text[start..].Trim() is { Length: > 0 } rest)
+            sentences.Add(rest);
+
+        return sentences;
+    }
+}
+
 public static class ReviewFiles
 {
     public const string EditFile = "Edit.json";
