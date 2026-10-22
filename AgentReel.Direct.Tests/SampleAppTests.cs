@@ -99,6 +99,7 @@ public class SampleAppTests
             Assert.Equal(Drift.Moved, DriftOf("export"));
             Assert.Equal(Drift.Unchanged, DriftOf("format"));
             Assert.Equal(Drift.Unchanged, DriftOf("save"));
+            Assert.Equal(Drift.Unchanged, DriftOf("saved"));
             Assert.Contains("\"Customer\" → \"Client\"", report.Items.Single(s => s.StepId == "customer").Note);
             Assert.False(report.CanReshootAsIs);
 

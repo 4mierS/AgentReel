@@ -59,8 +59,22 @@ public static class LocatorMatcher
     /// </summary>
     public const int MoveTolerance = 4;
 
+    /// <summary>
+    /// The locator with the fields its author left out taken from its baseline snapshot: a step written as "the
+    /// button named Export" also knows the button's automation id once a baseline exists, so a later rename does not
+    /// lose it.
+    /// </summary>
+    public static Locator Effective(Locator locator) => locator.Snapshot is not { } snapshot ? locator : locator with
+    {
+        AutomationId = locator.AutomationId ?? snapshot.AutomationId,
+        Name = locator.Name ?? snapshot.Name,
+        ControlType = locator.ControlType ?? snapshot.ControlType
+    };
+
     public static double Score(Locator locator, ElementInfo element)
     {
+        locator = Effective(locator);
+
         if (!string.IsNullOrEmpty(locator.Window) && !element.WindowTitle.Contains(locator.Window, StringComparison.OrdinalIgnoreCase))
             return 0;
 
@@ -99,6 +113,7 @@ public static class LocatorMatcher
 
     public static MatchKind KindOf(Locator locator, ElementInfo element)
     {
+        locator = Effective(locator);
         var sameType = string.IsNullOrEmpty(locator.ControlType) || string.Equals(locator.ControlType, element.ControlType, StringComparison.OrdinalIgnoreCase);
 
         if (!string.IsNullOrEmpty(locator.AutomationId) && string.Equals(locator.AutomationId, element.AutomationId, StringComparison.Ordinal))

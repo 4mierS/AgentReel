@@ -184,9 +184,12 @@ public sealed record ElementSnapshot(string? AutomationId, string? Name, string 
 /// </summary>
 public readonly record struct Box(int X, int Y, int Width, int Height)
 {
+    [JsonIgnore]
     public int CenterX => X + Width / 2;
 
+    [JsonIgnore]
     public int CenterY => Y + Height / 2;
 
+    [JsonIgnore]
     public bool IsEmpty => Width <= 0 || Height <= 0;
 }

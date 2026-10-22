@@ -109,18 +109,9 @@ public static class ShotAuthor
                 return step;
 
             var crop = result.Crop == null ? null : cropPrefix.TrimEnd('/') + "/" + result.Crop;
-            var element = result.Element;
 
-            //Fill in identity the author left out, keep what the author wrote (it may be deliberately loose).
-            var target = step.Target with
-            {
-                AutomationId = step.Target.AutomationId ?? element.AutomationId,
-                Name = step.Target.Name ?? element.Name,
-                ControlType = step.Target.ControlType ?? element.ControlType,
-                Snapshot = LocatorMatcher.SnapshotOf(element, crop)
-            };
-
-            return step with { Target = target };
+            //What the author wrote stays as written; the matcher falls back to the snapshot's identity for the rest.
+            return step with { Target = step.Target with { Snapshot = LocatorMatcher.SnapshotOf(result.Element, crop) } };
         }).ToList();
 
         return list.WithSteps(steps);

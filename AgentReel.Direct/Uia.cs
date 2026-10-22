@@ -249,7 +249,17 @@ public sealed class Uia(int processId)
     {
         if (live.Element.TryGetCurrentPattern(ValuePattern.Pattern, out var value) && !((ValuePattern)value).Current.IsReadOnly)
         {
-            ((ValuePattern)value).SetValue(text);
+            var pattern = (ValuePattern)value;
+            pattern.SetValue(text);
+
+            //SetValue also gives the field the keyboard focus, so keys pressed on the real keyboard during a run land
+            //in it. Reading the value back catches that (and fields that reformat their input) instead of filming it.
+            Thread.Sleep(100);
+            var now = pattern.Current.Value;
+
+            if (!string.Equals(now, text, StringComparison.Ordinal))
+                throw new InvalidOperationException($"{live.Info.ControlType} \"{live.Info.Name}\" holds \"{now}\" instead of \"{text}\". Was something typed on the keyboard during the run?");
+
             return;
         }
 

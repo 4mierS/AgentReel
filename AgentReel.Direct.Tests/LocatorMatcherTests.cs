@@ -98,6 +98,21 @@ public class LocatorMatcherTests
     }
 
     [Fact]
+    public void A_step_written_by_name_still_finds_a_renamed_element_through_the_baseline_id()
+    {
+        var authored = new Locator(Name: "Export", ControlType: "Button");
+        var withBaseline = authored with { Snapshot = LocatorMatcher.SnapshotOf(Element("ExportButton", "Export")) };
+        var renamed = Element("ExportButton", "Export file");
+
+        Assert.Null(LocatorMatcher.Best(authored, [renamed]));
+
+        var match = LocatorMatcher.Best(withBaseline, [renamed]);
+
+        Assert.Equal(MatchKind.AutomationId, match!.Kind);
+        Assert.Equal(Drift.Changed, LocatorMatcher.Classify(withBaseline, match));
+    }
+
+    [Fact]
     public void An_id_on_another_control_type_is_found_but_changed()
     {
         var locator = Baseline(Element("Format", "Format", "ComboBox"));
