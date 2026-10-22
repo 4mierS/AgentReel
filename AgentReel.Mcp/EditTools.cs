@@ -3,7 +3,9 @@ using System.Globalization;
 using System.Text;
 using System.Windows;
 using System.Windows.Media;
+using AgentReel.Direct;
 using AgentReel.Editing;
+using AgentReel.Editing.Shots;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
@@ -75,7 +77,11 @@ public sealed class EditTools(RecordingSession session)
         [Description("One of: top, center, bottom.")] string position = "bottom",
         [Description("Font size in pixels of the recording. Default: about 1/22 of its height.")] double? fontSize = null,
         [Description("Text color as #RRGGBB, #AARRGGBB or a name like white.")] string textColor = "#FFFFFF",
-        [Description("Box color behind the text as #RRGGBB, #AARRGGBB or a name. #00000000 for no box.")] string backgroundColor = "#B4000000")
+        [Description("Box color behind the text as #RRGGBB, #AARRGGBB or a name. #00000000 for no box.")] string backgroundColor = "#B4000000",
+        [Description("For a recording filmed from a shot list: anchor the caption to this step instead of startMs/endMs. It is saved with the shot list, so reshoot puts it on the same step of every new take (with the default caption style).")] string? stepId = null,
+        [Description("With stepId: start this many milliseconds into the step.")] int stepOffsetMs = 0,
+        [Description("With stepId: show for this many milliseconds. Default: until the end of the step (or of endStepId).")] int? stepDurationMs = null,
+        [Description("With stepId: show until the end of this later step.")] string? endStepId = null)
     {
         if (string.IsNullOrWhiteSpace(text))
             throw new McpException("text must not be empty.");
@@ -83,31 +89,39 @@ public sealed class EditTools(RecordingSession session)
         if (fontSize is <= 0 or > 500)
             throw new McpException("fontSize must be between 0 and 500.");
 
-        var draw = Overlay.Caption(text, ParseEnum<CaptionPosition>(position, nameof(position)), fontSize, ParseColor(textColor, nameof(textColor)), ParseColor(backgroundColor, nameof(backgroundColor)));
+        var captionPosition = ParseEnum<CaptionPosition>(position, nameof(position));
+        var draw = Overlay.Caption(text, captionPosition, fontSize, ParseColor(textColor, nameof(textColor)), ParseColor(backgroundColor, nameof(backgroundColor)));
+
+        if (stepId != null)
+        {
+            var anchored = new AnchoredEdit(AnchoredEdit.NewId(), AnchorKind.Caption, Anchor(stepId, stepOffsetMs, stepDurationMs, endStepId), text, captionPosition);
+            return await DrawAnchoredAsync(recordingId, anchored, _ => draw, "add_caption", "caption", text);
+        }
+
         return await DrawAsync(recordingId, startMs, endMs, draw, "add_caption", "caption", text);
     }
 
     [McpServerTool(Name = "add_highlight"), Description("Draws a rectangle or ellipse around an area in the frames shown from startMs to endMs, optionally darkening everything else. Coordinates are pixels of the recording (see width and height of the recording; get_preview may show it scaled down). Saves the result as a new recording; the original stays unchanged.")]
     public async Task<RecordingInfo> AddHighlight(
-        [Description("Left edge of the area, in pixels of the recording.")] int x,
-        [Description("Top edge of the area, in pixels of the recording.")] int y,
-        [Description("Width of the area in pixels.")] int width,
-        [Description("Height of the area in pixels.")] int height,
+        [Description("Left edge of the area, in pixels of the recording. Not needed with followElement.")] int? x = null,
+        [Description("Top edge of the area, in pixels of the recording.")] int? y = null,
+        [Description("Width of the area in pixels.")] int? width = null,
+        [Description("Height of the area in pixels.")] int? height = null,
         [Description("Recording id. Default: the newest recording, also one the user made in AgentReel Studio.")] string? recordingId = null,
         [Description("Start of the highlight, in milliseconds from the start.")] int startMs = 0,
         [Description("End of the highlight, in milliseconds from the start. Default: the end of the recording.")] int? endMs = null,
         [Description("One of: rectangle, ellipse.")] string shape = "rectangle",
         [Description("Outline color as #RRGGBB, #AARRGGBB or a name like red.")] string color = "#E81123",
         [Description("Outline thickness in pixels. 0 draws no outline.")] double thickness = 4,
-        [Description("Darken everything outside the area.")] bool dimOutside = false)
+        [Description("Darken everything outside the area.")] bool dimOutside = false,
+        [Description("For a recording filmed from a shot list: anchor the highlight to this step instead of startMs/endMs. It is saved with the shot list, so reshoot puts it on the same step of every new take.")] string? stepId = null,
+        [Description("With stepId: start this many milliseconds into the step.")] int stepOffsetMs = 0,
+        [Description("With stepId: show for this many milliseconds. Default: until the end of the step (or of endStepId).")] int? stepDurationMs = null,
+        [Description("With stepId: show until the end of this later step.")] string? endStepId = null,
+        [Description("With stepId: highlight the step's element (the button it clicks …) instead of x/y/width/height; after a reshoot the highlight follows the element if it moved.")] bool followElement = false,
+        [Description("With followElement: pixels added around the element.")] int padding = 6)
     {
         var project = session.Get(recordingId);
-
-        if (width <= 0 || height <= 0)
-            throw new McpException("width and height must be positive.");
-
-        if (x >= project.Width || y >= project.Height || x + width <= 0 || y + height <= 0)
-            throw new McpException($"The area lies outside the recording ({project.Width}x{project.Height} pixels).");
 
         if (thickness is < 0 or > 100)
             throw new McpException("thickness must be between 0 and 100.");
@@ -115,8 +129,74 @@ public sealed class EditTools(RecordingSession session)
         if (thickness == 0 && !dimOutside)
             throw new McpException("With thickness 0 and dimOutside false nothing would be drawn.");
 
-        var draw = Overlay.Highlight(new Rect(x, y, width, height), ParseEnum<HighlightShape>(shape, nameof(shape)), ParseColor(color, nameof(color)), thickness, dimOutside);
-        return await DrawAsync(RecordingSession.IdOf(project), startMs, endMs, draw, "add_highlight", "highlight", $"{shape.ToLowerInvariant()} at {x}, {y}, {width}x{height}");
+        var highlightShape = ParseEnum<HighlightShape>(shape, nameof(shape));
+        var outline = ParseColor(color, nameof(color));
+
+        if (followElement && stepId == null)
+            throw new McpException("followElement needs stepId: the element is the one that step works on.");
+
+        if (stepId != null)
+        {
+            Box? area = followElement ? null : Area(project, x, y, width, height);
+            var anchored = new AnchoredEdit(AnchoredEdit.NewId(), AnchorKind.Highlight, Anchor(stepId, stepOffsetMs, stepDurationMs, endStepId), Area: area, FollowElement: followElement,
+                Padding: Math.Clamp(padding, 0, 200), Shape: highlightShape, DimOutside: dimOutside);
+
+            return await DrawAnchoredAsync(RecordingSession.IdOf(project), anchored, rect => Overlay.Highlight(rect, highlightShape, outline, thickness, dimOutside), "add_highlight", "highlight", null);
+        }
+
+        var fixedArea = Area(project, x, y, width, height);
+        var draw = Overlay.Highlight(new Rect(fixedArea.X, fixedArea.Y, fixedArea.Width, fixedArea.Height), highlightShape, outline, thickness, dimOutside);
+        return await DrawAsync(RecordingSession.IdOf(project), startMs, endMs, draw, "add_highlight", "highlight", $"{shape.ToLowerInvariant()} at {fixedArea.X}, {fixedArea.Y}, {fixedArea.Width}x{fixedArea.Height}");
+    }
+
+    private static Box Area(Recording project, int? x, int? y, int? width, int? height)
+    {
+        if (x is not { } left || y is not { } top || width is not { } w || height is not { } h)
+            throw new McpException("Give x, y, width and height of the area (or stepId with followElement).");
+
+        if (w <= 0 || h <= 0)
+            throw new McpException("width and height must be positive.");
+
+        if (left >= project.Width || top >= project.Height || left + w <= 0 || top + h <= 0)
+            throw new McpException($"The area lies outside the recording ({project.Width}x{project.Height} pixels).");
+
+        return new Box(left, top, w, h);
+    }
+
+    private static StepAnchor Anchor(string stepId, int offsetMs, int? durationMs, string? endStepId)
+    {
+        if (string.IsNullOrWhiteSpace(stepId))
+            throw new McpException("stepId must not be empty.");
+
+        if (offsetMs < 0 || durationMs is <= 0)
+            throw new McpException("stepOffsetMs must not be negative and stepDurationMs must be positive.");
+
+        return new StepAnchor(stepId.Trim(), offsetMs, durationMs, string.IsNullOrWhiteSpace(endStepId) ? null : endStepId.Trim());
+    }
+
+    /// <summary>
+    /// Places an anchored edit in the recording's take, draws it like a timed one and saves it with the shot list, so
+    /// every reshoot gets it.
+    /// </summary>
+    private async Task<RecordingInfo> DrawAnchoredAsync(string? recordingId, AnchoredEdit anchored, Func<Rect, Action<DrawingContext, int, int>> draw, string tool, string kind, string? label)
+    {
+        var project = session.Get(recordingId);
+        var (original, take) = ShotTools.TakeOf(project);
+        var resolution = Anchors.Resolve([anchored], take, original.Duration, original.Width, original.Height);
+
+        if (resolution.Dropped.FirstOrDefault() is { } dropped)
+            throw new McpException($"The edit cannot be placed: {dropped.Reason}.");
+
+        var placed = resolution.Placed[0];
+        var range = Takes.InRecording(project, original, placed.StartMs, placed.EndMs)
+            ?? throw new McpException($"Step \"{anchored.At.StepId}\" was cut from '{project.Id}'. Anchor it on a version that still shows the step.");
+
+        var area = placed.Area ?? Rect.Empty;
+        var result = await DrawAsync(project.Id, range.StartMs, range.EndMs, draw(area), tool, kind,
+            label ?? $"{anchored.Shape.ToString().ToLowerInvariant()} at {(int)area.X}, {(int)area.Y}, {(int)area.Width}x{(int)area.Height} on step {anchored.At.StepId}");
+
+        ShotTools.Remember(take, anchored);
+        return result;
     }
 
     [McpServerTool(Name = "get_contact_sheet", ReadOnly = true), Description("Returns one PNG with evenly spaced frames of a recording in a grid, each labeled with its frame index and time, plus the same list as text. Use it to see a whole recording at once and to find the times for trim; zoom in with startMs/endMs or a single frame with get_preview.")]

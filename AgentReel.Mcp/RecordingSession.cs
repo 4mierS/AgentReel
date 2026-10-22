@@ -22,6 +22,27 @@ public sealed class RecordingSession(ICaptureService capture, ILogger<RecordingS
 
     public IReadOnlyList<CaptureTarget> ListTargets() => capture.ListTargets();
 
+    /// <summary>
+    /// Runs <paramref name="work"/> with the capture service (filming a shot list), refused while a recording runs.
+    /// Other recordings wait until it is done.
+    /// </summary>
+    public async Task<T> WithCaptureAsync<T>(Func<ICaptureService, Task<T>> work)
+    {
+        await _gate.WaitAsync();
+
+        try
+        {
+            if (_active != null)
+                throw new McpException($"Recording '{_active.Id}' is still running. Call stop_recording first.");
+
+            return await work(capture);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task<ActiveRecording> StartAsync(CaptureOptions options, TimeSpan maxDuration)
     {
         await _gate.WaitAsync();

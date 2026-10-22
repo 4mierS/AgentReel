@@ -20,6 +20,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AgentReel.Direct\AgentReel.Direct.csproj" />
+    <!-- Filming and re-shooting (ReshootTests). -->
+    <ProjectReference Include="..\AgentReel.Editing\AgentReel.Editing.csproj" />
     <!-- Copied next to the tests, which start it as the app under test. -->
     <ProjectReference Include="..\AgentReel.Direct.SampleApp\AgentReel.Direct.SampleApp.csproj" />
   </ItemGroup>
