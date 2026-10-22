@@ -1,415 +1,176 @@
-# CLAUDE.md – AgentReel
+# CLAUDE.md – AgentReel (working name Glasstake)
 
 Context for Claude Code. Read this first, then `README.md` and `NOTICE.md`.
-Full plan (architecture, MCP tools, roadmap, licensing, competitors, feature ideas):
-https://claude.ai/code/artifact/103a34eb-f925-4e0b-8460-b2f784c05201
+Product and business doc (German, Claude Docs): https://claude.ai/artifact/A8M4ciJ2qmzNrz7EgvBQpo
+Older technical plan (from the fork days, partly outdated): https://claude.ai/code/artifact/103a34eb-f925-4e0b-8460-b2f784c05201
 
 ## What this is
 
-AgentReel is a hard fork of ScreenToGif (Ms-PL, WPF on .NET 9). Goal: a Windows screen recorder and GIF/video
-editor that AI agents (Claude) drive over MCP – record, review frames, trim, caption, redact, export – plus a
-modernized, more ergonomic UI.
+A Windows app that makes **evergreen how-to videos for native Windows software**: a shot list anchored to UI
+Automation (picture fallback) plays the app and films it; edits (captions, highlights, cuts, redactions) are anchored
+to steps and survive a re-shoot of the next build (CLI/CI); every change an agent proposes is approved by the user in
+Studio (review-before-apply). Director mode: one sentence → the agent drafts a shot list → the user approves → film →
+edit → review. Claude drives it over MCP; Studio is also a full manual editor (every MCP edit has a manual control).
+Privacy Shield (local OCR + secret detectors, redaction) is built-in safety, not the headline.
 
-Positioning (decided 2026-10-20): Windows-native, GIF- and frame-accurate, privacy-first (redaction), and
-human-in-the-loop (agent proposes edits, the user approves). Competitor OpenScreen (MIT, Electron) already has an
-MCP server since 2026-10-11, so "agent can record" alone is not a differentiator.
+Web tools already do re-shot demos (DemoBites Retake, Velo, Redemo, Vidocu); none found for native Windows.
+Free rivals on Windows have auto-zoom and agent PR demos (Recordly, OpenScreen, Cap), so those are not the selling point.
+Pricing (decided): free basics; individual $7/month (or $70/year, AI features); Business ~$49–99 per app/month; Team later.
 
-Business model (decided): open core. The ScreenToGif-derived code stays open under Ms-PL; agent/pro features
-live in separate, newly written assemblies under our own license.
+History: started 2026-10-20 as a hard fork of ScreenToGif (Ms-PL). Decided 2026-10-21 to become an independent app
+with no ScreenToGif code. Since package 4a (2026-10-22) the repo contains no ScreenToGif project anymore; all
+`AgentReel.*` code is new (clean room). The git history still contains the Ms-PL code.
 
-## Hard rules (license)
+## Hard rules
 
-- Keep every existing copyright and attribution notice from ScreenToGif (Ms-PL 3C). Never strip headers.
-- Never use the name "ScreenToGif" or its logo for branding new UI, installers or store listings (Ms-PL 3A).
-  Internal project/namespace names may stay `ScreenToGif.*` until a deliberate rename.
-- Source derived from ScreenToGif may only be distributed under Ms-PL (3D).
-- Do not bundle Gifski (AGPL-3.0) or a GPL FFmpeg build. Keep both as optional user downloads (or LGPL FFmpeg).
-- New pro/agent code goes into new projects/files, not into Ms-PL files, so it can be licensed separately.
+- Clean room: never read, translate or copy ScreenToGif source (also not from `upstream` or the git history).
+  New implementations are written from specs/behavior.
+- Never use the name "ScreenToGif" or its logo for branding. Never push to `upstream`.
+- Keep `LICENSE.txt`/`NOTICE.md` as they are until the fresh repo (step 5 of the independence plan); suggest a
+  lawyer check before relicensing.
+- Do not bundle Gifski (AGPL) or a GPL FFmpeg build. Export needs neither (own GIF/APNG encoders, MP4 via Media
+  Foundation).
+- Never buy domains or file trademarks; Amir decides (attorney clearance for "Glasstake" pending).
 
 ## Repo facts
 
-- Remotes: `upstream` = https://github.com/NickeManarin/ScreenToGif (based on v2.43.2, commit a4d0a67).
-  `origin` = https://github.com/4mierS/AgentReel (private; not a GitHub fork, because forks of public repos
-  cannot be private). Never push to `upstream`.
-- Branch: `main`.
-- Solution: `GifRecorder.sln`. Projects:
-  - `ScreenToGif` (WinExe, WPF + WinForms): windows, capture engines, editor, encoding. ~58k lines.
-  - `ScreenToGif.Util`: settings, native helpers, named-pipe IPC (`InterProcessChannel/`), CLI args (`Arguments.cs`).
-  - `ScreenToGif.ViewModel`: view models, export presets (FFmpeg, Gifski, …).
-  - `ScreenToGif.Model` (assembly `ScreenToGif.Domain`): enums, interfaces, DTOs.
-  - `ScreenToGif.Native`: Win32 interop.
-  - `ScreenToGif.Test`: xUnit, thin coverage.
-- Known pain points:
-  - `ScreenToGif/Windows/Editor.xaml.cs` is 6,776 lines of code-behind; editing/undo/export hang off WPF commands.
-  - `ScreenToGif/Util/EncodingManager.cs` calls `Application.Current.Dispatcher` 14 times → nothing runs headless.
-  - `ProjectInfo` / `FrameInfo` live in the UI project (`ScreenToGif/Model/`), not in Domain.
-  - Fast capture uses DXGI Desktop Duplication, via Vortice.Windows since Phase 3 (was SharpDX, unmaintained).
-    The app has no Windows.Graphics.Capture recorder yet (only `AgentReel.Capture`, used by the MCP server).
-- Existing CLI: `-region`, `-framerate`, `-limit`, `-capture`, `-open`. Existing IPC: `PipeServer`, `InstanceSwitcherChannel`.
-- `ScreenToGif.Util/Secret.cs` holds empty placeholder credentials (Imgur, Yandex, feedback mail) – builds fine as is.
+- `origin` = https://github.com/4mierS/AgentReel (private). `upstream` = ScreenToGif (never push). Branch `main`.
+  Use `gh -R 4mierS/AgentReel`.
+- Solution `GifRecorder.sln` (not renamed yet; still has the old "Debug (Store)" and x86/ARM64 configurations).
+  Projects target `net9.0-windows10.0.19041.0` (`AgentReel.Core`: plain `net9.0`). `Directory.Build.props` sets AgentReel metadata
+  (Company/Product "AgentReel", "Copyright © 2026 Amir", 0.1.0) and `CETCompat=false` (open question, see below).
+- Projects:
+  - `AgentReel.Core`: `Recording`/`RecordedFrame`, `recording.json`, `RecordingStore`
+    (`%LOCALAPPDATA%\AgentReel\Recordings`, env `AGENTREEL_RECORDINGS`), `AppSettings`
+    (`%APPDATA%\AgentReel\settings.json`), `RecordingLock`, `LegacyImport` (copies old `%TEMP%\ScreenToGif\Recording`
+    projects once).
+  - `AgentReel.Capture`: Windows.Graphics.Capture recorder (`ICaptureService`, `WgcCaptureService`,
+    `ProjectRecording`). Frames throttled to the framerate; unchanged content extends the previous delay.
+  - `AgentReel.Export`: own GIF and APNG encoders, MP4 via Media Foundation (Vortice.MediaFoundation).
+  - `AgentReel.Editing`: timeline edits (`Timeline`: trim, fold, retime, isolate), overlays, contact sheet, edit chain,
+    `Edit.json`/`Review.json`, `RecordingLibrary`, `RecordingExport`, `EditDocument`/`Clips` (Studio editor model),
+    `Privacy/` (OCR, detectors, redaction), `Shots/` (`ShotFilm`, `AnchoredEdits`, `TakeClock`, `PreviousTake`).
+  - `AgentReel.Direct`: shot lists (`%LOCALAPPDATA%\AgentReel\ShotLists`, env `AGENTREEL_SHOTLISTS`), locator matcher
+    (found/moved/changed/missing), `ShotPlayer` (UIA patterns, guarded SendInput fallback), `TemplateMatch`/`Vision`
+    (picture fallback), `InputWatch` (warns about real input during a run), drift report (json/html/png),
+    `ShotDraft` (director drafts + live locator check).
+  - `AgentReel.Mcp`: stdio MCP server (tools below).
+  - `AgentReel.Studio`: WPF UI 4.3.0 app (Mica, system theme). No args → session window + recording bar;
+    `review <folder>`; `edit <folder>`; `approve-shots <shot list folder>`.
+  - `AgentReel.Cli` (`agentreel.exe`): `baseline|drift|film|reshoot <shot list folder>`; exit code 2 = needs a human.
+  - Samples: `AgentReel.Direct.SampleApp` (WPF; `--v2` moves Export, renames Customer→Client, removes Refresh),
+    `AgentReel.Direct.SampleApp.WinForms`, `samples/electron`, `samples/shotlists/invoice-export` (used by CI).
+  - Tests: `AgentReel.Capture.Tests`, `AgentReel.Export.Tests`, `AgentReel.Mcp.Tests`, `AgentReel.Direct.Tests`
+    (225 tests on 2026-10-22).
+- MCP tools: recording (`list_targets`, `start_recording`, `stop_recording`, `get_status`, `get_preview` incl. live,
+  `list_recordings`, `delete_recording`), editing (`trim`, `optimize`, `add_caption`, `add_highlight`,
+  `get_contact_sheet`, `scan_privacy`, `redact`), review (`request_review`, `get_review`, `open_in_studio`), export
+  (`export`: gif/apng/mp4, with `privacyWarning`), direct (`inspect_app`, `save_shot_list`, `list_shot_lists`,
+  `run_shot_list`, `check_drift`, `film_shot_list`, `reshoot`), director (`draft_shot_list`, `get_shot_approval`,
+  `add_step_captions`, prompt `direct_video`).
+- Edits never change their input: each edit is a new recording `<id> edit <n>` joined to its chain (`Edit.json`), so a
+  review always compares with the original take.
 
 ## Build and run
 
-Requires Windows 10 2004+ and the .NET 9 SDK.
+Requires Windows 10 2004+ and the .NET 9 SDK. The SDK is user-local in `%LOCALAPPDATA%\Microsoft\dotnet` (not on
+PATH by default): set PATH and `DOTNET_ROOT` to it. Build with `-c Release` for test runs.
 
 ```powershell
-dotnet build GifRecorder.sln
-dotnet test ScreenToGif.Test/ScreenToGif.Test.csproj
+dotnet build GifRecorder.sln -c Release
+dotnet test AgentReel.Mcp.Tests -c Release --no-build   # likewise Capture/Export/Direct.Tests
 ```
 
-CI: `.github/workflows/build.yml` (windows-latest, build + tests).
+- **Desktop lock**: before any UIA, recording or Direct test run, create `%TEMP%\glasstake-desktop.lock` (owner and
+  time inside) and delete it afterwards; if it exists, wait. Parallel desktop runs break tests.
+- Never record the primary monitor (private mail). No SendKeys. Don't delete Amir's recordings or the demo takes
+  `2026-10-22 16-05-39` and `2026-10-22 16-05-51`. For end-to-end runs, point `AGENTREEL_RECORDINGS` and
+  `AGENTREEL_SHOTLISTS` to a scratch folder and `AGENTREEL_STUDIO` to the built Studio.
+- End-to-end checks: drive `AgentReel.Mcp.exe` over raw JSON-RPC on stdin (initialize with clientInfo `claude-code`),
+  click Studio buttons through UI Automation (`InvokePattern`, buttons are named by `x:Name`).
+- The registered server is the Debug build of `AgentReel.Mcp` in this checkout, registered as `agentreel` in Claude
+  Code (user scope) and Claude Desktop (Store build, config under
+  `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\`), both with `DOTNET_ROOT`. A running client locks the
+  exe: stop the `AgentReel.Mcp` processes under `AgentReel.Mcp\bin\Debug\`, rebuild, then Amir reconnects (`/mcp`)
+  and restarts Claude Desktop.
+- CI: `.github/workflows/build.yml` (windows-latest, build + all four test projects; the hosted runner has an
+  interactive desktop, so UIA and WGC work). `.github/workflows/reshoot.yml` (workflow_dispatch): baseline v1 →
+  drift against `--v2` → reshoot with anchored edits → uploads report and MP4s. First run 39839847094 (2026-10-22)
+  green: drift 3 unchanged/1 moved/1 changed/1 missing, 3 of 4 edits carried over, real pixels in the crops.
 
-## Current status (2026-10-20)
+## Status (2026-10-22)
 
-Done:
-- Fork created, README/NOTICE rewritten, upstream Discord workflow and FUNDING removed (commit 48205aa4).
-- CI workflow written.
-- Capture spike written (`Spikes/AgentReel.CaptureSpike`; removed 2026-10-21, superseded by `AgentReel.Capture`).
+Done (all merged and pushed):
+- MCP server, capture, own project model and storage, own export (no FFmpeg), Studio review window, session window,
+  pro editor, Privacy Shield, Direct (shot lists, drift, film, reshoot with anchored edits).
+- Package 4a: all ScreenToGif projects, `ScreenToGif.Test`, characterization tests, legacy CI steps and packages
+  removed.
+- Package 1, step anchors in Studio (`70bde318`): step track in the editor; hand-made captions, highlights and
+  redactions (R tool) anchor to steps and save to `edits.json`; "follow element" for highlights/redactions; review shows
+  a one-line headline plus a list, hold P for the previous take. Checked via UIA only; real mouse/keyboard gestures are
+  untested.
+- Package 3, robustness (`befeff9b`): WinForms and Electron samples (no FlaUI needed), picture fallback, input
+  warning, `AgentReel.Cli` and the reshoot workflow (green on GitHub). Electron: empty UIA tree in about 1 of 6 runs,
+  accepted for now.
+- Package 2, director mode (`1e7044a4`): `draft_shot_list` checks the draft against the running app (found,
+  ambiguous, in a later dialog, not found) and opens Studio's approval window (goal as headline, steps in plain words,
+  editable captions, approve/reject/feedback); `get_shot_approval` saves the approved list once with the user's
+  captions; `add_step_captions` burns one caption per step (holds until the next captioned step), anchored to steps.
+  Verified over stdio on the WPF sample: draft → approve (UIA) → film (60 frames, 5.5 s) → optimize → step captions →
+  request_review showed "CLAUDE SUGGESTS" with 4 caption changes against the take.
 
-Verified locally (2026-10-20, .NET SDK 9.0.319 installed user-local in `%LOCALAPPDATA%\Microsoft\dotnet`,
-not on PATH by default):
-- `dotnet build GifRecorder.sln`: 0 errors, 82 warnings (all upstream).
-- Spike builds without changes. Monitor capture: exit 0, 1920x1080 PNG correct. `--window "Notepad"`: exit 0,
-  7 frames, correct PNG.
-- Tests: the only known failures are ThemeContrastTests for Dark/VeryDark (WCAG contrast in the legacy themes, CI
-  filter `DisplayName!~Dark.xaml`). YandexUpload was removed; ImageComparison only had a wrong data path (fixed).
-  CI excludes them via `--filter` (28 tests run, all green).
-- Pushed to `origin`; CI green (run 39474397409).
-- Characterization tests (`ScreenToGif.Test/Characterization/ExportCharacterizationTests.cs`): 8 synthetic
-  frames are exported through the private `EncodingManager.Encode` (via reflection, task id -1 so `Update()`
-  never touches the Dispatcher) with every built-in GIF/APNG default preset (embedded, KGySoft, System, APNG).
-  Outputs are compared with SHA-256 hashes in `ScreenToGif.Test/Data/Characterization/export-golden.json`.
-  To accept new output on purpose: run with `AGENTREEL_UPDATE_GOLDEN=1` and commit the json.
-  MP4 (FFmpeg default preset) runs only when `AGENTREEL_FFMPEG` points to ffmpeg.exe; CI downloads a test-only
-  GPL build (needed for libx264, never shipped). Note: the MP4 test initializes `UserSettings`, which reads
-  `%AppData%\ScreenToGif\Settings.xaml` (never saved by the test).
-- Phase 0 checklist in the plan doc updated.
+Known limits: real keyboard input during a run lands in the app (re-shoot in a VM/CI); a step whose element is in a
+dialog shows "not on screen" in the draft unless its target names the window; Studio's mouse gestures and the F8
+hotkey were never tested by Amir.
 
-Phase 1 progress (2026-10-20):
-- `ScreenToGif.Core` exists (`net9.0-windows7.0`, `UseWPF`). Deviation from the plan: Domain and Util already use
-  WPF types, so "headless" means no Dispatcher, no `Application.Current.Windows`, no UI windows – WPF imaging types
-  are fine. `LocalizationHelper` and `UserSettings` still need an `Application` with resources; a headless host must
-  create one (see the static constructor in `ExportCharacterizationTests`).
-- Moved to Core: `FrameInfo`, `ProjectInfo`, `ActionStack`, `ImageMethods`, `QuantizerDescriptor`,
-  `DithererDescriptor`. Namespaces unchanged.
-- `ScreenToGif.Core.Export.ExportService.EncodeAsync` = the whole encoder part of export, progress via
-  `IEncodingReporter`. `EncodingManager` (app) keeps task list, upload, clipboard, custom commands; forwards progress
-  with `EncodingReporter`; raises `EncodingChanged`, which `App` marshals to the Dispatcher.
-- Characterization tests call `ExportService` directly; outputs byte-identical to before the move.
-- Smoke-tested in the real UI (2026-10-20): record + GIF export from the editor works. It first crashed opening the
-  export panel: XAML property paths like `(vm:QuantizerDescriptor.X)` resolve types at runtime, so an xmlns without
-  `assembly=` still pointed at the app after the move. Fixed with `xmlns:core=...;assembly=ScreenToGif.Core`.
-  Lesson: after moving types, grep all `.xaml` for them – the build will not catch it.
-- `ScreenToGif.Core.Capture.ICaptureService` (list targets, start into a folder, stop → frames with delays).
-  Implementation `AgentReel.Capture.WgcCaptureService` in the new project `AgentReel.Capture`
-  (`net9.0-windows10.0.19041.0`, new code, not Ms-PL-derived), built on the spike. Decided 2026-10-20: WGC directly,
-  the app's DXGI/GDI recorders stay untouched. Frames are throttled to the framerate; unchanged content extends the
-  previous delay. Tests in `AgentReel.Capture.Tests` (also green on GitHub runners, WGC works there).
+## Next – START HERE
 
-Phase 2 progress (2026-10-20):
-- `AgentReel.Mcp` (stdio, new code, not Ms-PL-derived): tools `list_targets`, `start_recording`, `stop_recording`,
-  `get_preview` (text + PNG `ImageContentBlock`), `export` (gif/apng/webp/mp4/webm/mkv/mov). `WpfResources` creates the
-  hidden `Application`; `RecordingSession` holds one active recording; `ExportPresets` uses the user's selected preset
-  as a shallow copy with upload/clipboard/commands off. Built in CI via the solution.
-- Verified end to end over raw JSON-RPC on stdin: 4 s monitor recording (33 frames) → preview PNG correct →
-  GIF export valid (`GIF89a`, 5.8 MB). MP4 returns a clean tool error because FFmpeg is missing locally.
-- The exe is framework-dependent. With the user-local SDK, every launcher (Claude Desktop/Code config) must set
-  `DOTNET_ROOT=%LOCALAPPDATA%\Microsoft\dotnet`, otherwise it fails with "You must install .NET".
+1. Package 4b: own resources and localization for Studio (English + German).
+2. Rename AgentReel → Glasstake (projects, namespaces, exe names, CLI `glasstake` – Amir said yes to the CLI; ask for
+   the go on the whole rename, it also touches the registered MCP config and the data folders), rename the solution,
+   drop the "Debug (Store)"/x86/ARM64 configurations.
+3. Fresh repo with a clean history, own LICENSE, NOTICE only for third-party libraries (WPF UI, Vortice, …);
+   README rewritten (today's README/NOTICE still describe the fork).
 
-- MP4 over stdio verified (2026-10-21) with a local, never-shipped FFmpeg via `AGENTREEL_FFMPEG`. Two fixes on the way:
-  - FFmpeg inherited the host's stdin (= the JSON-RPC pipe), so exports hung until the client closed stdin.
-    `ExportService` now gives every FFmpeg process its own stdin and closes it right away.
-  - With passthrough/vfr, a long-held last frame (idle screen at the end) makes the MP4 header report a shorter
-    duration than what plays (x264 B-frames leave the last DTS behind its PTS). The MCP server forces CFR for video
-    presets in normal mode. The app's own default MP4 preset (passthrough) still has this bug – not fixed there yet.
-- Registered as `agentreel` in Claude Code (user scope) and Claude Desktop (Store build, config under
-  `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\`), both with `DOTNET_ROOT` and `AGENTREEL_FFMPEG`.
-  A running client locks the Debug exe; stop it before rebuilding `AgentReel.Mcp`.
+Open questions for Amir:
+- Package 1: anchor new overlays to a step by default or opt-in? Partial-step cuts anchorable or only whole steps?
+  "Previous take" = newest kept version or last export (exports are not recorded)? Own label for reshoot versions
+  instead of "Claude"?
+- `CETCompat`: keep false or switch on (the .NET default)?
+- Glasstake: attorney clearance and domains.
 
-- **Phase 2 gate passed (2026-10-21)** in a fresh Claude Code session over the registered `agentreel` server, without
-  manual steps: Claude opened a scripted demo console window, recorded it by window title for 22 s
-  (`maxSeconds` auto-stop, 76 frames), checked a frame with `get_preview`, exported MP4. ffprobe: h264 1114x628 CFR
-  25 fps, 22.08 s (recorded 21.98 s). It recorded a window, not the monitor, because the primary monitor showed private
-  mail. Odd window widths (1115) are rounded down to even for x264.
-- `stop_recording` after an auto-stop (`maxSeconds`) now returns that recording with `autoStopped: true` instead of
-  "No recording is running" (once; a new `start_recording` clears it). Verified over stdio with a scratch build.
-  The registered Debug exe is not rebuilt yet (locked by the running client).
-- Decided 2026-10-21: the passthrough MP4 duration bug in the app's default preset stays for now. The agent path is
-  fixed (CFR), changing `FfmpegMp4Preset.Defaults` would not fix presets users already saved, and it touches Ms-PL
-  upstream behavior. Revisit in Phase 5 when the export UI is reworked (or report upstream).
+## Lessons that still apply
 
-Phase 4 progress (2026-10-21):
-- Edits never change their input: `RecordingSession.DeriveAsync` saves the result as a new project
-  `<original id> edit <n>` (own copy of the images, `sourceId` in the result) and makes it the latest recording.
-  This is the base for review-before-apply: the user compares original and edit and keeps one.
-- `trim` (frame accurate: frames cut by the range keep only the part inside, so the result lasts exactly
-  endMs - startMs) and `get_contact_sheet` (evenly spaced frames as one labeled PNG grid + text list; rendered on an
-  STA thread because WPF visuals need one). Logic in `AgentReel.Mcp/Editing/` (`Timeline`, `ContactSheet`), tools in
-  `EditTools.cs`. Tests in `AgentReel.Mcp.Tests` (in CI).
-- Verified over stdio with a scratch build: window recording → contact sheet → trim 1000–4000 ms (3000 ms) →
-  trim of the edit (`edit 2`) → GIF export.
-- `optimize`: `Timeline.Fold` folds exact repeats and A-B-A flickers (middle frame ≤ `maxFlickerMs`, e.g. a blinking
-  caret) into the earlier frame, then `Timeline.Retime` applies `speed` and caps holds at `maxPauseMs`. Pixel compare in
-  `FramePixels` (exact, small decode cache). Rejected: the editor's percent similarity (`ImageMethods.CalculateDifference`)
-  – a new console line changes < 0.5 % of the pixels, so 99.5 % folded a whole 44-frame recording into one frame.
-  Verified over stdio: a 4 s "thinking" pause with a blinking caret became one 1.5 s hold, all output lines kept.
-- `add_caption` (text in a rounded box, top/center/bottom, wraps) and `add_highlight` (rectangle/ellipse outline in
-  recording pixels, optional `dimOutside`) for a time range. `Timeline.Isolate` splits frames cut by the range so the
-  overlay starts and ends exactly there; `Overlay` draws on the copied images inside `DeriveAsync` (new `change` hook;
-  a failed edit deletes its folder). STA helper shared as `Editing/Sta.cs`. Verified over stdio: caption 1000–5500 ms +
-  highlight 2000–6000 ms on a window recording, duration unchanged, GIF export.
-- `open_in_editor` (`AppTools.cs`) starts the app (`AGENTREEL_APP`, else `ScreenToGif.exe` next to the server, copied by
-  the project reference) with the recording's `Project.json`, via shell execute so the app does not inherit the MCP
-  stdio pipes. App changes (Ms-PL files, kept small): `Editor.LoadFromArguments` opens a passed `Project.json` like
-  "Recent projects" (`LoadProjectFile`); `ApplicationViewModel.Open` case 4 passes the files on, so an already open
-  empty editor loads them too (with "single instance" on, args arrive over the existing `InstanceSwitcherChannel` pipe).
-  Verified over stdio: caption edit → `open_in_editor` → the editor shows the edit with all 24 frames. Single-instance
-  path verified too (local `Settings.xaml` with `SingleInstance=True` next to a scratch build, so the user's AppData
-  settings stay untouched): one app process, the second project arrived over the pipe in a second editor window.
-  Known gap: edits the user makes in the editor are not seen by the server.
-- `list_recordings` (all projects with frames in the recording folder, newest first, `openInEditor` via the app's
-  global mutex `MutexList.IsInUse`) and `delete_recording` (`Destructive`, no default id, refused while running or open
-  in the editor). `RecordingSession.Get` loads unknown ids from disk (`Project.json`), so recordings of earlier runs and
-  of the app work with every tool. Ids must be plain folder names (no `..`, no separators). Verified over stdio across
-  two server runs: load from disk → trim → delete all.
-- Fixed (found by dogfooding over the registered server, 2026-10-21): `ProjectInfo.CreateProjectFolder` takes the
-  project's "open in an editor" mutex, and the server never released it. So every recording of the running server showed
-  `openInEditor: true`, `delete_recording` refused it, and the app's "Recent projects" refused to open it. The server now
-  holds the mutex only while recording (keeps the app's cache cleanup away) and releases it on stop
-  (`RecordingSessionTests`). Dogfood run: window recording 25 s → `optimize` (speed 2, 25.0 → 10.7 s) → `add_caption`
-  → `add_highlight` with `dimOutside` → GIF export, all correct.
+- WPF visuals need an STA thread (`Editing/Sta.cs`); a headless host creates its own hidden `Application`.
+- Child processes started by the MCP server must not inherit its stdio (use shell execute or own stdin), or the
+  JSON-RPC pipe hangs.
+- MP4: odd widths are rounded down to even; a long-held last frame needs CFR to keep the reported duration right.
+- Pixel compare for folding must be exact (`FramePixels`): percent similarity folded a whole console recording into
+  one frame because a new line changes < 0.5 % of the pixels.
+- Border does not clip its content (round buttons in the recording bar).
+- `git worktree remove` can hit "permission denied": run `dotnet build-server shutdown`, then `--force`, prune, and
+  remove the folder.
 
-- `get_status` (running?, elapsed, frames so far, time left until `maxSeconds`, latest and auto-stopped id) and live
-  `get_preview` (2026-10-21, decided with Amir): while a recording runs and `recordingId` is empty or its id, it returns
-  the newest frame whose PNG is complete (`ICaptureService.GetProgress`; WGC counts written frames, they are written in
-  order). `frame`/`atMs` are refused while live. Verified over stdio with a scratch build on a window recording: live
-  frames at 3 s and 6 s showed the right console lines, stop/preview/delete afterwards fine.
+## Feature ideas
 
-Phase 3 progress (2026-10-21):
-- SharpDX replaced with Vortice.Direct3D11 3.6.2 (+ Vortice.DXGI, Vortice.Mathematics, SharpGen.Runtime, all MIT) in the
-  four Desktop Duplication recorders (`ScreenToGif/Capture/Direct*Capture.cs`, still Ms-PL). Type aliases
-  (`using Texture2D = Vortice.Direct3D11.ID3D11Texture2D;` …) keep the diff to upstream small. New file
-  `Capture/DirectXHelper.cs`: `CopyRegion` keeps SharpDX's argument order (source first; Vortice's
-  `CopySubresourceRegion` is destination first) and `GetOutputs` enumerates adapters/outputs.
-  Pitfall: `CopyResource` also flips to (destination, source) and both are `ID3D11Resource`, so the compiler does not
-  catch a wrong order – all call sites were swapped by hand. Cursor drawing maps the staging texture with D3D11
-  `Map(ReadWrite)` instead of the DXGI surface (its texture now has CPU read + write access). `ImmediateContext` is
-  cached by Vortice (same wrapper, no refcount leak – checked).
-- Verified on the real app (Release, scratch copy with a local `Settings.xaml`, `-open screen-recorder -region …
-  -limit … -capture`, region inside a demo console window on monitor 2): all four recorders (image, cached,
-  changed-only image, changed-only cached) record the region; the cursor is drawn (monochrome arrow). Compared with
-  a SharpDX build of HEAD in a worktree: the "only capture changes" modes save near-white frames in both builds
-  (same sizes) – upstream behavior, not a regression. Not tested at runtime: color/masked-color cursor shapes, rotated
-  screens, device-lost recovery, the Debug build's D3D debug layer.
-- License link in Options → Extras now points to Vortice (new key `S.Options.Extras.License.Vortice`, English only;
-  other languages fall back to English). NOTICE.md lists the bundled MIT libraries. The old `sharpdx` case in
-  `Downloader.xaml.cs` (legacy download mode) is left untouched.
+MVP leftovers: chapter markers during recording (`add_marker`), auto-detect password fields.
+Later: auto-zoom on clicks, click/key name overlay, agent-readable export (Markdown with steps, timestamps, frames),
+bug-report mode, HDR + multi-monitor, scrolling capture, webcam/board recorders (built new), Microsoft Store.
 
-- Decided 2026-10-21 (Amir): WGC stays MCP-only for now; the app keeps its DXGI/GDI recorders. Phase 3 is closed.
-
-Phase 5 progress (2026-10-21):
-- Spike (not committed): WPF UI 4.3.0 merged globally in `App.xaml` (before the app's own dictionaries) builds and
-  runs, but restyles all old windows unevenly: `ExtendedButton` is `BasedOn {x:Type Button}`, so it picks up WPF UI's
-  Button (start tiles and Ok button shrink), larger fonts in ribbon and ComboBox, different spacing. WPF UI has only
-  Light/Dark, the app has 4 themes. No key collisions (`Panel.Background` vs `ApplicationBackgroundBrush`).
-- Decided (Amir): WPF UI only in the resources of new windows, never in `App.xaml`; old windows stay untouched and are
-  migrated one by one. The new UI may look completely different from ScreenToGif: very ergonomic, modern, AI-first.
-  First new window: the review window (review-before-apply of agent edits).
-- Review window built (2026-10-21) as a separate app, `AgentReel.Studio` (WinExe, WPF UI 4.3.0 merged in its own
-  `App.xaml`, Mica, follows the system theme; new code, not Ms-PL). The new UI lives there, not in the ScreenToGif app,
-  so no old implicit styles leak in. `AgentReel.Studio review <edit folder>`.
-  - Layout (decided with Amir: one large stage beats side by side): the agent's summary is the headline, the steps in
-    small type; one stage plays the edit, holding O shows the original at the same moment; `ChangeTimeline` draws the
-    original and the edit on one time scale with bands between them (gap = cut, narrowing band = faster), caption and
-    highlight marks, a joined playhead; clickable change chips; feedback box + Discard (Esc) + Keep edit (Ctrl+Enter).
-    Space plays, ←/→ steps frames, Shift+←/→ jumps between changes, typing a letter focuses the feedback box.
-  - `AgentReel.Review` (net9.0, merged into `AgentReel.Editing` on 2026-10-21): `Edit.json` (`EditRecord`: source id, original id, steps, per-frame source range in
-    the original, marks) and `Review.json` (`ReviewRecord`: summary, verdict, feedback). Written atomically.
-  - `RecordingSession.DeriveAsync` writes `Edit.json`; an edit of an edit is joined to the chain (`Editing/EditChain`),
-    so the review always compares with the original recording. `sourceId` now comes from `Edit.json` (was in memory).
-  - MCP: `request_review(summary, recordingId)` writes a pending `Review.json` and starts Studio (`AGENTREEL_STUDIO`,
-    else next to the server via project reference); `get_review(recordingId, waitSeconds)` polls for the verdict
-    (pending/accepted/rejected/feedback).
-  - Verified over stdio (Release): 17 s window recording → optimize → add_caption → trim → request_review → Studio
-    showed the chain against the original (17.0 → 8.1 s, cut, two faster pauses, caption). Tests: 36/36 MCP
-    (`EditChainTests`). `RecordingSessionTests.A_stopped_recording_is_not_marked_as_open_in_an_editor` failed once in a
-    full run right after a solution build, then passed 4 times – watch for flakiness.
-  - Amir tried the window: "sieht gut aus" (2026-10-21).
-  - The client's name is shown (header "CLAUDE SUGGESTS", "Tell Claude what to change…", confirmation texts):
-    `request_review` takes `McpServer.ClientInfo`; `ReviewTools.AgentName` maps every name containing "claude"
-    (claude-code, claude-ai) to "Claude", else title or name. Stored as `agent` in `Review.json`; Studio falls back to
-    "Your agent". Verified over stdio with clientInfo `claude-code`; tests 41/41.
-
-- Dogfooded over the rebuilt registered Debug server (2026-10-21): window recording 18 s → optimize (speed 1.5,
-  6.4 s) → add_caption → request_review → Studio opened with "CLAUDE SUGGESTS" → Amir kept it, `get_review` returned
-  `accepted`. Old test recordings deleted.
-- `Directory.Build.props` gives every `AgentReel.*` project its own metadata (2026-10-21, Amir): Company/Product
-  "AgentReel", Authors "Amir", "Copyright © 2026 Amir", version 0.1.0, no MS-PL package license. ScreenToGif projects
-  keep the upstream values.
-
-- Discard deletes the edit, or keeps its files (2026-10-21, Amir: "Kann man entscheiden"). Discard (Esc) = reject +
-  delete; the chevron menu next to it (or Shift+Esc) = reject, keep the files. Studio writes `deleteEdit` in
-  `Review.json`; `get_review` (no longer read-only) deletes the edit through `RecordingSession.DeleteAsync` (retries on
-  IOException) and returns `deleted: true`, so the server's in-memory cache stays consistent. Rejected: undo after
-  Discard (races with get_review polling), deletion by Studio (stale server cache), a persistent setting. Verified:
-  tests 43/43, menu and both verdicts in Studio via UI Automation.
-
-Product direction (2026-10-21, Amir): AI first, but Studio must also be a pro studio where the user does everything by
-hand; Claude is extra help. A Claude API key inside Studio is postponed. Every MCP edit gets a manual control in Studio.
-USP from market research (doc "AgentReel – Produkt & Geschäftsmodell", https://claude.ai/artifact/A8M4ciJ2qmzNrz7EgvBQpo):
-"your agent shows its work – and nothing private leaks": local auto-redaction (Windows OCR + secret detectors) with
-review-before-apply, proof-of-work videos for PRs, approval trail. Free open core; Pro $69 one-time (12 months of
-updates); Team $12/seat/month. Free rivals on Windows already have auto-zoom and agent PR demos (Recordly, OpenScreen,
-Cap), so those are not the selling point.
-
-Session window (2026-10-21): `AgentReel.Studio` without arguments → `Session/SessionWindow` ("What should Claude see?":
-window cards with a snapshot, screens only as shapes, search, FPS, cursor) and `Session/RecordingBar` (topmost pill,
-`WDA_EXCLUDEFROMCAPTURE`, F8 global hotkey, Discard/Stop; buttons are round because Border does not clip its content).
-`AgentReel.Capture/ProjectRecording` is the shared recording lifecycle. The server's latest recording is the newest
-project on disk (also Studio's and the app's). F8 not verified by Amir yet.
-
-`AgentReel.Editing` (2026-10-21): timeline edits, overlays, contact sheet, edit chain, pixel compare, export presets,
-Edit/Review files and `ProjectLibrary` (load, scan, derive, delete), shared by the MCP server and Studio.
-
-Cleanup (2026-10-21, from a repo audit): removed the spike, `Other/Translator`, dead files, csproj leftovers, upstream
-docs/templates, the YandexUpload test; the legacy app no longer checks upstream for updates, sends no feedback mail,
-downloads no upstream translations, has no donate page. Still open (decide with Amir): own data folders instead of
-`%AppData%\ScreenToGif` / `%TEMP%\ScreenToGif` (shared with a real ScreenToGif install), webcam/board recorders,
-non-English localization, `Debug (Store)` configuration, ScreenToGif branding strings and About page.
-
-Independent app (decided 2026-10-21, Amir): AgentReel becomes a new app with no ScreenToGif code at all; everything
-derived from ScreenToGif is rewritten, then the Ms-PL goes (suggest a lawyer check before relicensing). Stay in this repo
-until nothing derived is left, then move the AgentReel.* code into a fresh repo with a clean history. Clean-room rule:
-new implementations are written from specs/behavior, never by reading, translating or copying ScreenToGif source.
-Do not polish the legacy projects anymore, only remove them. Pricing: free basics; Pro subscription $7/month or
-$70/year (AI features); Team later. Languages: English + German. Webcam/board recorders: later, built new. Microsoft
-Store: later. Trademark/domain check for "AgentReel" requested.
-
-Plan (the new code still uses ScreenToGif for these):
-1. Own project model + storage: replace `ProjectInfo`/`FrameInfo` (~65 uses), `UserSettings`, `MutexList`; own
-   format and folders (`%LOCALAPPDATA%\AgentReel`); move `ICaptureService`/`CaptureTarget` (our code, in
-   `ScreenToGif.Core/Capture`) into `AgentReel.Capture`.
-2. Own export (`AgentReel.Export`, in flight on a worktree branch): own GIF and APNG encoders, MP4 via Media Foundation.
-3. Drop `open_in_editor`, the legacy app reference, the characterization tests of the old encoders.
-4. Own resources and localization (EN, DE).
-5. Fresh repo, own license, NOTICE only for third-party libraries.
-
-Merged 2026-10-21: Studio pro editor (`AgentReel.Studio/Editor/`, `AgentReel.Editing/EditDocument.cs` + `Clips.cs`:
-library with versions, stage, timeline, shorten/cut/caption/highlight, undo, save as version; `edit <folder>` argument;
-mouse gestures and shortcuts not runtime-tested), removal of uploads/feedback/`Secret.cs` from the legacy app.
-
-Name and USP (2026-10-21, after research): "AgentReel" is taken in practice (agentreel.dev sells agent-session videos,
-npm `agentreel`, .com/.app/.dev registered) – working name **Glasstake** (not renamed in code yet; attorney clearance
-before filing). USP: evergreen how-to videos for native Windows software – a shot list anchored to UI Automation
-(vision fallback), re-shot on every build (CI), edits (captions, highlights, cuts, redactions) anchored to steps survive
-the re-shoot, every change approved in Studio; director mode (one sentence → agent drafts the shot list → user approves
-→ film/edit). Web tools already do this (DemoBites Retake, Velo, Redemo, Vidocu); none found for native Windows. Privacy
-Shield = built-in safety, not the headline. Pricing: $7/month individual; Business ~$49–99 per app/month.
-
-Merged later on 2026-10-21: Privacy Shield (`AgentReel.Editing/Privacy/`, MCP `scan_privacy`/`redact`, export
-`privacyWarning`; Windows OCR, found 5/5 fake secrets in a console demo, untested on browsers/IDEs) and
-`AgentReel.Export` (own GIF/APNG encoders, MP4 via Media Foundation/Vortice.MediaFoundation, no FFmpeg; not wired into
-the server/Studio yet; wired in with the project model below).
-
-Merged 2026-10-21/22:
-- Own project model (step 1): `AgentReel.Core` (`Recording`/`RecordedFrame`, `recording.json`, `RecordingStore` in
-  `%LOCALAPPDATA%\AgentReel\Recordings`, `AppSettings` in `%APPDATA%\AgentReel\settings.json`, `RecordingLock` lock
-  file). Capture abstractions moved to `AgentReel.Capture`. `RecordingLibrary` replaces `ProjectLibrary`;
-  `RecordingExport` uses `AgentReel.Export` (gif/apng/mp4 only). `open_in_editor` → `open_in_studio`. `LegacyImport`
-  copies old `%TEMP%\ScreenToGif\Recording` projects once (marker file). No AgentReel.* project references ScreenToGif.
-- `AgentReel.Direct` (System.Windows.Automation): shot lists (`%LOCALAPPDATA%\AgentReel\ShotLists`), locator matcher
-  (found/moved/changed/missing), `ShotPlayer` (UIA patterns, guarded SendInput fallback), `IShotHooks`, drift report
-  (json/html/png). Sample app `AgentReel.Direct.SampleApp` (`--v2` moves Export, renames Customer→Client, removes
-  Refresh). MCP: `inspect_app`, `save_shot_list`, `list_shot_lists`, `run_shot_list`, `check_drift`.
-- USP proof (`AgentReel.Editing/Shots/`): `film_shot_list` records the app's main-window area while the list plays
-  (moves the app off the primary monitor if there is a second one), `shots.json` = step timeline + element boxes;
-  `add_caption`/`add_highlight` take `stepId` (anchored edits in `edits.json`, highlights can follow the element);
-  `reshoot` films the current build, re-places anchored edits, drops edits on missing steps, cuts missing steps' waits,
-  saves a pending version and opens Studio's review. Verified v1→v2: highlight followed the button +510 px.
-  Demo for Amir: takes `2026-10-22 16-05-39` (edited `… edit 3`) and `2026-10-22 16-05-51` (review `… edit 1`).
-- Known limits: real keyboard input during a run lands in the app (run re-shoots in a VM/CI); only WPF tested; no
-  vision fallback yet; Studio edits are not anchored; review compares with the raw new take; long review headline.
-
-Next – START HERE:
-1. Show Amir the reshoot demo in Studio. Rebuild the registered Debug server (stop it, `dotnet build
-   AgentReel.Mcp/AgentReel.Mcp.csproj`, Amir runs `/mcp` reconnect) – it still runs the pre-model code.
-2. Anchored editing in Studio (pick a step on the timeline, edits follow it), director mode (agent drafts a shot list
-   from `inspect_app`, user approves), WinForms/Electron tests, vision fallback, CI reshoot recipe.
-3. Remaining independence steps: remove the ScreenToGif projects and tests, own resources (EN/DE), rename to Glasstake,
-   fresh repo.
-
-## Roadmap
-
-- Phase 0 – fork and safety net (~1 week): build, CI, capture spike, characterization tests
-  (export a sample project to GIF and MP4 and compare outputs) before any refactoring.
-- Phase 1 – extract core (~2 weeks): new `ScreenToGif.Core` (`net9.0-windows10.0.19041.0`, no `UseWPF`);
-  move `ProjectInfo`, `FrameInfo`, `ActionStack` there; replace Dispatcher calls in `EncodingManager` with
-  `IProgress<T>`/events; put capture engines behind `ICaptureService`.
-- Phase 2 – MCP server MVP (~1 week): new console project `AgentReel.Mcp` (stdio) using packages
-  `ModelContextProtocol` + `Microsoft.Extensions.Hosting`; tools `list_targets`, `start_recording`,
-  `stop_recording`, `get_preview` (returns `ImageContentBlock` PNG), `export`. Logs to stderr only.
-  Register in Claude Desktop config and test end to end with Computer Use.
-  **Gate:** Claude records a 20-second demo on its own and exports MP4.
-- Phase 3 – modern capture (~2 weeks): Windows.Graphics.Capture for windows and monitors; replace SharpDX with Vortice.Windows.
-- Phase 4 – editing over MCP (1–2 weeks): `trim`, `add_caption`, `add_highlight`, `optimize` (speed, dedupe),
-  `get_contact_sheet`, `open_in_editor` (via existing named pipe).
-- Phase 5 – UI (4–6 weeks, ongoing): WPF UI (lepoco/wpfui, `ui:ThemesDictionary` + `ui:ControlsDictionary`,
-  `ui:FluentWindow`), one window from record to export, command palette, timeline; split `Editor.xaml.cs` into view models.
-
-MCP server skeleton (from the official C# SDK docs):
-
-```csharp
-var builder = Host.CreateApplicationBuilder(args);
-builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace); // keep stdout for MCP
-builder.Services.AddSingleton<IRecordingService, RecordingService>();
-builder.Services.AddMcpServer().WithStdioServerTransport().WithToolsFromAssembly();
-await builder.Build().RunAsync();
-```
-
-## Feature priorities (from issues, user reviews, competitors)
-
-MVP: auto-shorten agent "thinking" pauses (reuse duplicate-frame detection), redaction tool + auto-detect
-password fields/emails, review-before-apply for agent edits, chapter markers during recording (`add_marker`),
-robust FFmpeg download (upstream issues #1469, #1460, #1458, #1451).
-Later: auto-zoom on clicks, click/key name overlay (#1476), agent-readable export (Markdown with steps,
-timestamps, frames), bug-report mode, HDR + multi-monitor fixes (#1452, #840), TTS narration, scrolling capture.
-
-Idea (2026-10-21, Amir): transcript-based editing + AI voiceover, likely a pro feature. Stages, each useful alone:
-1. Record audio (mic + system via WASAPI, shared clock with WGC). Prerequisite: ScreenToGif records no audio today.
-2. Transcribe locally (Whisper via whisper.cpp / Whisper.net, MIT) with word timestamps → subtitles
-   (SRT/VTT, MP4 track, or burned in for GIF).
-3. Edit subtitles as text (changes subtitles only).
-4. Remove filler words ("ähm"), slips and long pauses: cut audio + video together via word timestamps
-   (same idea as shortening thinking pauses).
-5. Claude rewrites the script → original audio no longer matches, so this needs step 6.
-6. TTS speaks the rewritten script per segment; each video segment is retimed to the new speech length (hold or
-   shorten still frames, speed up motion) – the frame + delay model fits this well.
-7. Translate: script per language, TTS per language, video retimed per language.
-Every change is proposed as a text diff and approved by the user (review-before-apply). Open: TTS engine (Windows
-voices, Piper – check the current version's license, or cloud like ElevenLabs/Azure), voice cloning of the user's own
-voice (consent, label AI voice, EU AI Act Art. 50).
-
-Todos (transcript editing + AI voiceover):
-- [ ] Decide: audio before or after the MVP, and whether this is a pro feature.
-- [ ] Audio capture: mic + system via WASAPI in `AgentReel.Capture`, shared clock with WGC, mux audio into MP4 export.
-- [ ] MCP: `start_recording` option `audio` (mic/system/both).
-- [ ] Local transcription with Whisper.net, word timestamps; model as optional download (never bundled).
-- [ ] Subtitle export: SRT/VTT, MP4 subtitle track, burned in for GIF.
-- [ ] MCP tools `transcribe` and `edit_subtitles`.
-- [ ] Detect filler words and long pauses, propose cuts as a diff, cut audio + video together (`remove_fillers`).
-- [ ] Script rewrite by Claude as a text diff with approval (`rewrite_script`).
-- [ ] Pick a TTS engine and check its license (Windows voices, Piper, ElevenLabs/Azure).
-- [ ] Retime each video segment to the new speech length (adjust frame delays).
-- [ ] Translation: script, TTS and retiming per language, export per language.
-- [ ] Voice cloning: consent, label as AI voice (EU AI Act Art. 50).
-
-## Open decisions
-
-- Trademark/domain check for "AgentReel" (DPMA, EUIPO, .com, .app).
-- Whether to expose audio/webcam to the agent before or after the MVP.
+Transcript editing + AI voiceover (Amir, 2026-10-21; likely pro). Stages, each useful alone:
+1. Record audio (mic + system via WASAPI, shared clock with WGC).
+2. Transcribe locally (Whisper.net, MIT) with word timestamps → subtitles (SRT/VTT, MP4 track, burned in for GIF).
+3. Edit subtitles as text.
+4. Remove filler words, slips and long pauses: cut audio + video together via word timestamps.
+5. Claude rewrites the script → needs step 6.
+6. TTS per segment; each video segment retimed to the new speech length (frame + delay model fits).
+7. Translate: script, TTS and retiming per language.
+Every change is a text diff approved by the user. Open: TTS engine and license (Windows voices, Piper, ElevenLabs/Azure),
+voice cloning (consent, label AI voice, EU AI Act Art. 50), audio before or after the MVP.
 
 ## Conventions
 
 - Code, comments, commit messages and docs in English. Talk to Amir in German.
-- Small commits; never commit secrets or downloaded encoders.
-- Keep upstream mergeable where cheap: prefer new files/projects over editing large upstream files until Phase 1.
+- Small commits; `git add` explicit paths only, never `.claude/`. End commits with
+  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Never commit secrets or downloaded encoders.
+- Bigger packages go on a worktree branch, merged with `--no-ff` after all tests pass in Release under the desktop lock.
