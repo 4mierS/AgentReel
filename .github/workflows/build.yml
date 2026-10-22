@@ -47,3 +47,7 @@ jobs:
 
       - name: Test export
         run: dotnet test AgentReel.Export.Tests/AgentReel.Export.Tests.csproj -c Release --no-build --verbosity normal
+
+      # Starts the sample app and drives it through UI Automation (windows-latest has an interactive desktop).
+      - name: Test shot lists
+        run: dotnet test AgentReel.Direct.Tests/AgentReel.Direct.Tests.csproj -c Release --no-build --verbosity normal

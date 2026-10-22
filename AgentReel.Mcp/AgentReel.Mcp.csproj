@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AgentReel.Capture\AgentReel.Capture.csproj" />
+    <ProjectReference Include="..\AgentReel.Direct\AgentReel.Direct.csproj" />
     <ProjectReference Include="..\AgentReel.Editing\AgentReel.Editing.csproj" />
     <!-- Copied next to the server, which starts it for request_review. -->
     <ProjectReference Include="..\AgentReel.Studio\AgentReel.Studio.csproj" />
