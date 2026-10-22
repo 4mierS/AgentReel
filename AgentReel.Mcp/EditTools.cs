@@ -78,7 +78,7 @@ public sealed class EditTools(RecordingSession session)
         [Description("Font size in pixels of the recording. Default: about 1/22 of its height.")] double? fontSize = null,
         [Description("Text color as #RRGGBB, #AARRGGBB or a name like white.")] string textColor = "#FFFFFF",
         [Description("Box color behind the text as #RRGGBB, #AARRGGBB or a name. #00000000 for no box.")] string backgroundColor = "#B4000000",
-        [Description("For a recording filmed from a shot list: anchor the caption to this step instead of startMs/endMs. It is saved with the shot list, so reshoot puts it on the same step of every new take (with the default caption style).")] string? stepId = null,
+        [Description("For a recording filmed from a shot list: anchor the caption to this step instead of startMs/endMs. It is saved with the shot list, so reshoot puts it on the same step of every new take (text, position and size; colors are the default ones).")] string? stepId = null,
         [Description("With stepId: start this many milliseconds into the step.")] int stepOffsetMs = 0,
         [Description("With stepId: show for this many milliseconds. Default: until the end of the step (or of endStepId).")] int? stepDurationMs = null,
         [Description("With stepId: show until the end of this later step.")] string? endStepId = null)
@@ -94,7 +94,7 @@ public sealed class EditTools(RecordingSession session)
 
         if (stepId != null)
         {
-            var anchored = new AnchoredEdit(AnchoredEdit.NewId(), AnchorKind.Caption, Anchor(stepId, stepOffsetMs, stepDurationMs, endStepId), text, captionPosition);
+            var anchored = new AnchoredEdit(AnchoredEdit.NewId(), AnchorKind.Caption, Anchor(stepId, stepOffsetMs, stepDurationMs, endStepId), text, captionPosition, FontSize: fontSize);
             return await DrawAnchoredAsync(recordingId, anchored, _ => draw, "add_caption", "caption", text);
         }
 
@@ -139,7 +139,7 @@ public sealed class EditTools(RecordingSession session)
         {
             Box? area = followElement ? null : Area(project, x, y, width, height);
             var anchored = new AnchoredEdit(AnchoredEdit.NewId(), AnchorKind.Highlight, Anchor(stepId, stepOffsetMs, stepDurationMs, endStepId), Area: area, FollowElement: followElement,
-                Padding: Math.Clamp(padding, 0, 200), Shape: highlightShape, DimOutside: dimOutside);
+                Padding: Math.Clamp(padding, 0, 200), Shape: highlightShape, DimOutside: dimOutside, Thickness: thickness);
 
             return await DrawAnchoredAsync(RecordingSession.IdOf(project), anchored, rect => Overlay.Highlight(rect, highlightShape, outline, thickness, dimOutside), "add_highlight", "highlight", null);
         }

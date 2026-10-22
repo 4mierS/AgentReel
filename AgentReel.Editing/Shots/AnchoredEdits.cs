@@ -43,6 +43,8 @@ public sealed record StepAnchor(string StepId, int OffsetMs = 0, int? DurationMs
 /// <param name="Area">Fixed area in recording pixels (highlight, redaction), used when <paramref name="FollowElement"/> is off.</param>
 /// <param name="FollowElement">Highlight or redact the element of <paramref name="ElementStepId"/> (default: the anchor's step), wherever it is in this take.</param>
 /// <param name="Padding">Pixels added around a followed element.</param>
+/// <param name="Thickness">Outline of a highlight in pixels; default about 1/270 of the height.</param>
+/// <param name="FontSize">Caption size in pixels; default about 1/22 of the height.</param>
 public sealed record AnchoredEdit(
     string Id,
     AnchorKind Kind,
@@ -54,7 +56,9 @@ public sealed record AnchoredEdit(
     string? ElementStepId = null,
     int Padding = 6,
     HighlightShape Shape = HighlightShape.Rectangle,
-    bool DimOutside = false)
+    bool DimOutside = false,
+    double? Thickness = null,
+    double? FontSize = null)
 {
     public string Describe() => Kind switch
     {
@@ -275,8 +279,8 @@ public sealed record AnchoredOverlayItem(Guid Id, int SourceStartMs, int SourceE
 
     public override Action<DrawingContext, int, int> Drawing(int width, int height) => Edit.Kind switch
     {
-        AnchorKind.Caption => Overlay.Caption(Edit.Text ?? "", Edit.Position, null, CaptionItem.Foreground, CaptionItem.Background),
-        AnchorKind.Highlight => Overlay.Highlight(Area ?? Rect.Empty, Edit.Shape, HighlightItem.Color, HighlightItem.Thickness(height), Edit.DimOutside),
+        AnchorKind.Caption => Overlay.Caption(Edit.Text ?? "", Edit.Position, Edit.FontSize, CaptionItem.Foreground, CaptionItem.Background),
+        AnchorKind.Highlight => Overlay.Highlight(Area ?? Rect.Empty, Edit.Shape, HighlightItem.Color, Edit.Thickness ?? HighlightItem.Thickness(height), Edit.DimOutside),
         AnchorKind.Redaction => Overlay.Box(Area ?? Rect.Empty, RedactionColor),
         _ => (_, _, _) => { }
     };
