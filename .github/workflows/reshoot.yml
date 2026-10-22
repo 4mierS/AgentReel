@@ -1,0 +1,73 @@
+name: Reshoot
+
+# The evergreen-video recipe on a hosted runner: baseline and film the sample app's v1, then check drift and re-shoot
+# against v2 with the shot list's anchored edits. The drift report, the re-shoot summary and both videos are uploaded.
+#
+# To use it for your own app: build the app instead of the sample, commit its shot list folder (shotlist.json,
+# edits.json and, ideally, baseline/ from a known-good build) and drop the v1 steps.
+#
+# Limits:
+# - windows-latest runs with an interactive desktop (UI Automation and Windows.Graphics.Capture work), but at a fixed,
+#   small resolution and without a GPU; videos are fine, timings are slower than on a desktop.
+# - Self-hosted runners must run as an interactive user session (not as a service), or nothing can be driven or filmed.
+# - Nothing else may use the keyboard or mouse meanwhile; agentreel warns if something does.
+# - Exit code 2 (drift, missing steps, dropped edits) means "a person should look", so it does not fail the job.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reshoot:
+    runs-on: windows-latest
+    env:
+      SHOTS: ${{ github.workspace }}\samples\shotlists\invoice-export
+      APP: ${{ github.workspace }}\AgentReel.Direct.SampleApp\bin\Release\net9.0-windows10.0.19041.0\AgentReel.Direct.SampleApp.exe
+      CLI: ${{ github.workspace }}\AgentReel.Cli\bin\Release\net9.0-windows10.0.19041.0\agentreel.exe
+      OUT: ${{ github.workspace }}\reshoot-output
+      AGENTREEL_RECORDINGS: ${{ github.workspace }}\reshoot-output\recordings
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build
+        run: |
+          dotnet build AgentReel.Cli/AgentReel.Cli.csproj -c Release
+          dotnet build AgentReel.Direct.SampleApp/AgentReel.Direct.SampleApp.csproj -c Release
+
+      # In a real project the baseline comes from a known-good build (or is committed); here v1 is that build.
+      - name: Baseline and film v1
+        shell: pwsh
+        run: |
+          & $env:CLI baseline $env:SHOTS --app $env:APP
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:CLI film $env:SHOTS --app $env:APP --export "$env:OUT\v1.mp4"
+          if ($LASTEXITCODE -gt 2) { exit $LASTEXITCODE }
+
+      - name: Drift against v2
+        shell: pwsh
+        run: |
+          & $env:CLI drift $env:SHOTS --app $env:APP --args --v2 --out "$env:OUT\drift"
+          "drift=$LASTEXITCODE" >> $env:GITHUB_OUTPUT
+          if ($LASTEXITCODE -gt 2) { exit $LASTEXITCODE } else { exit 0 }
+
+      - name: Reshoot v2 with the anchored edits
+        shell: pwsh
+        run: |
+          & $env:CLI reshoot $env:SHOTS --app $env:APP --args --v2 --out "$env:OUT\reshoot" --export "$env:OUT\v2-reshoot.mp4"
+          if ($LASTEXITCODE -gt 2) { exit $LASTEXITCODE } else { exit 0 }
+
+      - name: Upload report and videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reshoot
+          path: |
+            reshoot-output/drift
+            reshoot-output/reshoot
+            reshoot-output/*.mp4
+            samples/shotlists/invoice-export/baseline
+            samples/shotlists/invoice-export/shotlist.json
+          if-no-files-found: warn

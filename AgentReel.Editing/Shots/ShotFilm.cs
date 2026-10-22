@@ -33,7 +33,7 @@ public static class ShotFilm
         options ??= new FilmOptions();
 
         var camera = new ShotCamera(capture, list, options);
-        var player = new ShotPlayer(new ShotRunOptions { StepDelayMs = options.StepDelayMs, CloseAppAtEnd = false, ContinueOnError = true, FindTimeoutMs = options.FindTimeoutMs });
+        var player = new ShotPlayer(new ShotRunOptions { StepDelayMs = options.StepDelayMs, CloseAppAtEnd = false, ContinueOnError = true, FindTimeoutMs = options.FindTimeoutMs, ShotListFolder = options.ShotListFolder });
         ShotRun run;
 
         try
@@ -111,9 +111,11 @@ public static class ShotFilm
         var changed = steps.Count(c => c.Played && c.Drift is Drift.Moved or Drift.Changed);
         var missing = steps.Count(c => !c.Played);
 
-        text.Append(CultureInfo.InvariantCulture, $"Re-shot \"{list.Name}\" on the current build: {steps.Count(c => c.Played)} of {steps.Count} steps played");
-        text.Append(missing > 0 || changed > 0 ? $", {changed} changed or moved, {missing} missing." : ", nothing changed in the app.");
-        text.Append(CultureInfo.InvariantCulture, $" {resolution.Placed.Count} of {resolution.Placed.Count + resolution.Dropped.Count} edits carried over.");
+        //One short headline; the review window lists the lines after it.
+        text.Append(CultureInfo.InvariantCulture, $"Re-shot \"{list.Name}\": {resolution.Placed.Count} of {resolution.Placed.Count + resolution.Dropped.Count} edits carried over");
+        text.Append(missing > 0 || changed > 0 ? $", {changed + missing} {(changed + missing == 1 ? "step" : "steps")} to check." : ", nothing changed in the app.");
+        text.Append(CultureInfo.InvariantCulture, $"\n{steps.Count(c => c.Played)} of {steps.Count} steps played on the current build");
+        text.Append(missing > 0 || changed > 0 ? $", {changed} changed or moved, {missing} missing." : ".");
 
         foreach (var step in steps)
         {
@@ -137,6 +139,9 @@ public static class ShotFilm
 
         foreach (var dropped in resolution.Dropped)
             text.Append($"\nDropped {Lower(dropped.Edit.Describe())}: {dropped.Reason}");
+
+        if (film.Run.Warning != null)
+            text.Append("\n⚠ ").Append(film.Run.Warning);
 
         return text.ToString();
 

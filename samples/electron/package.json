@@ -1,0 +1,14 @@
+{
+  "name": "glasstake-sample-electron",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Invoices sample as an Electron app, to check shot lists against Chromium's UI Automation tree. Start with --v2 for the next release.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:v2": "electron . --v2"
+  },
+  "devDependencies": {
+    "electron": "44.6.0"
+  }
+}

@@ -17,7 +17,7 @@ public static partial class Crops
     /// <summary>
     /// Pixels around the element, so the crop shows a little context.
     /// </summary>
-    private const int Margin = 6;
+    internal const int Margin = 6;
 
     /// <summary>
     /// Saves a PNG of the element to <paramref name="path"/>. Returns false if the window cannot be rendered.
@@ -38,18 +38,9 @@ public static partial class Crops
 
         //UIA and the rendered bitmap may disagree on DPI scaling, so the element's box is scaled to the bitmap.
         var scale = image.PixelWidth / windowBounds.Width;
-        var box = live.Info.Bounds;
-        var x = (int)Math.Floor((box.X - Margin) * scale);
-        var y = (int)Math.Floor((box.Y - Margin) * scale);
-        var width = (int)Math.Ceiling((box.Width + 2 * Margin) * scale);
-        var height = (int)Math.Ceiling((box.Height + 2 * Margin) * scale);
+        var rect = CropRect(live.Info.Bounds, scale, image.PixelWidth, image.PixelHeight);
 
-        x = Math.Clamp(x, 0, image.PixelWidth - 1);
-        y = Math.Clamp(y, 0, image.PixelHeight - 1);
-        width = Math.Clamp(width, 1, image.PixelWidth - x);
-        height = Math.Clamp(height, 1, image.PixelHeight - y);
-
-        var crop = new CroppedBitmap(image, new Int32Rect(x, y, width, height));
+        var crop = new CroppedBitmap(image, rect);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
         var encoder = new PngBitmapEncoder();
@@ -60,7 +51,29 @@ public static partial class Crops
         return true;
     }
 
-    private static BitmapSource? Render(IntPtr hwnd)
+    /// <summary>
+    /// The part of a window bitmap a crop of <paramref name="box"/> (window-relative, UIA units) covers: the box plus
+    /// <see cref="Margin"/>, scaled to bitmap pixels and clamped to the bitmap.
+    /// </summary>
+    internal static Int32Rect CropRect(Box box, double scale, int imageWidth, int imageHeight)
+    {
+        var x = (int)Math.Floor((box.X - Margin) * scale);
+        var y = (int)Math.Floor((box.Y - Margin) * scale);
+        var width = (int)Math.Ceiling((box.Width + 2 * Margin) * scale);
+        var height = (int)Math.Ceiling((box.Height + 2 * Margin) * scale);
+
+        x = Math.Clamp(x, 0, imageWidth - 1);
+        y = Math.Clamp(y, 0, imageHeight - 1);
+        width = Math.Clamp(width, 1, imageWidth - x);
+        height = Math.Clamp(height, 1, imageHeight - y);
+
+        return new Int32Rect(x, y, width, height);
+    }
+
+    /// <summary>
+    /// The whole window as the user sees it (PrintWindow, so overlapping windows do not show).
+    /// </summary>
+    internal static BitmapSource? Render(IntPtr hwnd)
     {
         if (!GetWindowRect(hwnd, out var rect))
             return null;

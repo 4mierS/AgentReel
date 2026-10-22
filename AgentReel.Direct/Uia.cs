@@ -8,7 +8,9 @@ namespace AgentReel.Direct;
 /// <summary>
 /// A live element together with what the matcher sees of it.
 /// </summary>
-public sealed record LiveElement(AutomationElement Element, ElementInfo Info, AutomationElement TopWindow);
+/// <param name="ScreenBox">Set when the element was found by its picture (<see cref="Vision"/>): where it is on screen.
+/// <see cref="Element"/> is then only what UI Automation has at that place, so clicks go there by mouse.</param>
+public sealed record LiveElement(AutomationElement Element, ElementInfo Info, AutomationElement TopWindow, Rect? ScreenBox = null);
 
 /// <summary>
 /// UI Automation access for one app (one process): its top-level windows, their element trees, and actions on
@@ -29,15 +31,50 @@ public sealed class Uia(int processId)
     /// The app's top-level windows, main window first (the one without an owner comes first in z-order rarely, so
     /// the biggest is taken as main).
     /// </summary>
+    /// <remarks>
+    /// The windows come from Win32 (EnumWindows), not from a search of the desktop's UIA children: such a search asks
+    /// every program's windows, and one hung program (a suspended store app) adds seconds to every call.
+    /// </remarks>
     public IReadOnlyList<AutomationElement> TopWindows()
     {
-        var condition = new AndCondition(
-            new PropertyCondition(AutomationElement.ProcessIdProperty, ProcessId),
-            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window));
+        var windows = new List<AutomationElement>();
 
-        return AutomationElement.RootElement.FindAll(TreeScope.Children, condition).Cast<AutomationElement>()
-            .OrderByDescending(o => Area(o.Current.BoundingRectangle)).ToList();
+        foreach (var hwnd in Native.TopLevelWindows(ProcessId))
+        {
+            try
+            {
+                var window = AutomationElement.FromHandle(hwnd);
+
+                //Owned windows that UIA lists under their owner are walked from there (see Elements).
+                if (window.Current.ControlType == ControlType.Window && Equals(TreeWalker.ControlViewWalker.GetParent(window), AutomationElement.RootElement))
+                    windows.Add(window);
+            }
+            catch (Exception ex) when (ex is ElementNotAvailableException or ArgumentException or InvalidOperationException)
+            {
+                //Closed meanwhile.
+            }
+        }
+
+        return windows.OrderByDescending(o => Area(o.Current.BoundingRectangle)).ToList();
     }
+
+    /// <summary>
+    /// Chromium-based apps (Electron, WebView2 hosts) build their accessibility tree only when a client asks, and a walk
+    /// that asks right after the window appears, before the page is loaded, can leave the tree empty for good. So a
+    /// freshly launched Chromium window gets a moment before the first walk (see also <see cref="FindAsync"/>).
+    /// Other apps return at once.
+    /// </summary>
+    public async Task WaitForWebContentAsync(CancellationToken token)
+    {
+        if (Native.TopLevelWindows(ProcessId).Any(Native.IsChromium))
+            await Task.Delay(1500, token);
+    }
+
+    /// <summary>
+    /// True when a Chromium window of the app shows no page in UI Automation yet (no Document element).
+    /// </summary>
+    private bool WebTreeMissing(IReadOnlyList<LiveElement> elements) =>
+        !elements.Any(a => a.Info.ControlType == "Document") && Native.TopLevelWindows(ProcessId).Any(Native.IsChromium);
 
     /// <summary>
     /// The titles of all the app's windows, including owned dialogs that UIA lists under their owner.
@@ -181,11 +218,13 @@ public sealed class Uia(int processId)
     private static string? NullIfEmpty(string? text) => string.IsNullOrEmpty(text) ? null : text;
 
     /// <summary>
-    /// Finds the element that fits the locator best, retrying until it appears or the timeout ends.
+    /// Finds the element that fits the locator best, retrying until it appears or the timeout ends. Then, if
+    /// <paramref name="cropRoot"/> is given and the locator has a baseline crop, looks for its picture (<see cref="Vision"/>).
     /// </summary>
-    public async Task<(LiveElement? Element, Match? Match)> FindAsync(Locator locator, int timeoutMs, CancellationToken token)
+    public async Task<(LiveElement? Element, Match? Match)> FindAsync(Locator locator, int timeoutMs, CancellationToken token, string? cropRoot = null)
     {
         var watch = Stopwatch.StartNew();
+        var nudged = 0L;
 
         while (true)
         {
@@ -196,8 +235,20 @@ public sealed class Uia(int processId)
             if (match != null)
                 return (elements.First(f => ReferenceEquals(f.Info, match.Element)), match);
 
+            //A Chromium page that stays empty is asked for its tree the way screen readers do (once a second).
+            if (watch.ElapsedMilliseconds - nudged >= 1000 && WebTreeMissing(elements))
+            {
+                nudged = watch.ElapsedMilliseconds;
+                Native.NudgeChromium(ProcessId);
+            }
+
             if (watch.ElapsedMilliseconds >= timeoutMs)
+            {
+                if (cropRoot != null && Vision.Find(this, locator, cropRoot, elements) is { } seen)
+                    return seen;
+
                 return (null, null);
+            }
 
             await Task.Delay(150, token);
         }
@@ -209,9 +260,31 @@ public sealed class Uia(int processId)
     {
         var element = live.Element;
 
+        //Found by its picture: the place is known, the element behind it is not.
+        if (live.ScreenBox != null)
+        {
+            ClickWithMouse(live, 1);
+            return;
+        }
+
+        //WinForms answers Invoke only after the click handler returns, so a button that opens a modal dialog blocks
+        //every further UI Automation call into the app until the dialog closes. Its buttons are windows of their own:
+        //a posted BM_CLICK clicks them without waiting (and without real input). Other WinForms items get a mouse click.
+        if (IsWinForms(element))
+        {
+            var hwnd = new IntPtr(element.Current.NativeWindowHandle);
+
+            if (hwnd != IntPtr.Zero && (element.Current.ClassName ?? "").Contains("BUTTON", StringComparison.OrdinalIgnoreCase))
+                Native.PostClick(hwnd);
+            else
+                ClickWithMouse(live, 1);
+
+            return;
+        }
+
         if (element.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
         {
-            ((InvokePattern)invoke).Invoke();
+            Call(((InvokePattern)invoke).Invoke);
             return;
         }
 
@@ -221,16 +294,16 @@ public sealed class Uia(int processId)
             var pattern = (ExpandCollapsePattern)expand;
 
             if (pattern.Current.ExpandCollapseState == ExpandCollapseState.Expanded)
-                pattern.Collapse();
+                Call(pattern.Collapse);
             else
-                pattern.Expand();
+                Call(pattern.Expand);
 
             return;
         }
 
         if (element.TryGetCurrentPattern(TogglePattern.Pattern, out var toggle))
         {
-            ((TogglePattern)toggle).Toggle();
+            Call(((TogglePattern)toggle).Toggle);
             return;
         }
 
@@ -241,6 +314,44 @@ public sealed class Uia(int processId)
         }
 
         ClickWithMouse(live, 1);
+    }
+
+    /// <summary>
+    /// How long a pattern call may take before it counts as having opened a modal window.
+    /// </summary>
+    private const int PatternWaitMs = 1500;
+
+    /// <summary>
+    /// Runs a pattern call that may open a modal window. Some frameworks (WinForms) only return from Invoke when the
+    /// dialog it opened closes again, which would stall the run on the very step that opens it; such a call is left
+    /// waiting on its own thread (it returns when the dialog closes) and the run goes on, so the next step can work in
+    /// the dialog.
+    /// </summary>
+    private static void Call(Action call)
+    {
+        var task = Task.Factory.StartNew(call, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+        try
+        {
+            if (!task.Wait(PatternWaitMs))
+                task.ContinueWith(t => t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+        }
+        catch (AggregateException ex) when (ex.InnerException != null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(ex.InnerException);
+        }
+    }
+
+    private static bool IsWinForms(AutomationElement element)
+    {
+        try
+        {
+            return string.Equals(element.Current.FrameworkId, "WinForm", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
     }
 
     public void DoubleClick(LiveElement live) => ClickWithMouse(live, 2);
@@ -267,6 +378,29 @@ public sealed class Uia(int processId)
     }
 
     /// <summary>
+    /// The list items of an opened combo box or list. Some frameworks fill them in a moment after opening (Chromium),
+    /// or show them in a popup window of their own instead of under the combo box.
+    /// </summary>
+    private List<AutomationElement> ItemsOf(AutomationElement element)
+    {
+        var isItem = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem);
+        var watch = Stopwatch.StartNew();
+
+        while (true)
+        {
+            var items = element.FindAll(TreeScope.Descendants, isItem).Cast<AutomationElement>().ToList();
+
+            if (items.Count == 0)
+                items = TopWindows().SelectMany(s => s.FindAll(TreeScope.Descendants, isItem).Cast<AutomationElement>()).ToList();
+
+            if (items.Count > 0 || watch.ElapsedMilliseconds > 1500)
+                return items;
+
+            Thread.Sleep(150);
+        }
+    }
+
+    /// <summary>
     /// Picks the item named <paramref name="item"/>: opens the combo box or list, selects the item, closes it again.
     /// </summary>
     public void Select(LiveElement live, string item)
@@ -283,7 +417,7 @@ public sealed class Uia(int processId)
             //Already open, or not expandable right now.
         }
 
-        var items = element.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem)).Cast<AutomationElement>().ToList();
+        var items = ItemsOf(element);
         var target = items.FirstOrDefault(f => string.Equals(LocatorMatcher.Normalize(f.Current.Name), LocatorMatcher.Normalize(item), StringComparison.OrdinalIgnoreCase))
             ?? items.Select(s => (Item: s, Similarity: LocatorMatcher.Similarity(s.Current.Name, item))).Where(w => w.Similarity >= LocatorMatcher.FuzzyThreshold).OrderByDescending(o => o.Similarity).Select(s => s.Item).FirstOrDefault()
             ?? throw new InvalidOperationException($"\"{item}\" is not in {live.Info.ControlType} \"{live.Info.Name}\". Items: {string.Join(", ", items.Select(s => s.Current.Name))}.");
@@ -341,7 +475,7 @@ public sealed class Uia(int processId)
     /// </summary>
     private void ClickWithMouse(LiveElement live, int clicks)
     {
-        var bounds = live.Element.Current.BoundingRectangle;
+        var bounds = live.ScreenBox ?? live.Element.Current.BoundingRectangle;
 
         if (bounds.IsEmpty)
             throw new InvalidOperationException($"{live.Info.ControlType} \"{live.Info.Name}\" has no visible area to click.");
@@ -364,19 +498,11 @@ public sealed class Uia(int processId)
     /// </summary>
     public static int? FindProcessByTitle(string title)
     {
-        var windows = AutomationElement.RootElement.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window));
-
-        foreach (AutomationElement window in windows)
+        //Win32 titles, so hung programs are not asked (GetWindowText of another process's window reads a cached copy).
+        foreach (var hwnd in Native.TopLevelWindows(null))
         {
-            try
-            {
-                if ((window.Current.Name ?? "").Contains(title, StringComparison.OrdinalIgnoreCase))
-                    return window.Current.ProcessId;
-            }
-            catch (ElementNotAvailableException)
-            {
-                //Closed meanwhile.
-            }
+            if (Native.TitleOf(hwnd).Contains(title, StringComparison.OrdinalIgnoreCase))
+                return Native.ProcessIdOf(hwnd);
         }
 
         return null;
@@ -469,6 +595,117 @@ internal static partial class Native
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool ShowWindow(IntPtr hwnd, int command);
+
+    private const uint BmClick = 0x00F5;
+
+    [LibraryImport("user32.dll", EntryPoint = "PostMessageW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
+
+    /// <summary>
+    /// Clicks a Win32 button through its message queue; returns at once, whatever the click opens.
+    /// </summary>
+    public static void PostClick(IntPtr hwnd)
+    {
+        if (!PostMessage(hwnd, BmClick, IntPtr.Zero, IntPtr.Zero))
+            throw new InvalidOperationException("The button did not take the click message.");
+    }
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static unsafe partial bool EnumWindows(delegate* unmanaged<IntPtr, IntPtr, int> callback, IntPtr state);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsWindowVisible(IntPtr hwnd);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW")]
+    private static unsafe partial int GetWindowText(IntPtr hwnd, char* text, int count);
+
+    [System.Runtime.InteropServices.UnmanagedCallersOnly]
+    private static int OnWindow(IntPtr hwnd, IntPtr state)
+    {
+        ((List<IntPtr>)GCHandle.FromIntPtr(state).Target!).Add(hwnd);
+        return 1;
+    }
+
+    /// <summary>
+    /// Visible top-level windows in z-order, of one process or (null) of all.
+    /// </summary>
+    public static unsafe List<IntPtr> TopLevelWindows(int? processId)
+    {
+        var all = new List<IntPtr>();
+        var handle = GCHandle.Alloc(all);
+
+        try
+        {
+            EnumWindows(&OnWindow, GCHandle.ToIntPtr(handle));
+        }
+        finally
+        {
+            handle.Free();
+        }
+
+        return all.Where(w => IsWindowVisible(w) && (processId == null || ProcessIdOf(w) == processId)).ToList();
+    }
+
+    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW")]
+    private static unsafe partial int GetClassName(IntPtr hwnd, char* name, int count);
+
+    [LibraryImport("user32.dll", EntryPoint = "FindWindowExW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr FindWindowEx(IntPtr parent, IntPtr after, string? className, string? title);
+
+    public static unsafe string ClassOf(IntPtr hwnd)
+    {
+        var buffer = stackalloc char[256];
+        var length = GetClassName(hwnd, buffer, 256);
+        return new string(buffer, 0, Math.Max(0, length));
+    }
+
+    /// <summary>
+    /// A Chromium top-level window (Electron, Chrome, Edge, WebView2 hosts use this class).
+    /// </summary>
+    public static bool IsChromium(IntPtr hwnd) => ClassOf(hwnd).StartsWith("Chrome_WidgetWin_", StringComparison.Ordinal);
+
+    [LibraryImport("oleacc.dll")]
+    private static partial int AccessibleObjectFromWindow(IntPtr hwnd, uint objectId, in Guid iid, out IntPtr accessible);
+
+    private static readonly Guid IAccessible = new("618736E0-3C3D-11CF-810C-00AA00389B71");
+    private const uint ObjidClient = 0xFFFFFFFC;
+
+    /// <summary>
+    /// Asks each page window (Chrome_RenderWidgetHostHWND) of the app's Chromium windows for its MSAA object, which
+    /// makes Chromium switch its accessibility tree on.
+    /// </summary>
+    public static void NudgeChromium(int processId)
+    {
+        foreach (var top in TopLevelWindows(processId).Where(IsChromium))
+        {
+            Ask(top);
+
+            for (var child = FindWindowEx(top, IntPtr.Zero, "Chrome_RenderWidgetHostHWND", null); child != IntPtr.Zero; child = FindWindowEx(top, child, "Chrome_RenderWidgetHostHWND", null))
+                Ask(child);
+        }
+
+        static void Ask(IntPtr hwnd)
+        {
+            if (AccessibleObjectFromWindow(hwnd, ObjidClient, IAccessible, out var accessible) == 0 && accessible != IntPtr.Zero)
+                Marshal.Release(accessible);
+        }
+    }
+
+    public static int ProcessIdOf(IntPtr hwnd)
+    {
+        GetWindowThreadProcessId(hwnd, out var id);
+        return (int)id;
+    }
+
+    public static unsafe string TitleOf(IntPtr hwnd)
+    {
+        var buffer = stackalloc char[512];
+        var length = GetWindowText(hwnd, buffer, 512);
+        return new string(buffer, 0, Math.Max(0, length));
+    }
 
     public static int ProcessIdAt(int x, int y)
     {
