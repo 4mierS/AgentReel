@@ -43,11 +43,14 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentReel.Export.Tests", "AgentReel.Export.Tests\AgentReel.Export.Tests.csproj", "{AD523641-202E-4253-9E52-E6F91B3DC1DA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentReel.Core", "AgentReel.Core\AgentReel.Core.csproj", "{1B449385-E2BD-48CB-BB45-B4ED4851AE5D}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentReel.Direct", "AgentReel.Direct\AgentReel.Direct.csproj", "{8B17162F-24F6-40BF-9EE6-EC70605928D2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentReel.Direct.SampleApp", "AgentReel.Direct.SampleApp\AgentReel.Direct.SampleApp.csproj", "{3E14176A-9837-4614-BE3A-4406D2E050F6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentReel.Direct.Tests", "AgentReel.Direct.Tests\AgentReel.Direct.Tests.csproj", "{A20F81EA-E070-4BF8-8530-25F7F31A9881}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgentReel.Direct.SampleApp.WinForms", "AgentReel.Direct.SampleApp.WinForms\AgentReel.Direct.SampleApp.WinForms.csproj", "{FB862B94-731B-4E9A-9CE0-1CAE2C092390}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -521,6 +524,30 @@ Global
 		{A20F81EA-E070-4BF8-8530-25F7F31A9881}.Release|x64.Build.0 = Release|x64
 		{A20F81EA-E070-4BF8-8530-25F7F31A9881}.Release|x86.ActiveCfg = Release|x86
 		{A20F81EA-E070-4BF8-8530-25F7F31A9881}.Release|x86.Build.0 = Release|x86
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug (Store)|Any CPU.ActiveCfg = Debug (Store)|Any CPU
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug (Store)|Any CPU.Build.0 = Debug (Store)|Any CPU
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug (Store)|ARM64.ActiveCfg = Debug (Store)|ARM64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug (Store)|ARM64.Build.0 = Debug (Store)|ARM64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug (Store)|x64.ActiveCfg = Debug (Store)|x64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug (Store)|x64.Build.0 = Debug (Store)|x64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug (Store)|x86.ActiveCfg = Debug (Store)|x86
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug (Store)|x86.Build.0 = Debug (Store)|x86
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug|ARM64.Build.0 = Debug|ARM64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug|x64.ActiveCfg = Debug|x64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug|x64.Build.0 = Debug|x64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug|x86.ActiveCfg = Debug|x86
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Debug|x86.Build.0 = Debug|x86
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Release|ARM64.ActiveCfg = Release|ARM64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Release|ARM64.Build.0 = Release|ARM64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Release|x64.ActiveCfg = Release|x64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Release|x64.Build.0 = Release|x64
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Release|x86.ActiveCfg = Release|x86
+		{FB862B94-731B-4E9A-9CE0-1CAE2C092390}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -31,14 +31,31 @@ public sealed class Uia(int processId)
     /// The app's top-level windows, main window first (the one without an owner comes first in z-order rarely, so
     /// the biggest is taken as main).
     /// </summary>
+    /// <remarks>
+    /// The windows come from Win32 (EnumWindows), not from a search of the desktop's UIA children: such a search asks
+    /// every program's windows, and one hung program (a suspended store app) adds seconds to every call.
+    /// </remarks>
     public IReadOnlyList<AutomationElement> TopWindows()
     {
-        var condition = new AndCondition(
-            new PropertyCondition(AutomationElement.ProcessIdProperty, ProcessId),
-            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window));
+        var windows = new List<AutomationElement>();
 
-        return AutomationElement.RootElement.FindAll(TreeScope.Children, condition).Cast<AutomationElement>()
-            .OrderByDescending(o => Area(o.Current.BoundingRectangle)).ToList();
+        foreach (var hwnd in Native.TopLevelWindows(ProcessId))
+        {
+            try
+            {
+                var window = AutomationElement.FromHandle(hwnd);
+
+                //Owned windows that UIA lists under their owner are walked from there (see Elements).
+                if (window.Current.ControlType == ControlType.Window && Equals(TreeWalker.ControlViewWalker.GetParent(window), AutomationElement.RootElement))
+                    windows.Add(window);
+            }
+            catch (Exception ex) when (ex is ElementNotAvailableException or ArgumentException or InvalidOperationException)
+            {
+                //Closed meanwhile.
+            }
+        }
+
+        return windows.OrderByDescending(o => Area(o.Current.BoundingRectangle)).ToList();
     }
 
     /// <summary>
@@ -224,9 +241,24 @@ public sealed class Uia(int processId)
             return;
         }
 
+        //WinForms answers Invoke only after the click handler returns, so a button that opens a modal dialog blocks
+        //every further UI Automation call into the app until the dialog closes. Its buttons are windows of their own:
+        //a posted BM_CLICK clicks them without waiting (and without real input). Other WinForms items get a mouse click.
+        if (IsWinForms(element))
+        {
+            var hwnd = new IntPtr(element.Current.NativeWindowHandle);
+
+            if (hwnd != IntPtr.Zero && (element.Current.ClassName ?? "").Contains("BUTTON", StringComparison.OrdinalIgnoreCase))
+                Native.PostClick(hwnd);
+            else
+                ClickWithMouse(live, 1);
+
+            return;
+        }
+
         if (element.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
         {
-            ((InvokePattern)invoke).Invoke();
+            Call(((InvokePattern)invoke).Invoke);
             return;
         }
 
@@ -236,16 +268,16 @@ public sealed class Uia(int processId)
             var pattern = (ExpandCollapsePattern)expand;
 
             if (pattern.Current.ExpandCollapseState == ExpandCollapseState.Expanded)
-                pattern.Collapse();
+                Call(pattern.Collapse);
             else
-                pattern.Expand();
+                Call(pattern.Expand);
 
             return;
         }
 
         if (element.TryGetCurrentPattern(TogglePattern.Pattern, out var toggle))
         {
-            ((TogglePattern)toggle).Toggle();
+            Call(((TogglePattern)toggle).Toggle);
             return;
         }
 
@@ -256,6 +288,44 @@ public sealed class Uia(int processId)
         }
 
         ClickWithMouse(live, 1);
+    }
+
+    /// <summary>
+    /// How long a pattern call may take before it counts as having opened a modal window.
+    /// </summary>
+    private const int PatternWaitMs = 1500;
+
+    /// <summary>
+    /// Runs a pattern call that may open a modal window. Some frameworks (WinForms) only return from Invoke when the
+    /// dialog it opened closes again, which would stall the run on the very step that opens it; such a call is left
+    /// waiting on its own thread (it returns when the dialog closes) and the run goes on, so the next step can work in
+    /// the dialog.
+    /// </summary>
+    private static void Call(Action call)
+    {
+        var task = Task.Factory.StartNew(call, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+        try
+        {
+            if (!task.Wait(PatternWaitMs))
+                task.ContinueWith(t => t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+        }
+        catch (AggregateException ex) when (ex.InnerException != null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(ex.InnerException);
+        }
+    }
+
+    private static bool IsWinForms(AutomationElement element)
+    {
+        try
+        {
+            return string.Equals(element.Current.FrameworkId, "WinForm", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
     }
 
     public void DoubleClick(LiveElement live) => ClickWithMouse(live, 2);
@@ -379,19 +449,11 @@ public sealed class Uia(int processId)
     /// </summary>
     public static int? FindProcessByTitle(string title)
     {
-        var windows = AutomationElement.RootElement.FindAll(TreeScope.Children, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window));
-
-        foreach (AutomationElement window in windows)
+        //Win32 titles, so hung programs are not asked (GetWindowText of another process's window reads a cached copy).
+        foreach (var hwnd in Native.TopLevelWindows(null))
         {
-            try
-            {
-                if ((window.Current.Name ?? "").Contains(title, StringComparison.OrdinalIgnoreCase))
-                    return window.Current.ProcessId;
-            }
-            catch (ElementNotAvailableException)
-            {
-                //Closed meanwhile.
-            }
+            if (Native.TitleOf(hwnd).Contains(title, StringComparison.OrdinalIgnoreCase))
+                return Native.ProcessIdOf(hwnd);
         }
 
         return null;
@@ -484,6 +546,72 @@ internal static partial class Native
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool ShowWindow(IntPtr hwnd, int command);
+
+    private const uint BmClick = 0x00F5;
+
+    [LibraryImport("user32.dll", EntryPoint = "PostMessageW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
+
+    /// <summary>
+    /// Clicks a Win32 button through its message queue; returns at once, whatever the click opens.
+    /// </summary>
+    public static void PostClick(IntPtr hwnd)
+    {
+        if (!PostMessage(hwnd, BmClick, IntPtr.Zero, IntPtr.Zero))
+            throw new InvalidOperationException("The button did not take the click message.");
+    }
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static unsafe partial bool EnumWindows(delegate* unmanaged<IntPtr, IntPtr, int> callback, IntPtr state);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsWindowVisible(IntPtr hwnd);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW")]
+    private static unsafe partial int GetWindowText(IntPtr hwnd, char* text, int count);
+
+    [System.Runtime.InteropServices.UnmanagedCallersOnly]
+    private static int OnWindow(IntPtr hwnd, IntPtr state)
+    {
+        ((List<IntPtr>)GCHandle.FromIntPtr(state).Target!).Add(hwnd);
+        return 1;
+    }
+
+    /// <summary>
+    /// Visible top-level windows in z-order, of one process or (null) of all.
+    /// </summary>
+    public static unsafe List<IntPtr> TopLevelWindows(int? processId)
+    {
+        var all = new List<IntPtr>();
+        var handle = GCHandle.Alloc(all);
+
+        try
+        {
+            EnumWindows(&OnWindow, GCHandle.ToIntPtr(handle));
+        }
+        finally
+        {
+            handle.Free();
+        }
+
+        return all.Where(w => IsWindowVisible(w) && (processId == null || ProcessIdOf(w) == processId)).ToList();
+    }
+
+    public static int ProcessIdOf(IntPtr hwnd)
+    {
+        GetWindowThreadProcessId(hwnd, out var id);
+        return (int)id;
+    }
+
+    public static unsafe string TitleOf(IntPtr hwnd)
+    {
+        var buffer = stackalloc char[512];
+        var length = GetWindowText(hwnd, buffer, 512);
+        return new string(buffer, 0, Math.Max(0, length));
+    }
 
     public static int ProcessIdAt(int x, int y)
     {

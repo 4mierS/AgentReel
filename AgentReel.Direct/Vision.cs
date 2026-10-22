@@ -39,7 +39,7 @@ public static class Vision
 
         foreach (var window in windows)
         {
-            var found = FindIn(uia, window, snapshot, needle);
+            var found = FindIn(uia, window, snapshot, needle, elements);
 
             if (found != null)
                 return found;
@@ -48,7 +48,7 @@ public static class Vision
         return null;
     }
 
-    private static (LiveElement, Match)? FindIn(Uia uia, AutomationElement window, ElementSnapshot snapshot, GrayImage needle)
+    private static (LiveElement, Match)? FindIn(Uia uia, AutomationElement window, ElementSnapshot snapshot, GrayImage needle, IReadOnlyList<LiveElement> elements)
     {
         var hwnd = new IntPtr(window.Current.NativeWindowHandle);
         var bounds = window.Current.BoundingRectangle;
@@ -81,15 +81,25 @@ public static class Vision
         var title = window.Current.Name ?? "";
         var screen = new Rect(bounds.X + box.X, bounds.Y + box.Y, box.Width, box.Height);
 
-        //What UI Automation has at that place: the real element when it is there under a new identity, else the
-        //window itself, and the action goes to the place by mouse.
-        var at = ElementAt(uia, screen);
-        var info = at is { } element && Fits(element.Current.BoundingRectangle, screen)
-            ? new ElementInfo(NullIfEmpty(element.Current.AutomationId), NullIfEmpty(element.Current.Name), Uia.TypeName(element.Current.ControlType), NullIfEmpty(element.Current.ClassName), [], box, title)
-            : new ElementInfo(null, null, snapshot.ControlType, null, [], box, title);
+        var score = Math.Round(100 * found.Score, 1);
 
-        var live = new LiveElement(at ?? window, info, window, ScreenBox: screen);
-        return (live, new Match(info, MatchKind.Image, Math.Round(100 * found.Score, 1)));
+        //The real element when UI Automation has one there under a new identity: it is acted on like any other
+        //(patterns, no mouse), even when another window covers the app.
+        var element = elements
+            .Where(w => w.Info.WindowTitle == title && w.Info.ControlType != "Window")
+            .Select(s => (Live: s, Fit: Overlap(ToRect(s.Info.Bounds), ToRect(box)), SameType: s.Info.ControlType == snapshot.ControlType))
+            .Where(w => w.Fit >= 0.6)
+            .OrderByDescending(o => o.SameType).ThenByDescending(o => o.Fit)
+            .Select(s => s.Live)
+            .FirstOrDefault();
+
+        if (element != null)
+            return (element, new Match(element.Info, MatchKind.Image, score));
+
+        //Nothing UI Automation knows: the place is clicked by mouse, whatever UI Automation has there.
+        var info = new ElementInfo(null, null, snapshot.ControlType, null, [], box, title);
+        var live = new LiveElement(ElementAt(uia, screen) ?? window, info, window, ScreenBox: screen);
+        return (live, new Match(info, MatchKind.Image, score));
     }
 
     private static AutomationElement? ElementAt(Uia uia, Rect screen)
@@ -105,21 +115,24 @@ public static class Vision
         }
     }
 
+    private static Rect ToRect(Box box) => box.IsEmpty ? Rect.Empty : new Rect(box.X, box.Y, box.Width, box.Height);
+
     /// <summary>
-    /// The element at the point is the found one when it covers about the same area (not a whole panel around it).
+    /// Intersection over union, 0..1: an element fits the found place when it covers about the same area (not a whole
+    /// panel around it).
     /// </summary>
-    private static bool Fits(Rect element, Rect found)
+    private static double Overlap(Rect element, Rect found)
     {
-        if (element.IsEmpty)
-            return false;
+        if (element.IsEmpty || found.IsEmpty)
+            return 0;
 
         var overlap = Rect.Intersect(element, found);
 
         if (overlap.IsEmpty)
-            return false;
+            return 0;
 
         var union = element.Width * element.Height + found.Width * found.Height - overlap.Width * overlap.Height;
-        return overlap.Width * overlap.Height / union >= 0.6;
+        return overlap.Width * overlap.Height / union;
     }
 
     private static BitmapSource Load(string path)
@@ -132,6 +145,4 @@ public static class Vision
         image.Freeze();
         return image;
     }
-
-    private static string? NullIfEmpty(string? text) => string.IsNullOrEmpty(text) ? null : text;
 }

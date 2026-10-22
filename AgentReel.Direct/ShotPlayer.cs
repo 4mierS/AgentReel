@@ -166,7 +166,8 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
 
                     result = result with { EndMs = watch.ElapsedMilliseconds };
                 }
-                catch (Exception ex) when (ex is InvalidOperationException or ElementNotAvailableException or ArgumentException or TimeoutException or ElementNotEnabledException or IOException)
+                //COMException: a UI Automation call timed out (the app hangs, or a modal call still blocks it).
+                catch (Exception ex) when (ex is InvalidOperationException or ElementNotAvailableException or ArgumentException or TimeoutException or ElementNotEnabledException or IOException or System.Runtime.InteropServices.COMException)
                 {
                     result = new StepResult(step.Id, step.Action, StepStatus.Failed, start, watch.ElapsedMilliseconds, Error: ex.Message);
                 }
@@ -342,6 +343,18 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
 
             if (!process.WaitForExit(3000))
                 process.Kill(true);
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            //UI Automation timed out: the app hangs (or waits in a modal call), so it cannot be closed politely.
+            try
+            {
+                process.Kill(true);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                //Gone meanwhile.
+            }
         }
         catch (Exception ex) when (ex is InvalidOperationException or ElementNotAvailableException or System.ComponentModel.Win32Exception)
         {
