@@ -1,6 +1,8 @@
 using System.IO;
 using System.Windows;
+using AgentReel.Direct;
 using AgentReel.Editing;
+using AgentReel.Studio.Director;
 using AgentReel.Studio.Editor;
 using AgentReel.Studio.Review;
 using AgentReel.Studio.Session;
@@ -11,6 +13,7 @@ namespace AgentReel.Studio;
 /// Command line: no arguments opens the studio (library and editor), or the session window (pick a target, record)
 /// when there is no recording yet. <c>AgentReel.Studio edit &lt;recording folder&gt;</c> opens that recording in the studio.
 /// <c>AgentReel.Studio review &lt;edit folder&gt;</c> shows an edit next to its source.
+/// <c>AgentReel.Studio approve-shots &lt;shot list folder&gt;</c> shows an agent's draft of a shot list for approval.
 /// </summary>
 public partial class App
 {
@@ -31,6 +34,12 @@ public partial class App
                 Shutdown(1);
                 return;
             }
+        }
+
+        if (e.Args is ["approve-shots", var shots] && ShotDraft.Load(shots) is { } draft)
+        {
+            new ShotApprovalWindow(shots, draft).Show();
+            return;
         }
 
         //Recordings of earlier versions, copied once.

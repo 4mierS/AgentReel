@@ -36,6 +36,34 @@ public sealed class ShotListStore(string? root = null)
 
     public void Save(ShotList list) => list.Save(FolderOf(list.Name));
 
+    /// <summary>
+    /// Saves the list, keeping the baseline of steps whose target did not change (same automation id, name and control
+    /// type): a list that was only reworded needs no new baseline run. Returns how many baselines were kept.
+    /// </summary>
+    public int SaveKeepingBaselines(ShotList list)
+    {
+        var kept = 0;
+
+        if (Exists(list.Name))
+        {
+            var old = Load(list.Name).Steps.ToDictionary(k => k.Id, StringComparer.Ordinal);
+            var steps = list.Steps.Select(step =>
+            {
+                if (step.Target is not { Snapshot: null } target || !old.TryGetValue(step.Id, out var before) || before.Target?.Snapshot is not { } snapshot ||
+                    before.Target.AutomationId != target.AutomationId || before.Target.Name != target.Name || before.Target.ControlType != target.ControlType)
+                    return step;
+
+                kept++;
+                return step with { Target = target with { Snapshot = snapshot } };
+            }).ToList();
+
+            list = list.WithSteps(steps);
+        }
+
+        Save(list);
+        return kept;
+    }
+
     public IReadOnlyList<string> List() =>
         Directory.Exists(Root)
             ? Directory.EnumerateDirectories(Root).Where(w => File.Exists(Path.Combine(w, ShotList.FileName))).Select(Path.GetFileName).OfType<string>().Order().ToList()

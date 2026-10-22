@@ -72,26 +72,8 @@ public sealed class DirectTools(ILogger<DirectTools> logger)
             throw new McpException(ex.Message);
         }
 
-        var kept = 0;
-
         //Steps the agent only reworded keep their baseline, so a re-save does not force a new baseline run.
-        if (_store.Exists(list.Name))
-        {
-            var old = _store.Load(list.Name).Steps.ToDictionary(k => k.Id, StringComparer.Ordinal);
-            var steps = list.Steps.Select(step =>
-            {
-                if (step.Target is not { Snapshot: null } target || !old.TryGetValue(step.Id, out var before) || before.Target?.Snapshot is not { } snapshot ||
-                    before.Target.AutomationId != target.AutomationId || before.Target.Name != target.Name || before.Target.ControlType != target.ControlType)
-                    return step;
-
-                kept++;
-                return step with { Target = target with { Snapshot = snapshot } };
-            }).ToList();
-
-            list = list.WithSteps(steps);
-        }
-
-        _store.Save(list);
+        var kept = _store.SaveKeepingBaselines(list);
         logger.LogInformation("Shot list {Name} saved: {Count} steps, {Kept} baselines kept", list.Name, list.Steps.Count, kept);
 
         return $"Saved \"{list.Name}\" with {list.Steps.Count} steps to {folder}." +

@@ -19,6 +19,7 @@ builder.Services.AddSingleton<RecordingSession>();
 builder.Services
     .AddMcpServer(o => o.ServerInfo = new() { Name = "agentreel", Version = "0.1.0" })
     .WithStdioServerTransport()
-    .WithToolsFromAssembly();
+    .WithToolsFromAssembly()
+    .WithPromptsFromAssembly();
 
 await builder.Build().RunAsync();
