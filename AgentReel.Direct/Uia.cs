@@ -59,6 +59,24 @@ public sealed class Uia(int processId)
     }
 
     /// <summary>
+    /// Chromium-based apps (Electron, WebView2 hosts) build their accessibility tree only when a client asks, and a walk
+    /// that asks right after the window appears, before the page is loaded, can leave the tree empty for good. So a
+    /// freshly launched Chromium window gets a moment before the first walk (see also <see cref="FindAsync"/>).
+    /// Other apps return at once.
+    /// </summary>
+    public async Task WaitForWebContentAsync(CancellationToken token)
+    {
+        if (Native.TopLevelWindows(ProcessId).Any(Native.IsChromium))
+            await Task.Delay(1500, token);
+    }
+
+    /// <summary>
+    /// True when a Chromium window of the app shows no page in UI Automation yet (no Document element).
+    /// </summary>
+    private bool WebTreeMissing(IReadOnlyList<LiveElement> elements) =>
+        !elements.Any(a => a.Info.ControlType == "Document") && Native.TopLevelWindows(ProcessId).Any(Native.IsChromium);
+
+    /// <summary>
     /// The titles of all the app's windows, including owned dialogs that UIA lists under their owner.
     /// </summary>
     public IReadOnlyList<string> WindowTitles()
@@ -206,6 +224,7 @@ public sealed class Uia(int processId)
     public async Task<(LiveElement? Element, Match? Match)> FindAsync(Locator locator, int timeoutMs, CancellationToken token, string? cropRoot = null)
     {
         var watch = Stopwatch.StartNew();
+        var nudged = 0L;
 
         while (true)
         {
@@ -215,6 +234,13 @@ public sealed class Uia(int processId)
             //Offscreen duplicates (virtualized list items) lose to the visible one with the same score, which comes first.
             if (match != null)
                 return (elements.First(f => ReferenceEquals(f.Info, match.Element)), match);
+
+            //A Chromium page that stays empty is asked for its tree the way screen readers do (once a second).
+            if (watch.ElapsedMilliseconds - nudged >= 1000 && WebTreeMissing(elements))
+            {
+                nudged = watch.ElapsedMilliseconds;
+                Native.NudgeChromium(ProcessId);
+            }
 
             if (watch.ElapsedMilliseconds >= timeoutMs)
             {
@@ -352,6 +378,29 @@ public sealed class Uia(int processId)
     }
 
     /// <summary>
+    /// The list items of an opened combo box or list. Some frameworks fill them in a moment after opening (Chromium),
+    /// or show them in a popup window of their own instead of under the combo box.
+    /// </summary>
+    private List<AutomationElement> ItemsOf(AutomationElement element)
+    {
+        var isItem = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem);
+        var watch = Stopwatch.StartNew();
+
+        while (true)
+        {
+            var items = element.FindAll(TreeScope.Descendants, isItem).Cast<AutomationElement>().ToList();
+
+            if (items.Count == 0)
+                items = TopWindows().SelectMany(s => s.FindAll(TreeScope.Descendants, isItem).Cast<AutomationElement>()).ToList();
+
+            if (items.Count > 0 || watch.ElapsedMilliseconds > 1500)
+                return items;
+
+            Thread.Sleep(150);
+        }
+    }
+
+    /// <summary>
     /// Picks the item named <paramref name="item"/>: opens the combo box or list, selects the item, closes it again.
     /// </summary>
     public void Select(LiveElement live, string item)
@@ -368,7 +417,7 @@ public sealed class Uia(int processId)
             //Already open, or not expandable right now.
         }
 
-        var items = element.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem)).Cast<AutomationElement>().ToList();
+        var items = ItemsOf(element);
         var target = items.FirstOrDefault(f => string.Equals(LocatorMatcher.Normalize(f.Current.Name), LocatorMatcher.Normalize(item), StringComparison.OrdinalIgnoreCase))
             ?? items.Select(s => (Item: s, Similarity: LocatorMatcher.Similarity(s.Current.Name, item))).Where(w => w.Similarity >= LocatorMatcher.FuzzyThreshold).OrderByDescending(o => o.Similarity).Select(s => s.Item).FirstOrDefault()
             ?? throw new InvalidOperationException($"\"{item}\" is not in {live.Info.ControlType} \"{live.Info.Name}\". Items: {string.Join(", ", items.Select(s => s.Current.Name))}.");
@@ -598,6 +647,51 @@ internal static partial class Native
         }
 
         return all.Where(w => IsWindowVisible(w) && (processId == null || ProcessIdOf(w) == processId)).ToList();
+    }
+
+    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW")]
+    private static unsafe partial int GetClassName(IntPtr hwnd, char* name, int count);
+
+    [LibraryImport("user32.dll", EntryPoint = "FindWindowExW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr FindWindowEx(IntPtr parent, IntPtr after, string? className, string? title);
+
+    public static unsafe string ClassOf(IntPtr hwnd)
+    {
+        var buffer = stackalloc char[256];
+        var length = GetClassName(hwnd, buffer, 256);
+        return new string(buffer, 0, Math.Max(0, length));
+    }
+
+    /// <summary>
+    /// A Chromium top-level window (Electron, Chrome, Edge, WebView2 hosts use this class).
+    /// </summary>
+    public static bool IsChromium(IntPtr hwnd) => ClassOf(hwnd).StartsWith("Chrome_WidgetWin_", StringComparison.Ordinal);
+
+    [LibraryImport("oleacc.dll")]
+    private static partial int AccessibleObjectFromWindow(IntPtr hwnd, uint objectId, in Guid iid, out IntPtr accessible);
+
+    private static readonly Guid IAccessible = new("618736E0-3C3D-11CF-810C-00AA00389B71");
+    private const uint ObjidClient = 0xFFFFFFFC;
+
+    /// <summary>
+    /// Asks each page window (Chrome_RenderWidgetHostHWND) of the app's Chromium windows for its MSAA object, which
+    /// makes Chromium switch its accessibility tree on.
+    /// </summary>
+    public static void NudgeChromium(int processId)
+    {
+        foreach (var top in TopLevelWindows(processId).Where(IsChromium))
+        {
+            Ask(top);
+
+            for (var child = FindWindowEx(top, IntPtr.Zero, "Chrome_RenderWidgetHostHWND", null); child != IntPtr.Zero; child = FindWindowEx(top, child, "Chrome_RenderWidgetHostHWND", null))
+                Ask(child);
+        }
+
+        static void Ask(IntPtr hwnd)
+        {
+            if (AccessibleObjectFromWindow(hwnd, ObjidClient, IAccessible, out var accessible) == 0 && accessible != IntPtr.Zero)
+                Marshal.Release(accessible);
+        }
     }
 
     public static int ProcessIdOf(IntPtr hwnd)

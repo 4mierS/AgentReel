@@ -326,6 +326,7 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
             //No message loop (console host); the window check above is enough.
         }
 
+        await uia.WaitForWebContentAsync(token);
         return (process, uia);
     }
 
