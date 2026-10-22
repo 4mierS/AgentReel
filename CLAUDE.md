@@ -312,10 +312,32 @@ Merged later on 2026-10-21: Privacy Shield (`AgentReel.Editing/Privacy/`, MCP `s
 the server/Studio yet). In flight on worktree branches: own project model (step 1, removes all ScreenToGif references
 from AgentReel.*), `AgentReel.Direct` (shot list, UIA locators, player, drift report, sample WPF app, MCP tools).
 
+Merged 2026-10-21/22:
+- Own project model (step 1): `AgentReel.Core` (`Recording`/`RecordedFrame`, `recording.json`, `RecordingStore` in
+  `%LOCALAPPDATA%\AgentReel\Recordings`, `AppSettings` in `%APPDATA%\AgentReel\settings.json`, `RecordingLock` lock
+  file). Capture abstractions moved to `AgentReel.Capture`. `RecordingLibrary` replaces `ProjectLibrary`;
+  `RecordingExport` uses `AgentReel.Export` (gif/apng/mp4 only). `open_in_editor` → `open_in_studio`. `LegacyImport`
+  copies old `%TEMP%\ScreenToGif\Recording` projects once (marker file). No AgentReel.* project references ScreenToGif.
+- `AgentReel.Direct` (System.Windows.Automation): shot lists (`%LOCALAPPDATA%\AgentReel\ShotLists`), locator matcher
+  (found/moved/changed/missing), `ShotPlayer` (UIA patterns, guarded SendInput fallback), `IShotHooks`, drift report
+  (json/html/png). Sample app `AgentReel.Direct.SampleApp` (`--v2` moves Export, renames Customer→Client, removes
+  Refresh). MCP: `inspect_app`, `save_shot_list`, `list_shot_lists`, `run_shot_list`, `check_drift`.
+- USP proof (`AgentReel.Editing/Shots/`): `film_shot_list` records the app's main-window area while the list plays
+  (moves the app off the primary monitor if there is a second one), `shots.json` = step timeline + element boxes;
+  `add_caption`/`add_highlight` take `stepId` (anchored edits in `edits.json`, highlights can follow the element);
+  `reshoot` films the current build, re-places anchored edits, drops edits on missing steps, cuts missing steps' waits,
+  saves a pending version and opens Studio's review. Verified v1→v2: highlight followed the button +510 px.
+  Demo for Amir: takes `2026-10-22 16-05-39` (edited `… edit 3`) and `2026-10-22 16-05-51` (review `… edit 1`).
+- Known limits: real keyboard input during a run lands in the app (run re-shoots in a VM/CI); only WPF tested; no
+  vision fallback yet; Studio edits are not anchored; review compares with the raw new take; long review headline.
+
 Next – START HERE:
-1. Merge the project-model and Direct branches (`git worktree list`), build, tests, screenshots.
-2. Integrate: record while a shot list runs, anchor edits to stepIds, `reshoot` → pending edit in Studio. Then steps 3–5. Export panel in Studio on top of `AgentReel.Export`; Claude's
-   proposals inside the editor (replaces the separate review window).
+1. Show Amir the reshoot demo in Studio. Rebuild the registered Debug server (stop it, `dotnet build
+   AgentReel.Mcp/AgentReel.Mcp.csproj`, Amir runs `/mcp` reconnect) – it still runs the pre-model code.
+2. Anchored editing in Studio (pick a step on the timeline, edits follow it), director mode (agent drafts a shot list
+   from `inspect_app`, user approves), WinForms/Electron tests, vision fallback, CI reshoot recipe.
+3. Remaining independence steps: remove the ScreenToGif projects and tests, own resources (EN/DE), rename to Glasstake,
+   fresh repo.
 
 ## Roadmap
 
