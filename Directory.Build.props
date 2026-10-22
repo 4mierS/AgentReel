@@ -1,23 +1,5 @@
 <Project>
   <PropertyGroup>
-    <Version>2.43.2</Version>
-    <FileVersion>2.43.2</FileVersion>
-    <AssemblyVersion>2.43.2</AssemblyVersion>
-    <Company>Nicke Manarin</Company>
-    <Authors>Nicke Manarin</Authors>
-    <Copyright>Copyright © N-Tech + Nicke Manarin 2026</Copyright>
-    <PackageProjectUrl>https://nicke.tech/screentogif</PackageProjectUrl>
-    <PackageReadmeFile>Readme.md</PackageReadmeFile>
-    <RepositoryUrl>https://github.com/nickemanarin/screentogif</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageTags>gif; recorder; editor; screen-recorder; gif-editor</PackageTags>
-    <PackageLicenseExpression>MS-PL</PackageLicenseExpression>
-    <Description>Screen, webcam and sketchboard recorder, with integrated editor!</Description>
-    <CETCompat>false</CETCompat>
-  </PropertyGroup>
-
-  <!-- New AgentReel code is not derived from ScreenToGif and carries its own metadata and license. -->
-  <PropertyGroup Condition="$(MSBuildProjectName.StartsWith('AgentReel.'))">
     <Version>0.1.0</Version>
     <FileVersion>0.1.0</FileVersion>
     <AssemblyVersion>0.1.0</AssemblyVersion>
@@ -25,11 +7,9 @@
     <Authors>Amir</Authors>
     <Product>AgentReel</Product>
     <Copyright>Copyright © 2026 Amir</Copyright>
-    <PackageProjectUrl></PackageProjectUrl>
-    <PackageReadmeFile></PackageReadmeFile>
     <RepositoryUrl>https://github.com/4mierS/AgentReel</RepositoryUrl>
-    <PackageTags></PackageTags>
-    <PackageLicenseExpression></PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
     <Description>AgentReel: screen recording and editing that AI agents drive over MCP.</Description>
+    <CETCompat>false</CETCompat>
   </PropertyGroup>
 </Project>

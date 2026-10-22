@@ -19,7 +19,7 @@ Requirements: Windows 10 2004 (build 19041) or newer, .NET 9 SDK.
 
 ```powershell
 dotnet build GifRecorder.sln -c Debug
-dotnet test ScreenToGif.Test/ScreenToGif.Test.csproj
+dotnet test GifRecorder.sln -c Debug
 ```
 
 ## Projects
@@ -28,4 +28,6 @@ dotnet test ScreenToGif.Test/ScreenToGif.Test.csproj
 - `AgentReel.Mcp`: the MCP server (stdio) that agents use.
 - `AgentReel.Editing`: edits, overlays, edit/review files and export presets, shared by both.
 - `AgentReel.Capture`: Windows.Graphics.Capture recorder.
-- `ScreenToGif.*`: the Ms-PL code this fork is based on (export, legacy app and editor).
+- `AgentReel.Core`: recording model, storage folders, settings and locks.
+- `AgentReel.Export`: GIF and APNG encoders, MP4 via Media Foundation.
+- `AgentReel.Direct`: shot lists driven through UI Automation, drift reports (plus a sample app for tests).
