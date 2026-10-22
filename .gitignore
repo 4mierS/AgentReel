@@ -1,25 +1,7 @@
-################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
-
-/GifRecorder.v12.suo
 /.vs
-/GifRecorder
-/GifRecorder.v12-Notebook-Nicke.suo
-/GifRecorder.suo
-/GifRecorder.sdf
-/GifRecorder.sln.DotSettings
-ScreenToGif/Util/Secret.cs
-/ScreenToGif/Util/Secret.cs
-
-/ScreenToGif.UWP
 /packages
 obj
 bin
 /log.txt
 *.user
-
-# AgentReel
-
-# Runtime logs the app writes next to the project when run with dotnet run
-ScreenToGif/Logs/
+*.DotSettings.user
