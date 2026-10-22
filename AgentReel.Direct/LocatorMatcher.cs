@@ -18,7 +18,9 @@ public enum MatchKind
     /// <summary>Same automation id, different control type (the control was swapped).</summary>
     AutomationIdOnly,
     /// <summary>Same control type, similar name (renamed label, changed wording).</summary>
-    FuzzyName
+    FuzzyName,
+    /// <summary>Not found through UI Automation, but its baseline picture was found in the window (<see cref="Vision"/>).</summary>
+    Image
 }
 
 /// <summary>
@@ -151,7 +153,7 @@ public static class LocatorMatcher
         if (match == null)
             return Drift.Missing;
 
-        if (match.Kind is MatchKind.FuzzyName or MatchKind.AutomationIdOnly)
+        if (match.Kind is MatchKind.FuzzyName or MatchKind.AutomationIdOnly or MatchKind.Image)
             return Drift.Changed;
 
         var before = locator.Snapshot;

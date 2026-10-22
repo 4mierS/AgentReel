@@ -39,9 +39,20 @@ public sealed record ShotRunOptions
     public string? CropFolder { get; init; }
 
     /// <summary>
+    /// The shot list's folder: baseline crop paths are relative to it. When set, an element UI Automation does not find
+    /// is looked for by its baseline picture (<see cref="Vision"/>).
+    /// </summary>
+    public string? ShotListFolder { get; init; }
+
+    /// <summary>
     /// Closes the app at the end if this run started it.
     /// </summary>
     public bool CloseAppAtEnd { get; init; } = true;
+
+    /// <summary>
+    /// Watches the real keyboard and mouse during the run and reports input per step (<see cref="ShotRun.StrayInput"/>).
+    /// </summary>
+    public bool WatchInput { get; init; } = true;
 
     /// <summary>
     /// Keeps going after a failed step (drift checks want every step's status); otherwise the rest is skipped.
@@ -65,8 +76,15 @@ public sealed record StepResult(string StepId, ShotAction Action, StepStatus Sta
 /// </summary>
 public sealed record StepSpan(string StepId, long StartMs, long EndMs);
 
-public sealed record ShotRun(string ShotList, DateTime Started, int ProcessId, IReadOnlyList<StepResult> Steps)
+/// <param name="StrayInput">Real keyboard and mouse input during the run, per step (empty when nobody touched anything).</param>
+public sealed record ShotRun(string ShotList, DateTime Started, int ProcessId, IReadOnlyList<StepResult> Steps, IReadOnlyList<StrayInput>? StrayInput = null)
 {
+    /// <summary>
+    /// Set when someone used the keyboard or mouse during the run: the run (and a video of it) may not show what the
+    /// shot list says.
+    /// </summary>
+    public string? Warning => Direct.StrayInput.Warning(StrayInput);
+
     public bool Succeeded => Steps.All(a => a.Status == StepStatus.Done);
 
     public long DurationMs => Steps.Count == 0 ? 0 : Steps.Max(m => m.EndMs);
@@ -90,6 +108,7 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
         var results = new List<StepResult>();
         Process? launched = null;
         Uia? uia = null;
+        using var input = _options.WatchInput ? InputWatch.Start() : null;
 
         //Attach right away when the list does not start the app itself.
         if (list.Steps[0].Action != ShotAction.Launch)
@@ -108,6 +127,9 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
                 }
 
                 var start = watch.ElapsedMilliseconds;
+
+                if (input != null)
+                    input.Step = step.Id;
 
                 if (hooks != null && step.Action != ShotAction.Launch)
                     await hooks.OnStepStart(step, start, token);
@@ -144,7 +166,8 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
 
                     result = result with { EndMs = watch.ElapsedMilliseconds };
                 }
-                catch (Exception ex) when (ex is InvalidOperationException or ElementNotAvailableException or ArgumentException or TimeoutException or ElementNotEnabledException or IOException)
+                //COMException: a UI Automation call timed out (the app hangs, or a modal call still blocks it).
+                catch (Exception ex) when (ex is InvalidOperationException or ElementNotAvailableException or ArgumentException or TimeoutException or ElementNotEnabledException or IOException or System.Runtime.InteropServices.COMException)
                 {
                     result = new StepResult(step.Id, step.Action, StepStatus.Failed, start, watch.ElapsedMilliseconds, Error: ex.Message);
                 }
@@ -164,7 +187,7 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
                 Close(launched, uia);
         }
 
-        var run = new ShotRun(list.Name, started, uia?.ProcessId ?? 0, results);
+        var run = new ShotRun(list.Name, started, uia?.ProcessId ?? 0, results, input?.Counts() ?? []);
 
         if (hooks != null)
             await hooks.OnRunEnd(run, token);
@@ -194,7 +217,7 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
 
         var locator = step.Target!;
         var timeout = step.Action == ShotAction.WaitFor ? step.Ms ?? _options.FindTimeoutMs : _options.FindTimeoutMs;
-        var (live, match) = await uia.FindAsync(locator, timeout, token);
+        var (live, match) = await uia.FindAsync(locator, timeout, token, _options.ShotListFolder);
 
         if (live == null || match == null)
             return new StepResult(step.Id, step.Action, StepStatus.Failed, start, watch.ElapsedMilliseconds, Drift.Missing, Error: $"{locator} was not found.");
@@ -303,6 +326,7 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
             //No message loop (console host); the window check above is enough.
         }
 
+        await uia.WaitForWebContentAsync(token);
         return (process, uia);
     }
 
@@ -320,6 +344,18 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
 
             if (!process.WaitForExit(3000))
                 process.Kill(true);
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            //UI Automation timed out: the app hangs (or waits in a modal call), so it cannot be closed politely.
+            try
+            {
+                process.Kill(true);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                //Gone meanwhile.
+            }
         }
         catch (Exception ex) when (ex is InvalidOperationException or ElementNotAvailableException or System.ComponentModel.Win32Exception)
         {

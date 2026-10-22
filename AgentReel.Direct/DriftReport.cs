@@ -19,7 +19,8 @@ public sealed record DriftItem(string StepId, ShotAction Action, string? Caption
 /// elements are unchanged, moved, changed or gone. This is what decides whether a video can be re-shot as is, and
 /// which captions or edits need a look.
 /// </summary>
-public sealed record DriftReport(string ShotList, DateTime Created, IReadOnlyList<DriftItem> Items)
+/// <param name="Warning">Set when someone used the keyboard or mouse during the run (<see cref="ShotRun.Warning"/>).</param>
+public sealed record DriftReport(string ShotList, DateTime Created, IReadOnlyList<DriftItem> Items, string? Warning = null)
 {
     public const string JsonFile = "drift.json";
     public const string HtmlFile = "drift.html";
@@ -54,7 +55,7 @@ public sealed record DriftReport(string ShotList, DateTime Created, IReadOnlyLis
             items.Add(new DriftItem(step.Id, step.Action, step.Caption, drift, result?.Status ?? StepStatus.Skipped, before, after, before?.Crop, afterCrop, Describe(step, result, before, after)));
         }
 
-        return new DriftReport(baseline.Name, DateTime.Now, items);
+        return new DriftReport(baseline.Name, DateTime.Now, items, run.Warning);
     }
 
     private static string Describe(ShotStep step, StepResult? result, ElementSnapshot? before, ElementInfo? after)
@@ -100,6 +101,9 @@ public sealed record DriftReport(string ShotList, DateTime Created, IReadOnlyLis
         if (result.Match is MatchKind.FuzzyName)
             notes.Add("found only by a similar name");
 
+        if (result.Match is MatchKind.Image)
+            notes.Add($"found only by its picture ({result.Score:0} % alike): its id and name changed or it is not exposed to UI Automation anymore");
+
         if (result.Match is MatchKind.AutomationIdOnly)
             notes.Add("same id, different control");
 
@@ -127,6 +131,9 @@ public sealed record DriftReport(string ShotList, DateTime Created, IReadOnlyLis
         html.Append("<style>body{font:14px Segoe UI,sans-serif;margin:24px;background:#111;color:#eee}table{border-collapse:collapse}td,th{padding:8px 12px;border-bottom:1px solid #333;text-align:left;vertical-align:middle}")
             .Append("img{max-width:260px;max-height:90px;border:1px solid #444}.Unchanged{color:#4ade80}.Moved{color:#60a5fa}.Changed{color:#fbbf24}.Missing,.Failed{color:#f87171}</style>");
         html.Append("<h1>").Append(WebUtility.HtmlEncode(ShotList)).Append("</h1><p>").Append(WebUtility.HtmlEncode(Summary)).Append("</p>");
+
+        if (Warning != null)
+            html.Append("<p class=\"Changed\">⚠ ").Append(WebUtility.HtmlEncode(Warning)).Append("</p>");
         html.Append("<table><tr><th>Step</th><th>Status</th><th>Before</th><th>Now</th><th>Note</th></tr>");
 
         foreach (var item in Items)

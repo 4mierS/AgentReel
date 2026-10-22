@@ -33,7 +33,7 @@ public static class ShotFilm
         options ??= new FilmOptions();
 
         var camera = new ShotCamera(capture, list, options);
-        var player = new ShotPlayer(new ShotRunOptions { StepDelayMs = options.StepDelayMs, CloseAppAtEnd = false, ContinueOnError = true, FindTimeoutMs = options.FindTimeoutMs });
+        var player = new ShotPlayer(new ShotRunOptions { StepDelayMs = options.StepDelayMs, CloseAppAtEnd = false, ContinueOnError = true, FindTimeoutMs = options.FindTimeoutMs, ShotListFolder = options.ShotListFolder });
         ShotRun run;
 
         try
@@ -139,6 +139,9 @@ public static class ShotFilm
 
         foreach (var dropped in resolution.Dropped)
             text.Append($"\nDropped {Lower(dropped.Edit.Describe())}: {dropped.Reason}");
+
+        if (film.Run.Warning != null)
+            text.Append("\n⚠ ").Append(film.Run.Warning);
 
         return text.ToString();
 

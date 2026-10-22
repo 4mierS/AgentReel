@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Export</title>
+  <style>
+    body { font: 14px "Segoe UI", sans-serif; margin: 16px; }
+    label { display: block; margin: 10px 0 4px; }
+    select { font: inherit; width: 160px; }
+    input { font: inherit; width: 300px; padding: 3px 4px; }
+    button { font: inherit; width: 90px; padding: 4px; float: right; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <label for="FormatBox">Format</label>
+  <select id="FormatBox">
+    <option>PDF</option>
+    <option>PNG</option>
+  </select>
+  <label for="FileNameBox">File name</label>
+  <input id="FileNameBox" type="text">
+  <button id="SaveButton" type="button">Save</button>
+  <script src="export.js"></script>
+</body>
+</html>
