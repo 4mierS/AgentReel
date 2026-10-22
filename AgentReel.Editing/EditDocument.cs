@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
 using AgentReel.Core;
+using AgentReel.Direct;
+using AgentReel.Editing.Shots;
 
 namespace AgentReel.Editing;
 
@@ -89,7 +91,7 @@ public sealed record CaptionItem(Guid Id, int SourceStartMs, int SourceEndMs, st
 /// <summary>
 /// An outline around <paramref name="Bounds"/> (pixels of the recording).
 /// </summary>
-public sealed record HighlightItem(Guid Id, int SourceStartMs, int SourceEndMs, Rect Bounds, HighlightShape Shape, bool DimOutside) : OverlayItem(Id, SourceStartMs, SourceEndMs)
+public sealed record HighlightItem(Guid Id, int SourceStartMs, int SourceEndMs, Rect Bounds, HighlightShape Shape, bool DimOutside) : OverlayItem(Id, SourceStartMs, SourceEndMs), IAreaOverlay
 {
     public static readonly Color Color = Color.FromRgb(0xE5, 0x48, 0x4D);
 
@@ -100,7 +102,43 @@ public sealed record HighlightItem(Guid Id, int SourceStartMs, int SourceEndMs, 
     public static double Thickness(int height) => Math.Max(2, Math.Round(height / 270.0));
 
     public override Action<DrawingContext, int, int> Drawing(int width, int height) => Overlay.Highlight(Bounds, Shape, Color, Thickness(height), DimOutside);
+
+    public OverlayItem WithBounds(Rect bounds) => this with { Bounds = bounds };
 }
+
+/// <summary>
+/// A solid box over <paramref name="Bounds"/> (pixels of the recording), so what is under it cannot be read.
+/// </summary>
+public sealed record RedactionItem(Guid Id, int SourceStartMs, int SourceEndMs, Rect Bounds) : OverlayItem(Id, SourceStartMs, SourceEndMs), IAreaOverlay
+{
+    public override string Kind => "redaction";
+
+    public override string Label => $"area at {(int)Bounds.X}, {(int)Bounds.Y}, {(int)Bounds.Width}x{(int)Bounds.Height}";
+
+    public override Action<DrawingContext, int, int> Drawing(int width, int height) => Overlay.Box(Bounds, AnchoredOverlayItem.RedactionColor);
+
+    public OverlayItem WithBounds(Rect bounds) => this with { Bounds = bounds };
+}
+
+/// <summary>
+/// An overlay that covers an area, which can be moved and resized on the stage.
+/// </summary>
+public interface IAreaOverlay
+{
+    Guid Id { get; }
+
+    Rect Bounds { get; }
+
+    OverlayItem WithBounds(Rect bounds);
+}
+
+/// <summary>
+/// Ties an overlay of a filmed take to a step, so it is saved with the shot list and every re-shoot puts it on that
+/// step again. Its times are taken from the overlay when the version is saved.
+/// </summary>
+/// <param name="FollowElement">A highlight or redaction covers the step's element wherever it is in a later take.</param>
+/// <param name="Padding">Pixels around a followed element.</param>
+public sealed record OverlayAnchor(string StepId, bool FollowElement = false, int Padding = 6);
 
 /// <summary>
 /// One state of an edit. Immutable, so undo keeps the earlier states as they are.
@@ -109,7 +147,19 @@ public sealed record EditState(ImmutableList<TimeOperation> Operations, Immutabl
 {
     public static readonly EditState Empty = new([], []);
 
+    /// <summary>
+    /// For a filmed take: overlays anchored to steps, by overlay id.
+    /// </summary>
+    public ImmutableDictionary<Guid, OverlayAnchor> Anchors { get; init; } = ImmutableDictionary<Guid, OverlayAnchor>.Empty;
+
+    /// <summary>
+    /// For a filmed take: cuts anchored to steps (measured when they were made), saved with the shot list.
+    /// </summary>
+    public ImmutableList<StepAnchor> AnchoredCuts { get; init; } = [];
+
     public bool IsEmpty => Operations.IsEmpty && Overlays.IsEmpty;
+
+    public OverlayAnchor? AnchorOf(Guid overlay) => Anchors.GetValueOrDefault(overlay);
 }
 
 /// <summary>
@@ -185,7 +235,46 @@ public sealed class EditDocument
             Apply(State with { Overlays = State.Overlays.SetItem(index, overlay) });
     }
 
-    public void Remove(Guid overlay) => Apply(State with { Overlays = State.Overlays.RemoveAll(r => r.Id == overlay) });
+    public void Remove(Guid overlay) => Apply(State with { Overlays = State.Overlays.RemoveAll(r => r.Id == overlay), Anchors = State.Anchors.Remove(overlay) });
+
+    /// <summary>
+    /// Anchors the overlay to a step, or frees it (null), as one undo step.
+    /// </summary>
+    public void SetAnchor(Guid overlay, OverlayAnchor? anchor) =>
+        Apply(State with { Anchors = anchor == null ? State.Anchors.Remove(overlay) : State.Anchors.SetItem(overlay, anchor) });
+
+    /// <summary>
+    /// The anchored overlays and cuts of <paramref name="state"/> as shot list edits, measured on the take of
+    /// <paramref name="clock"/> (the clock of the document's source). Anchors on steps the take does not have are skipped.
+    /// </summary>
+    public static List<AnchoredEdit> AnchoredEdits(EditState state, TakeClock clock)
+    {
+        var edits = new List<AnchoredEdit>();
+
+        foreach (var item in state.Overlays)
+        {
+            if (state.AnchorOf(item.Id) is not { } anchor || clock.Take.Find(anchor.StepId) is not { } step)
+                continue;
+
+            var at = clock.Anchor(anchor.StepId, item.SourceStartMs, item.SourceEndMs);
+            var follow = anchor.FollowElement && step.Element is { IsEmpty: false };
+
+            edits.Add(item switch
+            {
+                CaptionItem caption => new AnchoredEdit(AnchoredEdit.NewId(), AnchorKind.Caption, at, caption.Text, caption.Position),
+                HighlightItem highlight => new AnchoredEdit(AnchoredEdit.NewId(), AnchorKind.Highlight, at, Area: follow ? null : BoxOf(highlight.Bounds),
+                    FollowElement: follow, Padding: anchor.Padding, Shape: highlight.Shape, DimOutside: highlight.DimOutside),
+                RedactionItem redaction => new AnchoredEdit(AnchoredEdit.NewId(), AnchorKind.Redaction, at, Area: follow ? null : BoxOf(redaction.Bounds),
+                    FollowElement: follow, Padding: anchor.Padding),
+                _ => throw new NotSupportedException($"{item.Kind} overlays cannot be anchored.")
+            });
+        }
+
+        edits.AddRange(state.AnchoredCuts.Where(w => clock.Take.Find(w.StepId) != null).Select(s => new AnchoredEdit(AnchoredEdit.NewId(), AnchorKind.Cut, s)));
+        return edits;
+
+        static Box BoxOf(Rect rect) => new((int)Math.Round(rect.X), (int)Math.Round(rect.Y), (int)Math.Round(rect.Width), (int)Math.Round(rect.Height));
+    }
 
     public bool Undo()
     {
@@ -246,8 +335,19 @@ public sealed class EditDocument
     ];
 
     /// <summary>
-    /// Splits the clips where overlays start and end, so each overlay covers whole frames, and lists what to draw where.
-    /// Highlights are drawn before captions, so a dimmed area never darkens a caption.
+    /// The order overlays are drawn in: redactions first, then highlights, captions last, so a dimmed area never
+    /// darkens a caption and a highlight can frame a redacted area.
+    /// </summary>
+    public static int Layer(OverlayItem item) => item.Kind switch
+    {
+        "redaction" => 0,
+        "caption" => 2,
+        _ => 1
+    };
+
+    /// <summary>
+    /// Splits the clips where overlays start and end, so each overlay covers whole frames, and lists what to draw where
+    /// (in <see cref="Layer"/> order).
     /// </summary>
     public static RenderPlan Plan(IReadOnlyList<Clip> clips, EditState state, int width, int height)
     {
@@ -264,7 +364,7 @@ public sealed class EditDocument
 
         var draws = new List<(int, int, Action<DrawingContext, int, int>)>();
 
-        foreach (var overlay in placed.OrderBy(o => o.Item is CaptionItem ? 1 : 0))
+        foreach (var overlay in placed.OrderBy(o => Layer(o.Item)))
         {
             var first = starts.FindIndex(f => f >= overlay.StartMs);
             var count = first < 0 ? 0 : starts.Skip(first).TakeWhile(t => t < overlay.EndMs).Count();

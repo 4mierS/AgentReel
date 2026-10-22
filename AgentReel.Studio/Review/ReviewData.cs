@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using AgentReel.Core;
 using AgentReel.Editing;
+using AgentReel.Editing.Shots;
 
 namespace AgentReel.Studio.Review;
 
@@ -91,6 +92,18 @@ public sealed class ReviewData
     public required IReadOnlyList<Change> Changes { get; init; }
 
     /// <summary>
+    /// For an edit of a filmed take: the video of the take filmed before it (what a re-shoot replaces), null otherwise.
+    /// </summary>
+    public PreviousTake? Previous { get; init; }
+
+    public ReviewTrack? PreviousTrack { get; init; }
+
+    /// <summary>
+    /// The time of the previous video that shows the same step as <paramref name="editMs"/> of the edit.
+    /// </summary>
+    public double PreviousTime(double editMs) => Previous?.ToVideo((int)SourceTime(editMs)) ?? 0;
+
+    /// <summary>
     /// The source time shown at <paramref name="editMs"/> in the edit. Inside a sped up frame the source runs faster.
     /// </summary>
     public double SourceTime(double editMs)
@@ -115,13 +128,28 @@ public sealed class ReviewData
         //Compared with the original recording, the start of the chain.
         var source = ReviewTrack.Load(Path.Combine(parent, string.IsNullOrEmpty(record.OriginalId) ? record.SourceId : record.OriginalId));
 
+        //A re-shoot is also compared with the video it replaces.
+        var previous = Recording.Load(editFolder) is { } recording ? PreviousTake.Find(recording) : null;
+        ReviewTrack? previousTrack = null;
+
+        try
+        {
+            previousTrack = previous == null ? null : ReviewTrack.Load(previous.Video.Folder);
+        }
+        catch (InvalidDataException)
+        {
+            previous = null;
+        }
+
         return new ReviewData
         {
             Edit = edit,
             Source = source,
             Record = record,
             Review = ReviewFiles.ReadReview(editFolder),
-            Changes = FindChanges(edit, source, record)
+            Changes = FindChanges(edit, source, record),
+            Previous = previousTrack == null ? null : previous,
+            PreviousTrack = previousTrack
         };
     }
 
