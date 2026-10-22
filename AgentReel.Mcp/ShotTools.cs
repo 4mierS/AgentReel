@@ -36,6 +36,9 @@ public sealed class ShotTools(RecordingSession session, ILogger<ShotTools> logge
         var text = new StringBuilder();
         text.Append(CultureInfo.InvariantCulture, $"Filmed \"{list.Name}\" as recording '{film.Recording.Id}': {film.Recording.Frames.Count} frames, {film.Recording.Duration / 1000.0:0.0} s, {film.Recording.Width}x{film.Recording.Height}.");
         text.Append(" Anchor edits to steps with add_caption/add_highlight (stepId); reshoot places them on a new take.");
+
+        if (film.Run.Warning != null)
+            text.Append("\n⚠ ").Append(film.Run.Warning);
         AppendSteps(text, film.Take);
         return text.ToString();
     }

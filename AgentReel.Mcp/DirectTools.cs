@@ -163,6 +163,9 @@ public sealed class DirectTools(ILogger<DirectTools> logger)
         else
             text.Append(CultureInfo.InvariantCulture, $" Crops in {Path.Combine(_store.FolderOf(list.Name), relative)}.");
 
+        if (run.Warning != null)
+            text.Append("\n⚠ ").Append(run.Warning);
+
         foreach (var step in run.Steps)
             text.Append('\n').Append(Line(step));
 
@@ -194,6 +197,9 @@ public sealed class DirectTools(ILogger<DirectTools> logger)
         var text = new StringBuilder();
         text.Append($"\"{list.Name}\": {report.Summary} ");
         text.Append(report.CanReshootAsIs ? "The video can be re-shot as is." : "Review the changed and missing steps before re-shooting (update their targets or captions, then save_shot_list).");
+        if (report.Warning != null)
+            text.Append("\n⚠ ").Append(report.Warning);
+
         text.Append($"\nReport: {Path.Combine(runFolder, DriftReport.HtmlFile)}");
 
         foreach (var item in report.Items)

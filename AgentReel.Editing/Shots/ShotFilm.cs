@@ -138,6 +138,9 @@ public static class ShotFilm
         foreach (var dropped in resolution.Dropped)
             text.Append($"\nDropped {Lower(dropped.Edit.Describe())}: {dropped.Reason}");
 
+        if (film.Run.Warning != null)
+            text.Append("\n⚠ ").Append(film.Run.Warning);
+
         return text.ToString();
 
         static string Lower(string text) => char.ToLowerInvariant(text[0]) + text[1..];

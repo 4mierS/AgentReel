@@ -50,6 +50,11 @@ public sealed record ShotRunOptions
     public bool CloseAppAtEnd { get; init; } = true;
 
     /// <summary>
+    /// Watches the real keyboard and mouse during the run and reports input per step (<see cref="ShotRun.StrayInput"/>).
+    /// </summary>
+    public bool WatchInput { get; init; } = true;
+
+    /// <summary>
     /// Keeps going after a failed step (drift checks want every step's status); otherwise the rest is skipped.
     /// </summary>
     public bool ContinueOnError { get; init; }
@@ -71,8 +76,15 @@ public sealed record StepResult(string StepId, ShotAction Action, StepStatus Sta
 /// </summary>
 public sealed record StepSpan(string StepId, long StartMs, long EndMs);
 
-public sealed record ShotRun(string ShotList, DateTime Started, int ProcessId, IReadOnlyList<StepResult> Steps)
+/// <param name="StrayInput">Real keyboard and mouse input during the run, per step (empty when nobody touched anything).</param>
+public sealed record ShotRun(string ShotList, DateTime Started, int ProcessId, IReadOnlyList<StepResult> Steps, IReadOnlyList<StrayInput>? StrayInput = null)
 {
+    /// <summary>
+    /// Set when someone used the keyboard or mouse during the run: the run (and a video of it) may not show what the
+    /// shot list says.
+    /// </summary>
+    public string? Warning => Direct.StrayInput.Warning(StrayInput);
+
     public bool Succeeded => Steps.All(a => a.Status == StepStatus.Done);
 
     public long DurationMs => Steps.Count == 0 ? 0 : Steps.Max(m => m.EndMs);
@@ -96,6 +108,7 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
         var results = new List<StepResult>();
         Process? launched = null;
         Uia? uia = null;
+        using var input = _options.WatchInput ? InputWatch.Start() : null;
 
         //Attach right away when the list does not start the app itself.
         if (list.Steps[0].Action != ShotAction.Launch)
@@ -114,6 +127,9 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
                 }
 
                 var start = watch.ElapsedMilliseconds;
+
+                if (input != null)
+                    input.Step = step.Id;
 
                 if (hooks != null && step.Action != ShotAction.Launch)
                     await hooks.OnStepStart(step, start, token);
@@ -170,7 +186,7 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
                 Close(launched, uia);
         }
 
-        var run = new ShotRun(list.Name, started, uia?.ProcessId ?? 0, results);
+        var run = new ShotRun(list.Name, started, uia?.ProcessId ?? 0, results, input?.Counts() ?? []);
 
         if (hooks != null)
             await hooks.OnRunEnd(run, token);
