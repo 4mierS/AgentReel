@@ -81,6 +81,15 @@ public static class Overlay
             context.DrawGeometry(null, new Pen(Brush(color), thickness), geometry);
     };
 
+    /// <summary>
+    /// A solid box over <paramref name="bounds"/>: what is under it cannot be read back (unlike a blur).
+    /// </summary>
+    public static Action<DrawingContext, int, int> Box(Rect bounds, Color color) => (context, _, _) =>
+    {
+        if (!bounds.IsEmpty)
+            context.DrawRectangle(Brush(color), null, bounds);
+    };
+
     private static void Draw(string path, Action<DrawingContext, int, int> draw)
     {
         //Loaded from memory, so the file is not locked when it gets overwritten.

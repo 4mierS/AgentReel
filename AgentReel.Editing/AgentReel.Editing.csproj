@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AgentReel.Capture\AgentReel.Capture.csproj" />
     <ProjectReference Include="..\AgentReel.Core\AgentReel.Core.csproj" />
+    <ProjectReference Include="..\AgentReel.Direct\AgentReel.Direct.csproj" />
     <ProjectReference Include="..\AgentReel.Export\AgentReel.Export.csproj" />
   </ItemGroup>
 </Project>

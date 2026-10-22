@@ -12,6 +12,11 @@ public sealed class CaptureRun(Recording recording, RecordingLock recordingLock)
 
     public string Id => Recording.Id;
 
+    /// <summary>
+    /// After the stop: when the first frame arrived, in milliseconds after the start (see <see cref="CaptureResult.FirstFrameMs"/>).
+    /// </summary>
+    public int FirstFrameMs { get; internal set; }
+
     internal RecordingLock Lock { get; } = recordingLock;
 }
 
@@ -58,6 +63,8 @@ public static class ProjectRecording
         {
             run.Lock.Dispose();
         }
+
+        run.FirstFrameMs = result.FirstFrameMs;
 
         var recording = run.Recording;
         recording.Frames = result.Frames.ToList();

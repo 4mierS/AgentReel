@@ -20,7 +20,9 @@ public sealed record CaptureTarget(CaptureTargetKind Kind, IntPtr Handle, string
 public sealed record CaptureOptions(CaptureTarget Target, int Framerate = 15, bool ShowCursor = true, Int32Rect? Region = null);
 
 /// <param name="Frames">Frames in order, with their PNG path and delay in milliseconds.</param>
-public sealed record CaptureResult(IReadOnlyList<RecordedFrame> Frames, int Width, int Height, double Dpi);
+/// <param name="FirstFrameMs">When the first frame arrived, in milliseconds after <see cref="ICaptureService.StartAsync"/>
+/// returned. The recording's time 0 is that moment, so anything timed from the start (shot list steps) subtracts it.</param>
+public sealed record CaptureResult(IReadOnlyList<RecordedFrame> Frames, int Width, int Height, double Dpi, int FirstFrameMs = 0);
 
 /// <summary>
 /// A running recording so far.

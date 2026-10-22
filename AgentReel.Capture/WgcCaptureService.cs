@@ -41,6 +41,7 @@ public sealed class WgcCaptureService : ICaptureService
     private double _dpi;
     private TimeSpan _interval;
     private TimeSpan _lastCommit;
+    private TimeSpan _firstCommit;
     private SoftwareBitmap? _pending;
     private bool _stopping;
     private Exception? _error;
@@ -160,7 +161,7 @@ public sealed class WgcCaptureService : ICaptureService
         _writes!.Writer.Complete();
         await _writer!;
 
-        var result = new CaptureResult(_frames, _crop.Width, _crop.Height, _dpi);
+        var result = new CaptureResult(_frames, _crop.Width, _crop.Height, _dpi, (int)Math.Round(_firstCommit.TotalMilliseconds));
 
         _session = null;
         _pool = null;
@@ -248,6 +249,8 @@ public sealed class WgcCaptureService : ICaptureService
 
         if (_frames.Count > 0)
             _frames[^1].Delay = ToDelay(now - _lastCommit);
+        else
+            _firstCommit = now;
 
         var path = Path.Combine(_folder, _frames.Count + ".png");
         _frames.Add(new RecordedFrame(path, 0) { Index = _frames.Count });
