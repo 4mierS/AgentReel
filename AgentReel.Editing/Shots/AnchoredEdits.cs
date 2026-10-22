@@ -103,6 +103,20 @@ public sealed record ShotEdits(IReadOnlyList<AnchoredEdit> Edits)
     public ShotEdits Add(AnchoredEdit edit) => new([.. Edits, edit]);
 
     public ShotEdits Remove(string id) => new(Edits.Where(w => w.Id != id).ToList());
+
+    /// <summary>
+    /// Adds <paramref name="edits"/> to the edits.json of shot list <paramref name="shotList"/>, so every later re-shoot gets them.
+    /// </summary>
+    public static void Remember(string shotList, IEnumerable<AnchoredEdit> edits, ShotListStore? store = null)
+    {
+        var added = edits.ToList();
+
+        if (added.Count == 0)
+            return;
+
+        var folder = (store ?? new ShotListStore()).FolderOf(shotList);
+        new ShotEdits([.. Load(folder).Edits, .. added]).Save(folder);
+    }
 }
 
 /// <summary>
@@ -235,6 +249,11 @@ public static class Anchors
     private static string Failure(TakeStep step) => step.Drift == Drift.Missing || step.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true
         ? "is missing in this build"
         : step.Status == StepStatus.Skipped ? "was skipped after an earlier failure" : $"failed ({step.Error})";
+
+    /// <summary>
+    /// The area a followed element covers: its box with <paramref name="padding"/> around it, clipped to the recording.
+    /// </summary>
+    public static Rect ElementArea(Box box, int padding, int width, int height) => Inflate(box, padding, width, height);
 
     private static Rect Inflate(Box box, int padding, int width, int height) =>
         Clip(new Rect(box.X - padding, box.Y - padding, box.Width + 2 * padding, box.Height + 2 * padding), width, height);
