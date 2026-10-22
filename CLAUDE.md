@@ -309,8 +309,7 @@ Shield = built-in safety, not the headline. Pricing: $7/month individual; Busine
 Merged later on 2026-10-21: Privacy Shield (`AgentReel.Editing/Privacy/`, MCP `scan_privacy`/`redact`, export
 `privacyWarning`; Windows OCR, found 5/5 fake secrets in a console demo, untested on browsers/IDEs) and
 `AgentReel.Export` (own GIF/APNG encoders, MP4 via Media Foundation/Vortice.MediaFoundation, no FFmpeg; not wired into
-the server/Studio yet). In flight on worktree branches: own project model (step 1, removes all ScreenToGif references
-from AgentReel.*), `AgentReel.Direct` (shot list, UIA locators, player, drift report, sample WPF app, MCP tools).
+the server/Studio yet; wired in with the project model below).
 
 Merged 2026-10-21/22:
 - Own project model (step 1): `AgentReel.Core` (`Recording`/`RecordedFrame`, `recording.json`, `RecordingStore` in
