@@ -49,6 +49,9 @@ public class ReshootTests
             Assert.All(v1.Take.Steps, step => Assert.True(step.Played, $"{step.StepId}: {step.Status} {step.Error}"));
             Assert.True(File.Exists(Path.Combine(v1.Recording.Folder, ShotTake.FileName)));
 
+            //Save closes its dialog; its element is still placed (from where the dialog was when the step started).
+            Assert.NotNull(v1.Take.Find("save")!.Element);
+
             var exportV1 = v1.Take.Find("export")!;
             Assert.NotNull(exportV1.Element);
             Assert.InRange(exportV1.StartMs, 1, v1.Recording.Duration);

@@ -38,6 +38,10 @@ public sealed class ShotCamera(ICaptureService capture, ShotList list, FilmOptio
     private readonly Dictionary<string, (long Start, long End, Box? Element)> _times = new(StringComparer.Ordinal);
     private readonly Dictionary<string, StepResult> _results = new(StringComparer.Ordinal);
 
+    //Where the app's windows were when the last step started: a step may close the dialog it works in (Save) before
+    //its element can be placed.
+    private Dictionary<string, System.Windows.Rect> _windowsAtStart = [];
+
     private CaptureRun? _run;
     private IntPtr _window;
     private int _processId;
@@ -87,6 +91,9 @@ public sealed class ShotCamera(ICaptureService capture, ShotList list, FilmOptio
             await StopAsync();
 
         _times[step.Id] = (Now(), -1, null);
+
+        if (step.Action != ShotAction.Launch && Recording == null)
+            _windowsAtStart = Windows();
     }
 
     public Task OnStepEnd(ShotStep step, StepResult result, CancellationToken token)
@@ -157,7 +164,7 @@ public sealed class ShotCamera(ICaptureService capture, ShotList list, FilmOptio
         //is), otherwise UIA and capture coordinates differ on scaled monitors.
         try
         {
-            var window = FindWindow(element.WindowTitle);
+            var window = Windows().TryGetValue(element.WindowTitle, out var now) ? now : _windowsAtStart.TryGetValue(element.WindowTitle, out var before) ? before : (System.Windows.Rect?)null;
 
             if (window is not { IsEmpty: false } origin)
                 return null;
@@ -170,24 +177,30 @@ public sealed class ShotCamera(ICaptureService capture, ShotList list, FilmOptio
         }
     }
 
-    private System.Windows.Rect? FindWindow(string title)
+    /// <summary>
+    /// The app's windows by title, dialogs included (UIA may list owned windows under their owner).
+    /// </summary>
+    private Dictionary<string, System.Windows.Rect> Windows()
     {
-        var uia = new Uia(_processId);
+        var windows = new Dictionary<string, System.Windows.Rect>(StringComparer.Ordinal);
         var isWindow = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window);
 
-        foreach (var top in uia.TopWindows())
+        try
         {
-            if ((top.Current.Name ?? "") == title)
-                return top.Current.BoundingRectangle;
-
-            foreach (AutomationElement dialog in top.FindAll(TreeScope.Descendants, isWindow))
+            foreach (var top in new Uia(_processId).TopWindows())
             {
-                if ((dialog.Current.Name ?? "") == title)
-                    return dialog.Current.BoundingRectangle;
+                windows.TryAdd(top.Current.Name ?? "", top.Current.BoundingRectangle);
+
+                foreach (AutomationElement dialog in top.FindAll(TreeScope.Descendants, isWindow))
+                    windows.TryAdd(dialog.Current.Name ?? "", dialog.Current.BoundingRectangle);
             }
         }
+        catch (ElementNotAvailableException)
+        {
+            //A window closed while it was read.
+        }
 
-        return null;
+        return windows;
     }
 
     private Int32Rect WindowBounds(IReadOnlyList<CaptureTarget> targets) =>
