@@ -139,7 +139,7 @@ public sealed class DirectTools(ILogger<DirectTools> logger)
         var (relative, runFolder) = _store.NewRunFolder(list.Name);
         var cropFolder = baseline ? _store.ResetBaseline(list.Name) : runFolder;
 
-        var player = new ShotPlayer(new ShotRunOptions { StepDelayMs = Math.Clamp(stepDelayMs, 0, 5000), CropFolder = cropFolder, CloseAppAtEnd = !keepAppOpen });
+        var player = new ShotPlayer(new ShotRunOptions { StepDelayMs = Math.Clamp(stepDelayMs, 0, 5000), CropFolder = cropFolder, CloseAppAtEnd = !keepAppOpen, ShotListFolder = baseline ? null : _store.FolderOf(list.Name) });
         var run = await player.RunAsync(list, token: cancellationToken);
 
         if (baseline)
@@ -169,7 +169,7 @@ public sealed class DirectTools(ILogger<DirectTools> logger)
         return text.ToString();
     }
 
-    [McpServerTool(Name = "check_drift"), Description("Plays a shot list against the current build of the app and compares every step's element with the baseline: unchanged, moved (same element, new place), changed (renamed or only found by a similar name – captions may be wrong), missing. Keeps going after failures so every step gets a status. Returns the report and an image with baseline and current crops side by side; drift.json/drift.html are saved in the shot list's runs folder. Unchanged and moved steps can be re-shot as is; changed and missing ones need the user's review.")]
+    [McpServerTool(Name = "check_drift"), Description("Plays a shot list against the current build of the app and compares every step's element with the baseline: unchanged, moved (same element, new place), changed (renamed, only found by a similar name, or only found by its baseline picture when UI Automation lost it – captions may be wrong), missing. Keeps going after failures so every step gets a status. Returns the report and an image with baseline and current crops side by side; drift.json/drift.html are saved in the shot list's runs folder. Unchanged and moved steps can be re-shot as is; changed and missing ones need the user's review.")]
     public async Task<IEnumerable<ContentBlock>> CheckDrift(
         [Description("Shot list name. It needs a baseline (run_shot_list with baseline=true).")] string name,
         [Description("Pause after each step in milliseconds.")] int stepDelayMs = 200,
@@ -182,7 +182,7 @@ public sealed class DirectTools(ILogger<DirectTools> logger)
             throw new McpException($"\"{list.Name}\" has no baseline yet. Run run_shot_list with baseline=true on the build to compare against.");
 
         var (relative, runFolder) = _store.NewRunFolder(list.Name);
-        var player = new ShotPlayer(new ShotRunOptions { StepDelayMs = Math.Clamp(stepDelayMs, 0, 5000), CropFolder = runFolder, CloseAppAtEnd = !keepAppOpen, ContinueOnError = true });
+        var player = new ShotPlayer(new ShotRunOptions { StepDelayMs = Math.Clamp(stepDelayMs, 0, 5000), CropFolder = runFolder, CloseAppAtEnd = !keepAppOpen, ContinueOnError = true, ShotListFolder = _store.FolderOf(list.Name) });
         var run = await player.RunAsync(list, token: cancellationToken);
 
         var report = DriftReport.Build(list, run, relative);

@@ -13,7 +13,8 @@ namespace AgentReel.Editing.Shots;
 /// <param name="PreferSecondaryMonitor">Moves the app to a monitor that is not the primary one before filming, when
 /// there is one. The primary monitor is where private windows (mail, chat) usually are.</param>
 /// <param name="CloseApp">Closes the app after filming when the shot list started it.</param>
-public sealed record FilmOptions(int Framerate = 15, int StepDelayMs = 700, bool PreferSecondaryMonitor = true, bool ShowCursor = false, bool CloseApp = true, int FindTimeoutMs = 5000);
+/// <param name="ShotListFolder">The shot list's folder, for the picture fallback (<see cref="ShotRunOptions.ShotListFolder"/>).</param>
+public sealed record FilmOptions(int Framerate = 15, int StepDelayMs = 700, bool PreferSecondaryMonitor = true, bool ShowCursor = false, bool CloseApp = true, int FindTimeoutMs = 5000, string? ShotListFolder = null);
 
 /// <summary>
 /// Films a shot list while it plays: starts the capture when the app's main window is there, notes when each step

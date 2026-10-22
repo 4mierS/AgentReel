@@ -31,7 +31,7 @@ public sealed class ShotTools(RecordingSession session, ILogger<ShotTools> logge
         CancellationToken cancellationToken = default)
     {
         var list = Load(name);
-        var film = await FilmAsync(list, Options(stepDelayMs, framerate, preferSecondaryMonitor), cancellationToken);
+        var film = await FilmAsync(list, Options(stepDelayMs, framerate, preferSecondaryMonitor) with { ShotListFolder = _store.FolderOf(list.Name) }, cancellationToken);
 
         var text = new StringBuilder();
         text.Append(CultureInfo.InvariantCulture, $"Filmed \"{list.Name}\" as recording '{film.Recording.Id}': {film.Recording.Frames.Count} frames, {film.Recording.Duration / 1000.0:0.0} s, {film.Recording.Width}x{film.Recording.Height}.");
@@ -52,7 +52,7 @@ public sealed class ShotTools(RecordingSession session, ILogger<ShotTools> logge
     {
         var list = Load(name);
         var edits = ShotEdits.Load(_store.FolderOf(list.Name));
-        var options = Options(stepDelayMs, framerate, preferSecondaryMonitor);
+        var options = Options(stepDelayMs, framerate, preferSecondaryMonitor) with { ShotListFolder = _store.FolderOf(list.Name) };
         var agent = ReviewTools.AgentName(server.ClientInfo);
 
         ReshootResult result;

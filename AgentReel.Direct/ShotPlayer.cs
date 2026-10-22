@@ -39,6 +39,12 @@ public sealed record ShotRunOptions
     public string? CropFolder { get; init; }
 
     /// <summary>
+    /// The shot list's folder: baseline crop paths are relative to it. When set, an element UI Automation does not find
+    /// is looked for by its baseline picture (<see cref="Vision"/>).
+    /// </summary>
+    public string? ShotListFolder { get; init; }
+
+    /// <summary>
     /// Closes the app at the end if this run started it.
     /// </summary>
     public bool CloseAppAtEnd { get; init; } = true;
@@ -194,7 +200,7 @@ public sealed class ShotPlayer(ShotRunOptions? options = null)
 
         var locator = step.Target!;
         var timeout = step.Action == ShotAction.WaitFor ? step.Ms ?? _options.FindTimeoutMs : _options.FindTimeoutMs;
-        var (live, match) = await uia.FindAsync(locator, timeout, token);
+        var (live, match) = await uia.FindAsync(locator, timeout, token, _options.ShotListFolder);
 
         if (live == null || match == null)
             return new StepResult(step.Id, step.Action, StepStatus.Failed, start, watch.ElapsedMilliseconds, Drift.Missing, Error: $"{locator} was not found.");

@@ -100,6 +100,9 @@ public sealed record DriftReport(string ShotList, DateTime Created, IReadOnlyLis
         if (result.Match is MatchKind.FuzzyName)
             notes.Add("found only by a similar name");
 
+        if (result.Match is MatchKind.Image)
+            notes.Add($"found only by its picture ({result.Score:0} % alike): its id and name changed or it is not exposed to UI Automation anymore");
+
         if (result.Match is MatchKind.AutomationIdOnly)
             notes.Add("same id, different control");
 

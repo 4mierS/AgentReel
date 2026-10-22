@@ -8,7 +8,9 @@ namespace AgentReel.Direct;
 /// <summary>
 /// A live element together with what the matcher sees of it.
 /// </summary>
-public sealed record LiveElement(AutomationElement Element, ElementInfo Info, AutomationElement TopWindow);
+/// <param name="ScreenBox">Set when the element was found by its picture (<see cref="Vision"/>): where it is on screen.
+/// <see cref="Element"/> is then only what UI Automation has at that place, so clicks go there by mouse.</param>
+public sealed record LiveElement(AutomationElement Element, ElementInfo Info, AutomationElement TopWindow, Rect? ScreenBox = null);
 
 /// <summary>
 /// UI Automation access for one app (one process): its top-level windows, their element trees, and actions on
@@ -181,9 +183,10 @@ public sealed class Uia(int processId)
     private static string? NullIfEmpty(string? text) => string.IsNullOrEmpty(text) ? null : text;
 
     /// <summary>
-    /// Finds the element that fits the locator best, retrying until it appears or the timeout ends.
+    /// Finds the element that fits the locator best, retrying until it appears or the timeout ends. Then, if
+    /// <paramref name="cropRoot"/> is given and the locator has a baseline crop, looks for its picture (<see cref="Vision"/>).
     /// </summary>
-    public async Task<(LiveElement? Element, Match? Match)> FindAsync(Locator locator, int timeoutMs, CancellationToken token)
+    public async Task<(LiveElement? Element, Match? Match)> FindAsync(Locator locator, int timeoutMs, CancellationToken token, string? cropRoot = null)
     {
         var watch = Stopwatch.StartNew();
 
@@ -197,7 +200,12 @@ public sealed class Uia(int processId)
                 return (elements.First(f => ReferenceEquals(f.Info, match.Element)), match);
 
             if (watch.ElapsedMilliseconds >= timeoutMs)
+            {
+                if (cropRoot != null && Vision.Find(this, locator, cropRoot, elements) is { } seen)
+                    return seen;
+
                 return (null, null);
+            }
 
             await Task.Delay(150, token);
         }
@@ -208,6 +216,13 @@ public sealed class Uia(int processId)
     public void Click(LiveElement live)
     {
         var element = live.Element;
+
+        //Found by its picture: the place is known, the element behind it is not.
+        if (live.ScreenBox != null)
+        {
+            ClickWithMouse(live, 1);
+            return;
+        }
 
         if (element.TryGetCurrentPattern(InvokePattern.Pattern, out var invoke))
         {
@@ -341,7 +356,7 @@ public sealed class Uia(int processId)
     /// </summary>
     private void ClickWithMouse(LiveElement live, int clicks)
     {
-        var bounds = live.Element.Current.BoundingRectangle;
+        var bounds = live.ScreenBox ?? live.Element.Current.BoundingRectangle;
 
         if (bounds.IsEmpty)
             throw new InvalidOperationException($"{live.Info.ControlType} \"{live.Info.Name}\" has no visible area to click.");
