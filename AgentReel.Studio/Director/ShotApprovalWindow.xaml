@@ -97,7 +97,7 @@
                                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,8,0,0">
                                     <TextBlock Text="{Binding CheckNote}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,6" Visibility="{Binding NoteVisibility}"
                                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-                                    <ui:TextBox Text="{Binding Caption, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="No caption – the video shows this step without text"
+                                    <ui:TextBox Text="{Binding Caption, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.AutomationId="{Binding CaptionId}" AutomationProperties.Name="{Binding CaptionName}" PlaceholderText="No caption – the video shows this step without text"
                                                 Icon="{ui:SymbolIcon ClosedCaption20}" MinHeight="36" VerticalContentAlignment="Center" TextWrapping="Wrap" AcceptsReturn="False"/>
                                 </StackPanel>
                             </Grid>
@@ -131,7 +131,7 @@
                     </ui:Button>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="24,0,0,0">
-                        <ui:Button Height="40" Appearance="Secondary" Click="Reject_Click" ToolTip="Do not film this (Esc)">
+                        <ui:Button x:Name="RejectButton" Height="40" Appearance="Secondary" Click="Reject_Click" ToolTip="Do not film this (Esc)">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Reject" VerticalAlignment="Center"/>
                                 <Border Style="{StaticResource Keycap}" Margin="8,0,0,0">

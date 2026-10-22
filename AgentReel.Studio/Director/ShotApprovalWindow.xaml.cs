@@ -198,6 +198,10 @@ public sealed class StepRow(int number, ShotStep step, StepCheck? check, ShotApp
 
     public string? Caption { get; set; } = step.Caption;
 
+    public string CaptionId => "Caption_" + Step.Id;
+
+    public string CaptionName => $"Caption of step {Number}";
+
     public string CheckLabel => check?.Status switch
     {
         CheckStatus.Found => "Found",
