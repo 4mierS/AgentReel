@@ -22,6 +22,8 @@
     <ProjectReference Include="..\AgentReel.Direct\AgentReel.Direct.csproj" />
     <!-- Filming and re-shooting (ReshootTests). -->
     <ProjectReference Include="..\AgentReel.Editing\AgentReel.Editing.csproj" />
+    <!-- CliTests. -->
+    <ProjectReference Include="..\AgentReel.Cli\AgentReel.Cli.csproj" />
     <!-- Copied next to the tests, which start it as the app under test. -->
     <ProjectReference Include="..\AgentReel.Direct.SampleApp\AgentReel.Direct.SampleApp.csproj" />
     <ProjectReference Include="..\AgentReel.Direct.SampleApp.WinForms\AgentReel.Direct.SampleApp.WinForms.csproj" />

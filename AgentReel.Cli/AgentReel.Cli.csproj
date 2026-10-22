@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Command line for shot lists in CI: baseline, drift check, film and re-shoot without an agent or MCP client.
+       New AgentReel code, not derived from ScreenToGif. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>agentreel</AssemblyName>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>True</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>AnyCPU;ARM64;x64;x86</Platforms>
+    <Configurations>Debug;Release;Debug (Store)</Configurations>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AgentReel.Direct.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AgentReel.Capture\AgentReel.Capture.csproj" />
+    <ProjectReference Include="..\AgentReel.Core\AgentReel.Core.csproj" />
+    <ProjectReference Include="..\AgentReel.Direct\AgentReel.Direct.csproj" />
+    <ProjectReference Include="..\AgentReel.Editing\AgentReel.Editing.csproj" />
+    <ProjectReference Include="..\AgentReel.Export\AgentReel.Export.csproj" />
+  </ItemGroup>
+</Project>

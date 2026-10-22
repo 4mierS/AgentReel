@@ -1,0 +1,8 @@
+{
+  "edits": [
+    { "id": "refresh-caption", "kind": "caption", "at": { "stepId": "refresh" }, "text": "Refresh the list first" },
+    { "id": "customer-caption", "kind": "caption", "at": { "stepId": "customer" }, "text": "Enter the customer" },
+    { "id": "export-caption", "kind": "caption", "at": { "stepId": "export" }, "text": "Click Export…" },
+    { "id": "export-highlight", "kind": "highlight", "at": { "stepId": "export" }, "followElement": true }
+  ]
+}

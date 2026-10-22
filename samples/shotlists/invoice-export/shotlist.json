@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "invoice-export",
+  "description": "Export an invoice as PNG in the WPF sample app. CI passes the app with --app.",
+  "app": {
+    "path": "AgentReel.Direct.SampleApp.exe",
+    "windowTitle": "Glasstake Sample"
+  },
+  "steps": [
+    { "id": "open", "action": "launch" },
+    { "id": "refresh", "action": "click", "target": { "automationId": "RefreshButton", "name": "Refresh", "controlType": "Button" }, "caption": "Refresh the list" },
+    { "id": "customer", "action": "type", "target": { "automationId": "CustomerBox", "controlType": "Edit" }, "text": "Acme Corp", "caption": "Enter the customer" },
+    { "id": "export", "action": "click", "target": { "automationId": "ExportButton", "controlType": "Button" }, "caption": "Click Export…", "expect": { "windowTitle": "Export" } },
+    { "id": "format", "action": "select", "target": { "automationId": "FormatBox", "controlType": "ComboBox" }, "text": "PNG", "caption": "Pick PNG" },
+    { "id": "save", "action": "click", "target": { "name": "Save", "controlType": "Button", "window": "Export" } },
+    { "id": "saved", "action": "waitFor", "target": { "name": "Saved invoice-acme-corp.png", "controlType": "Text" }, "ms": 5000 }
+  ]
+}
