@@ -25,10 +25,18 @@ public partial class ReviewWindow : FluentWindow
     private readonly Stopwatch _clock = new();
     private double _clockStart;
     private double _position;
-    private bool _showOriginal;
     private string? _shownPath;
     private bool _decided;
     private readonly string _agent;
+
+    //What the stage shows instead of the edit while O or P is held.
+    private enum Compare { None, Original, Previous }
+
+    private Compare _compare;
+
+    //Summary lines below the headline; more than MaxDetails fold behind a link.
+    private const int MaxDetails = 4;
+    private List<string> _details = [];
 
     public ReviewWindow(ReviewData data)
     {
@@ -47,12 +55,23 @@ public partial class ReviewWindow : FluentWindow
         AgentText.Text = (string.IsNullOrWhiteSpace(agent) ? "Your agent" : agent).ToUpperInvariant() + " SUGGESTS";
         FeedbackBox.PlaceholderText = $"Tell {_agent} what to change, e.g. \"keep the first second\" or \"caption shorter\"";
 
-        //The agent's own words lead; the technical steps follow in small type. Without a summary the steps lead.
+        //The agent's own words lead, as one line with the rest listed below; the technical steps follow in small type.
+        //Without a summary the steps lead.
         var steps = string.Join("  ·  ", data.Record.Steps);
         var summary = data.Review?.Summary;
-        DescriptionText.Text = string.IsNullOrWhiteSpace(summary) ? steps : summary;
-        SummaryText.Text = string.IsNullOrWhiteSpace(summary) ? "" : (data.Record.Steps.Count == 1 ? "1 step: " : $"{data.Record.Steps.Count} steps: ") + steps;
+        var (headline, details) = ReviewSummary.Split(summary);
+        DescriptionText.Text = headline.Length == 0 ? steps : headline;
+        DescriptionText.ToolTip = DescriptionText.Text;
+        _details = details;
+        ShowDetails(all: details.Count <= MaxDetails + 1);
+        SummaryText.Text = headline.Length == 0 ? "" : (data.Record.Steps.Count == 1 ? "1 step: " : $"{data.Record.Steps.Count} steps: ") + steps;
         SummaryText.Visibility = SummaryText.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+
+        if (data.Previous != null)
+        {
+            CompareHint.Text = "the original take ·";
+            PreviousHint.Visibility = Visibility.Visible;
+        }
 
         var saved = data.Source.Duration - data.Edit.Duration;
         DurationText.Text = $"{Clock.Format(data.Source.Duration)} → {Clock.Format(data.Edit.Duration)}";
@@ -118,7 +137,12 @@ public partial class ReviewWindow : FluentWindow
         Timeline.Position = _position;
 
         var index = _data.Edit.FrameAt(_position);
-        var path = _showOriginal ? _data.Source.Frames[_data.Source.FrameAt(_data.SourceTime(_position))].Path : _data.Edit.Frames[index].Path;
+        var path = _compare switch
+        {
+            Compare.Original => _data.Source.Frames[_data.Source.FrameAt(_data.SourceTime(_position))].Path,
+            Compare.Previous when _data.PreviousTrack is { } previous => previous.Frames[previous.FrameAt(_data.PreviousTime(_position))].Path,
+            _ => _data.Edit.Frames[index].Path
+        };
 
         TimeText.Text = $"{Clock.Format(_position)} / {Clock.Format(_data.Edit.Duration)}";
         UpdateChangeText();
@@ -156,18 +180,54 @@ public partial class ReviewWindow : FluentWindow
         }, TaskScheduler.Default);
     }
 
-    private void SetOriginal(bool original)
+    private void SetCompare(Compare compare)
     {
-        if (_showOriginal == original)
+        if (compare == Compare.Previous && _data.PreviousTrack == null)
+            compare = Compare.None;
+
+        if (_compare == compare)
             return;
 
-        _showOriginal = original;
-        StageBadgeText.Text = original ? "Original" : "Edit";
-        StageBadgeIcon.Symbol = original ? SymbolRegular.History16 : SymbolRegular.Sparkle16;
-        StageBadge.Background = original ? new SolidColorBrush(Color.FromArgb(0xCC, 0x3A, 0x3A, 0x40)) : (Brush)FindResource("Agent.Gradient");
+        _compare = compare;
+        StageBadgeText.Text = compare switch
+        {
+            Compare.Original => "Original",
+            Compare.Previous => $"Previous take · {_data.Previous!.Video.Id}",
+            _ => "Edit"
+        };
+        StageBadgeIcon.Symbol = compare == Compare.None ? SymbolRegular.Sparkle16 : SymbolRegular.History16;
+        StageBadge.Background = compare == Compare.None ? (Brush)FindResource("Agent.Gradient") : new SolidColorBrush(Color.FromArgb(0xCC, 0x3A, 0x3A, 0x40));
         _shownPath = null;
         ShowAt(_position);
     }
+
+    /// <summary>
+    /// The summary lines below the headline, as a list. Long lists show the first few and a link to the rest.
+    /// </summary>
+    private void ShowDetails(bool all)
+    {
+        var shown = all ? _details : _details.Take(MaxDetails).ToList();
+        DetailList.ItemsSource = shown.Select(DetailRow).ToList();
+        DetailList.Visibility = _details.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        MoreDetailsButton.Content = $"{_details.Count - MaxDetails} more";
+        MoreDetailsButton.Visibility = all ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private static FrameworkElement DetailRow(string line)
+    {
+        var row = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
+        var dot = new Border { Width = 5, Height = 5, CornerRadius = new CornerRadius(2.5), Margin = new Thickness(1, 7, 9, 0), VerticalAlignment = VerticalAlignment.Top };
+        dot.SetResourceReference(Border.BackgroundProperty, "Agent.Brush");
+        DockPanel.SetDock(dot, Dock.Left);
+        row.Children.Add(dot);
+
+        var text = new TextBlock { Text = line, FontSize = 13, TextWrapping = TextWrapping.Wrap };
+        text.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        row.Children.Add(text);
+        return row;
+    }
+
+    private void MoreDetails_Click(object sender, RoutedEventArgs e) => ShowDetails(all: true);
 
     #endregion
 
@@ -383,7 +443,11 @@ public partial class ReviewWindow : FluentWindow
                 break;
 
             case Key.O when !typing:
-                SetOriginal(true);
+                SetCompare(Compare.Original);
+                break;
+
+            case Key.P when !typing && _data.Previous != null:
+                SetCompare(Compare.Previous);
                 break;
 
             case Key.Left when !typing && Keyboard.Modifiers == ModifierKeys.Shift:
@@ -428,14 +492,14 @@ public partial class ReviewWindow : FluentWindow
     {
         base.OnPreviewKeyUp(e);
 
-        if (e.Key == Key.O)
-            SetOriginal(false);
+        if (e.Key is Key.O or Key.P)
+            SetCompare(Compare.None);
     }
 
     protected override void OnDeactivated(EventArgs e)
     {
         base.OnDeactivated(e);
-        SetOriginal(false);
+        SetCompare(Compare.None);
     }
 
     /// <summary>

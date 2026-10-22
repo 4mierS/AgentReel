@@ -8,7 +8,8 @@ namespace AgentReel.Studio.Editor;
 /// <summary>
 /// Draws the overlays that show at the playhead over the stage, with the same drawing code that burns them into the
 /// saved frames, so the preview is exact. Sized in pixels of the recording (the stage scales it).
-/// Drag on the picture to draw a highlight, drag a highlight to move it, drag a corner of the selected one to resize it.
+/// Drag on the picture to draw a highlight (Shift+drag: a redaction), drag a highlight or redaction to move it, drag a
+/// corner of the selected one to resize it. The element of the picked step shows as a dashed outline.
 /// </summary>
 public sealed class OverlayLayer : FrameworkElement
 {
@@ -18,12 +19,14 @@ public sealed class OverlayLayer : FrameworkElement
     private OverlayItem? _replacement;
     private double _position;
     private Guid? _selected;
+    private Rect? _element;
 
     private enum Drag { None, Draw, Move, Resize }
 
     private Drag _drag;
+    private bool _drawRedaction;
     private Point _down;
-    private HighlightItem? _grabbed;
+    private IAreaOverlay? _grabbed;
     private Rect _original;
     private Rect? _current;
     private int _corner;
@@ -35,14 +38,14 @@ public sealed class OverlayLayer : FrameworkElement
     }
 
     /// <summary>
-    /// A new highlight was drawn (pixels of the recording).
+    /// A new area was drawn (pixels of the recording): a highlight, or a redaction when Shift was held.
     /// </summary>
-    public event Action<Rect>? HighlightDrawn;
+    public event Action<Rect, bool>? AreaDrawn;
 
     /// <summary>
-    /// A highlight was moved or resized.
+    /// A highlight or redaction was moved or resized.
     /// </summary>
-    public event Action<HighlightItem, Rect>? HighlightChanged;
+    public event Action<OverlayItem, Rect>? AreaChanged;
 
     public event Action<Guid?>? OverlayClicked;
 
@@ -51,6 +54,18 @@ public sealed class OverlayLayer : FrameworkElement
         _overlays = overlays;
         _position = position;
         _selected = selected;
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// The element of the picked step (pixels of the recording), null for none.
+    /// </summary>
+    public void SetElement(Rect? element)
+    {
+        if (_element == element)
+            return;
+
+        _element = element;
         InvalidateVisual();
     }
 
@@ -82,6 +97,8 @@ public sealed class OverlayLayer : FrameworkElement
 
     private IEnumerable<PlacedOverlay> Active() => _overlays.Where(w => w.StartMs <= _position && _position < w.EndMs);
 
+    private List<IAreaOverlay> ActiveAreas() => Active().Select(s => s.Item).OfType<IAreaOverlay>().ToList();
+
     protected override void OnRender(DrawingContext dc)
     {
         dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, PixelWidth, PixelHeight));
@@ -91,23 +108,30 @@ public sealed class OverlayLayer : FrameworkElement
         if (_replacement != null && items.All(a => a.Id != _replacement.Id))
             items.Add(_replacement);
 
-        //Highlights first, so a dimmed area never darkens a caption (as when saving).
-        foreach (var item in items.OrderBy(o => o is CaptionItem ? 1 : 0))
+        //The same order as when saving.
+        foreach (var item in items.OrderBy(EditDocument.Layer))
         {
-            if (item is HighlightItem highlight && highlight.Id == _grabbed?.Id && _current is { } moving)
-                Draw(dc, highlight with { Bounds = moving });
+            if (item is IAreaOverlay area && area.Id == _grabbed?.Id && _current is { } moving)
+                Draw(dc, area.WithBounds(moving));
             else
                 Draw(dc, item);
         }
 
         if (_drag == Drag.Draw && _current is { } drawn)
-            Draw(dc, new HighlightItem(Guid.Empty, 0, 0, drawn, HighlightShape.Rectangle, false));
+            Draw(dc, _drawRedaction ? new RedactionItem(Guid.Empty, 0, 0, drawn) : new HighlightItem(Guid.Empty, 0, 0, drawn, HighlightShape.Rectangle, false));
+
+        var scale = HandleSize;
+
+        if (_element is { } element)
+        {
+            var step = TryFindResource("Step.Brush") as Brush ?? new SolidColorBrush(Color.FromRgb(0x14, 0xB8, 0xA6));
+            dc.DrawRectangle(null, new Pen(step, Math.Max(1.5, scale / 4)) { DashStyle = DashStyles.Dot }, element);
+        }
 
         //Selection frame with corner handles.
-        if (items.OfType<HighlightItem>().FirstOrDefault(f => f.Id == _selected) is { } selected)
+        if (items.OfType<IAreaOverlay>().FirstOrDefault(f => f.Id == _selected) is { } selected)
         {
             var bounds = selected.Id == _grabbed?.Id && _current is { } current ? current : selected.Bounds;
-            var scale = HandleSize;
             var pen = new Pen(Brushes.White, Math.Max(1, scale / 6)) { DashStyle = DashStyles.Dash };
             dc.DrawRectangle(null, pen, Inflate(bounds, scale / 2));
 
@@ -135,10 +159,10 @@ public sealed class OverlayLayer : FrameworkElement
     {
         var point = e.GetPosition(this);
         _down = point;
-        var highlights = Active().Select(s => s.Item).OfType<HighlightItem>().ToList();
+        var areas = ActiveAreas();
 
-        //A corner of the selected highlight resizes it.
-        if (highlights.FirstOrDefault(f => f.Id == _selected) is { } selected)
+        //A corner of the selected area resizes it.
+        if (areas.FirstOrDefault(f => f.Id == _selected) is { } selected)
         {
             var corners = Corners(Inflate(selected.Bounds, HandleSize / 2));
 
@@ -154,7 +178,7 @@ public sealed class OverlayLayer : FrameworkElement
             }
         }
 
-        if (highlights.LastOrDefault(f => f.Bounds.Contains(point)) is { } hit)
+        if (areas.LastOrDefault(f => f.Bounds.Contains(point)) is { } hit)
         {
             OverlayClicked?.Invoke(hit.Id);
             Grab(hit, Drag.Move);
@@ -163,12 +187,13 @@ public sealed class OverlayLayer : FrameworkElement
         }
 
         _drag = Drag.Draw;
+        _drawRedaction = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
         _current = null;
         CaptureMouse();
         e.Handled = true;
     }
 
-    private void Grab(HighlightItem item, Drag drag)
+    private void Grab(IAreaOverlay item, Drag drag)
     {
         _grabbed = item;
         _original = item.Bounds;
@@ -183,7 +208,7 @@ public sealed class OverlayLayer : FrameworkElement
 
         if (!IsMouseCaptured)
         {
-            var over = Active().Select(s => s.Item).OfType<HighlightItem>().Any(a => a.Bounds.Contains(point));
+            var over = ActiveAreas().Any(a => a.Bounds.Contains(point));
             Cursor = over ? Cursors.SizeAll : Cursors.Cross;
             return;
         }
@@ -229,15 +254,15 @@ public sealed class OverlayLayer : FrameworkElement
         switch (drag)
         {
             case Drag.Draw when current is { Width: >= MinSize, Height: >= MinSize } drawn:
-                HighlightDrawn?.Invoke(Round(drawn));
+                AreaDrawn?.Invoke(Round(drawn), _drawRedaction);
                 break;
 
             case Drag.Draw:
                 OverlayClicked?.Invoke(null);
                 break;
 
-            case Drag.Move or Drag.Resize when grabbed != null && current is { Width: >= MinSize, Height: >= MinSize } changed && changed != _original:
-                HighlightChanged?.Invoke(grabbed, Round(changed));
+            case Drag.Move or Drag.Resize when grabbed is OverlayItem item && current is { Width: >= MinSize, Height: >= MinSize } changed && changed != _original:
+                AreaChanged?.Invoke(item, Round(changed));
                 break;
         }
 

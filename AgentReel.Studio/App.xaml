@@ -22,6 +22,10 @@
             <SolidColorBrush x:Key="Change.Faster" Color="#FFF5A524"/>
             <SolidColorBrush x:Key="Change.Caption" Color="#FF3B82F6"/>
             <SolidColorBrush x:Key="Change.Highlight" Color="#FFE879F9"/>
+            <SolidColorBrush x:Key="Change.Redaction" Color="#FF71717A"/>
+
+            <!--Steps of a filmed shot list on the editor's step track.-->
+            <SolidColorBrush x:Key="Step.Brush" Color="#FF14B8A6"/>
 
             <Style x:Key="Keycap" TargetType="Border">
                 <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}"/>
