@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="StepLaunch" xml:space="preserve">
+    <value>Start the app</value>
+  </data>
+  <data name="StepClick" xml:space="preserve">
+    <value>Click {0}</value>
+    <comment>{0}: the element</comment>
+  </data>
+  <data name="StepDoubleClick" xml:space="preserve">
+    <value>Double-click {0}</value>
+    <comment>{0}: the element</comment>
+  </data>
+  <data name="StepType" xml:space="preserve">
+    <value>Type “{1}” into {0}</value>
+    <comment>{0}: the element; {1}: the text</comment>
+  </data>
+  <data name="StepKeys" xml:space="preserve">
+    <value>Press {1} in {0}</value>
+    <comment>{0}: the element; {1}: the keys</comment>
+  </data>
+  <data name="StepSelect" xml:space="preserve">
+    <value>Pick “{1}” in {0}</value>
+    <comment>{0}: the element; {1}: the item</comment>
+  </data>
+  <data name="StepWaitFor" xml:space="preserve">
+    <value>Wait for {0}</value>
+    <comment>{0}: the element</comment>
+  </data>
+  <data name="StepScroll" xml:space="preserve">
+    <value>Scroll to {0}</value>
+    <comment>{0}: the element</comment>
+  </data>
+  <data name="StepPause" xml:space="preserve">
+    <value>Hold for {0} s</value>
+    <comment>{0}: seconds</comment>
+  </data>
+  <data name="StepCloseApp" xml:space="preserve">
+    <value>Close the app</value>
+  </data>
+  <data name="StepClose" xml:space="preserve">
+    <value>Close {0}</value>
+    <comment>{0}: the element</comment>
+  </data>
+  <data name="ElementNamed" xml:space="preserve">
+    <value>the “{1}” {0}</value>
+    <comment>{0}: the control type; {1}: the element's name</comment>
+  </data>
+  <data name="ElementById" xml:space="preserve">
+    <value>the {1} {0}</value>
+    <comment>{0}: the control type; {1}: words from the automation id</comment>
+  </data>
+  <data name="ElementPlain" xml:space="preserve">
+    <value>the {0}</value>
+    <comment>{0}: the control type</comment>
+  </data>
+  <data name="ElementWindow" xml:space="preserve">
+    <value> in “{0}”</value>
+    <comment>Appended; {0}: the window title</comment>
+  </data>
+  <data name="TypeElement" xml:space="preserve">
+    <value>element</value>
+    <comment>No control type</comment>
+  </data>
+  <data name="TypeButton" xml:space="preserve">
+    <value>button</value>
+  </data>
+  <data name="TypeComboBox" xml:space="preserve">
+    <value>combo box</value>
+  </data>
+  <data name="TypeMenuItem" xml:space="preserve">
+    <value>menu item</value>
+  </data>
+  <data name="TypeCheckBox" xml:space="preserve">
+    <value>check box</value>
+  </data>
+  <data name="TypeRadioButton" xml:space="preserve">
+    <value>radio button</value>
+  </data>
+  <data name="TypeEdit" xml:space="preserve">
+    <value>box</value>
+  </data>
+  <data name="TypeListItem" xml:space="preserve">
+    <value>list item</value>
+  </data>
+  <data name="TypeTabItem" xml:space="preserve">
+    <value>tab</value>
+  </data>
+  <data name="TypeText" xml:space="preserve">
+    <value>text</value>
+  </data>
+  <data name="TypeHyperlink" xml:space="preserve">
+    <value>hyperlink</value>
+  </data>
+  <data name="TypeList" xml:space="preserve">
+    <value>list</value>
+  </data>
+  <data name="TypeMenu" xml:space="preserve">
+    <value>menu</value>
+  </data>
+  <data name="TypeTree" xml:space="preserve">
+    <value>tree</value>
+  </data>
+  <data name="TypeTreeItem" xml:space="preserve">
+    <value>treeitem</value>
+  </data>
+  <data name="TypeWindow" xml:space="preserve">
+    <value>window</value>
+  </data>
+</root>

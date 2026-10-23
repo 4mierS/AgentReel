@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Media;
 using AgentReel.Capture;
+using AgentReel.Studio.Localization;
 
 namespace AgentReel.Studio.Session;
 
@@ -19,7 +20,7 @@ public sealed class TargetItem(CaptureTarget target, int number) : INotifyProper
 
     public bool IsWindow => Target.Kind == CaptureTargetKind.Window;
 
-    public string Title => IsWindow ? Target.Name : $"Screen {number}" + (Target.IsPrimary ? " · main" : "");
+    public string Title => IsWindow ? Target.Name : Text.Format(Target.IsPrimary ? Strings.SessionMainScreen : Strings.SessionScreen, number);
 
     public string Detail { get; } = target.Kind == CaptureTargetKind.Window
         ? $"{ProcessName(target.Handle)} · {target.Bounds.Width} × {target.Bounds.Height}"
@@ -67,7 +68,7 @@ public sealed class TargetItem(CaptureTarget target, int number) : INotifyProper
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
-            return "Window";
+            return Strings.SessionWindow;
         }
     }
 

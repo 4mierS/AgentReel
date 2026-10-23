@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using AgentReel.Direct;
 using AgentReel.Editing;
 using AgentReel.Editing.Shots;
+using AgentReel.Studio.Localization;
 using AgentReel.Studio.Review;
 using AgentReel.Studio.Session;
 using AgentReel.Core;
@@ -227,7 +228,7 @@ public partial class EditorWindow : FluentWindow
         EmptyStage.Visibility = Visibility.Visible;
         Inspector.Visibility = Visibility.Collapsed;
         TransportBar.IsEnabled = false;
-        TitleText.Text = "AgentReel Studio";
+        TitleText.Text = Strings.AppName;
         SubtitleText.Text = "";
         TimeText.Text = "";
         LengthText.Text = "";
@@ -271,7 +272,7 @@ public partial class EditorWindow : FluentWindow
         StageCanvas.Height = Layer.Height = Math.Max(1, project.Height);
         Timeline.Aspect = project.Height > 0 ? (double)project.Width / project.Height : 16 / 9.0;
 
-        TitleText.Text = item.IsVersion ? $"{item.Title} · {(item.IsByClaude ? "by Claude" : "by you")}" : item.Title;
+        TitleText.Text = item.IsVersion ? $"{item.Title} · {(item.IsByClaude ? Strings.EditorByClaude : Strings.EditorByYou)}" : item.Title;
         SubtitleText.Text = item.IsVersion ? string.Join("  ·  ", item.Edit!.Steps) : $"{project.Width} × {project.Height} · {item.Id}";
 
         StageBox.Visibility = Visibility.Visible;
@@ -305,7 +306,7 @@ public partial class EditorWindow : FluentWindow
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            Notify("Could not open the review", ex.Message, ControlAppearance.Danger);
+            Notify(Strings.EditorReviewFailed, ex.Message, ControlAppearance.Danger);
         }
     }
 
@@ -322,12 +323,12 @@ public partial class EditorWindow : FluentWindow
 
         var box = new MessageBox
         {
-            Title = item.IsVersion ? "Delete this version?" : "Delete this recording?",
+            Title = item.IsVersion ? Strings.DeleteVersionTitle : Strings.DeleteRecordingTitle,
             Content = item.IsVersion || item.Versions.Count == 0
-                ? "Its frames are deleted from disk. This cannot be undone."
-                : $"Its frames are deleted from disk. Its {item.Versions.Count} version(s) stay. This cannot be undone.",
-            PrimaryButtonText = "Delete",
-            CloseButtonText = "Cancel",
+                ? Strings.DeleteText
+                : Text.Format(item.Versions.Count == 1 ? Strings.DeleteTextVersionsOne : Strings.DeleteTextVersionsOther, item.Versions.Count),
+            PrimaryButtonText = Strings.Delete,
+            CloseButtonText = Strings.Cancel,
             Owner = this
         };
 
@@ -345,11 +346,11 @@ public partial class EditorWindow : FluentWindow
         }
         catch (InvalidOperationException ex)
         {
-            Notify("Still open", ex.Message, ControlAppearance.Caution);
+            Notify(Strings.StillOpen, ex.Message, ControlAppearance.Caution);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Notify("Could not delete it", ex.Message, ControlAppearance.Danger);
+            Notify(Strings.EditorDeleteFailed, ex.Message, ControlAppearance.Danger);
         }
     }
 
@@ -393,7 +394,7 @@ public partial class EditorWindow : FluentWindow
         var busy = Task.Delay(150, computing.Token).ContinueWith(task =>
         {
             if (!task.IsCanceled)
-                Dispatcher.BeginInvoke(() => ShowBusy("Working…"));
+                Dispatcher.BeginInvoke(() => ShowBusy(Strings.EditorWorking));
         }, TaskScheduler.Default);
 
         IReadOnlyList<Clip> clips;
@@ -409,7 +410,7 @@ public partial class EditorWindow : FluentWindow
         catch (Exception ex) when (ex is IOException or ArgumentException or InvalidOperationException or NotSupportedException or UnauthorizedAccessException)
         {
             HideBusy();
-            Notify("That did not work", ex.Message, ControlAppearance.Danger);
+            Notify(Strings.EditorEditFailed, ex.Message, ControlAppearance.Danger);
 
             //The step that failed is taken back, so the edit stays usable.
             document.Undo();
@@ -631,7 +632,7 @@ public partial class EditorWindow : FluentWindow
 
         if (_take.ElementArea(step.Step.StepId, 6, _document.Source.Width, _document.Source.Height) is not { } area)
         {
-            Notify("This step has no element", "Draw the area on the picture instead.", ControlAppearance.Secondary);
+            Notify(Strings.EditorNoElement, Strings.EditorNoElementDetail, ControlAppearance.Secondary);
             return;
         }
 
@@ -712,7 +713,7 @@ public partial class EditorWindow : FluentWindow
         var edits = ShotEdits.Load(folder).Edits;
 
         ShotEditsPanel.Visibility = Visibility.Visible;
-        ShotEditsTitle.Text = $"SHOT LIST “{_take.Take.ShotList.ToUpperInvariant()}”";
+        ShotEditsTitle.Text = Text.Format(Strings.InspectorShotList, _take.Take.ShotList).ToUpper(System.Globalization.CultureInfo.CurrentCulture);
         NoShotEditsText.Visibility = edits.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         ShotEditList.ItemsSource = edits.Select(s => ShotEditRow(s, folder)).ToList();
     }
@@ -728,7 +729,7 @@ public partial class EditorWindow : FluentWindow
             Padding = new Thickness(4),
             Focusable = false,
             VerticalAlignment = VerticalAlignment.Top,
-            ToolTip = "Remove from the shot list: later re-shoots no longer get it (saved versions keep it)"
+            ToolTip = Strings.InspectorRemoveShotEditTip
         };
         remove.Click += (_, _) =>
         {
@@ -739,7 +740,7 @@ public partial class EditorWindow : FluentWindow
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                Notify("Could not change the shot list", ex.Message, ControlAppearance.Danger);
+                Notify(Strings.EditorShotListFailed, ex.Message, ControlAppearance.Danger);
             }
         };
         DockPanel.SetDock(remove, Dock.Right);
@@ -992,14 +993,14 @@ public partial class EditorWindow : FluentWindow
         if (Timeline.Selection is { } range && selected == null && PickedStep == null)
         {
             SelectionPanel.Visibility = Visibility.Visible;
-            SelectionTime.Text = $"{EditFormat.Clock(range.Start)} – {EditFormat.Clock(range.End)} · {EditFormat.Seconds(range.End - range.Start)}";
+            SelectionTime.Text = $"{EditFormat.Clock(range.Start)} – {EditFormat.Clock(range.End)} · {Clock.Seconds(range.End - range.Start)}";
         }
         else
         {
             SelectionPanel.Visibility = Visibility.Collapsed;
         }
 
-        var steps = EditDocument.Steps(_document.State, _placed);
+        var steps = ChangeLines(_document.State, _placed);
         ChangeList.ItemsSource = steps.Select(ChangeRow).ToList();
         NoChangesText.Visibility = steps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -1029,8 +1030,8 @@ public partial class EditorWindow : FluentWindow
         AnchorPanel.Visibility = Visibility.Visible;
         var anchor = AnchorOf(selected.Id);
 
-        var items = new List<ComboBoxItem> { new() { Content = "Not anchored (this version only)", Tag = null } };
-        items.AddRange(_take.Take.Steps.Where(w => w.Played).Select(s => new ComboBoxItem { Content = new PlacedStep(s, 0, 0).Label, Tag = s.StepId }));
+        var items = new List<ComboBoxItem> { new() { Content = Strings.InspectorNotAnchored, Tag = null } };
+        items.AddRange(_take.Take.Steps.Where(w => w.Played).Select(s => new ComboBoxItem { Content = Text.Label(s), Tag = s.StepId }));
         StepCombo.ItemsSource = items;
         StepCombo.SelectedItem = items.FirstOrDefault(f => (f.Tag as string) == anchor?.StepId) ?? items[0];
 
@@ -1040,10 +1041,10 @@ public partial class EditorWindow : FluentWindow
         FollowSwitch.IsChecked = anchor?.FollowElement == true;
 
         AnchorHint.Text = anchor == null
-            ? $"Only in this version. Anchor it to a step, and every re-shoot of “{_take.Take.ShotList}” puts it there again."
+            ? Text.Format(Strings.InspectorAnchorNone, _take.Take.ShotList)
             : anchor.FollowElement
-                ? "Saved with the shot list when you save. In every re-shoot it covers the element, wherever it moved."
-                : $"Saved with the shot list when you save. Every re-shoot shows it on this step, even if the step takes longer.{(selected is IAreaOverlay && !element ? " The step has no element to follow." : "")}";
+                ? Strings.InspectorAnchorFollows
+                : Strings.InspectorAnchorStep + (selected is IAreaOverlay && !element ? " " + Strings.InspectorAnchorNoElement : "");
     }
 
     /// <summary>
@@ -1059,20 +1060,54 @@ public partial class EditorWindow : FluentWindow
 
         StepPanel.Visibility = Visibility.Visible;
         StepTime.Text = $"{EditFormat.Clock(step.StartMs)} – {EditFormat.Clock(step.EndMs)}";
-        StepTitle.Text = step.Label;
+        StepTitle.Text = Text.Label(step.Step);
 
         var drift = step.Step.Drift switch
         {
-            AgentReel.Direct.Drift.Moved => " · moved in this build",
-            AgentReel.Direct.Drift.Changed => " · changed in this build",
+            AgentReel.Direct.Drift.Moved => " · " + Strings.InspectorDriftMoved,
+            AgentReel.Direct.Drift.Changed => " · " + Strings.InspectorDriftChanged,
             _ => ""
         };
 
-        StepDetail.Text = $"{step.Step.Action} “{step.Step.StepId}”{drift}";
+        StepDetail.Text = $"{Text.Action(step.Step.Action)} “{step.Step.StepId}”{drift}";
 
         var element = step.Step.Element is { IsEmpty: false };
         StepHighlightButton.IsEnabled = element;
         StepRedactButton.IsEnabled = element;
+    }
+
+    /// <summary>
+    /// One line per operation and overlay, oldest first, in the user's language. Edit.json keeps the English lines of
+    /// <see cref="EditDocument.Steps"/>, which the agent reads.
+    /// </summary>
+    private static List<string> ChangeLines(EditState state, IReadOnlyList<PlacedOverlay> placed) =>
+    [
+        .. state.Operations.Select(s => s switch
+        {
+            TrimOperation trim => Text.Format(Strings.ChangeTrimmed, EditFormat.Clock(trim.StartMs), EditFormat.Clock(trim.EndMs)),
+            CutOperation cut => Text.Format(Strings.ChangeCut, EditFormat.Clock(cut.StartMs), EditFormat.Clock(cut.EndMs)),
+            OptimizeOperation optimize => Optimized(optimize),
+            _ => s.Describe()
+        }),
+        .. placed.Select(s => Text.Format(Strings.ChangeOverlay, s.Item switch
+        {
+            CaptionItem caption => Text.Format(Strings.ChangeCaption, caption.Text.ReplaceLineEndings(" ")),
+            RedactionItem => Strings.KindRedaction,
+            _ => Strings.KindHighlight
+        }, EditFormat.Clock(s.StartMs), EditFormat.Clock(s.EndMs)))
+    ];
+
+    private static string Optimized(OptimizeOperation optimize)
+    {
+        var parts = new List<string>();
+
+        if (optimize.MaxPauseMs > 0)
+            parts.Add(Text.Format(Strings.ChangePauses, Clock.Seconds(optimize.MaxPauseMs)));
+
+        if (Math.Abs(optimize.Speed - 1) > 0.001)
+            parts.Add(Text.Format(Strings.ChangeSpeed, optimize.Speed.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture)));
+
+        return Text.Format(Strings.ChangeOptimized, parts.Count > 0 ? string.Join(", ", parts) : Strings.ChangeFolded);
     }
 
     private static FrameworkElement ChangeRow(string step)
@@ -1101,19 +1136,19 @@ public partial class EditorWindow : FluentWindow
             return;
 
         var original = document.Source.Frames.Sum(s => s.Delay);
-        LengthText.Text = Duration != original ? $"{EditFormat.Seconds(original)} → {EditFormat.Seconds(Duration)}" : "";
+        LengthText.Text = Duration != original ? $"{Clock.Seconds(original)} → {Clock.Seconds(Duration)}" : "";
 
         StageBadge.Visibility = Visibility.Visible;
         var changes = document.State.Operations.Count + document.State.Overlays.Count;
 
         if (document.IsDirty)
         {
-            StageBadgeText.Text = changes == 1 ? "Preview · 1 unsaved change" : $"Preview · {changes} unsaved changes";
+            StageBadgeText.Text = Text.Count(changes, Strings.EditorUnsavedOne, Strings.EditorUnsavedOther);
             StageBadgeDot.Fill = new SolidColorBrush(Color.FromRgb(0xF5, 0xA5, 0x24));
         }
         else
         {
-            StageBadgeText.Text = _item.IsVersion ? "Saved version" : "Original";
+            StageBadgeText.Text = _item.IsVersion ? Strings.EditorSavedVersion : Strings.ReviewOriginal;
             StageBadgeDot.Fill = _item.IsByClaude ? (Brush)FindResource("Agent.Brush") : new SolidColorBrush(Color.FromRgb(0x9A, 0x9A, 0xA0));
         }
     }
@@ -1195,7 +1230,7 @@ public partial class EditorWindow : FluentWindow
         if (PauseValue == null || SpeedValue == null)
             return;
 
-        PauseValue.Text = PauseSlider.Value <= 0 ? "keep all" : EditFormat.Seconds(PauseSlider.Value);
+        PauseValue.Text = PauseSlider.Value <= 0 ? Strings.InspectorKeepAll : Clock.Seconds(PauseSlider.Value);
         SpeedValue.Text = SpeedSlider.Value.ToString("0.##") + "×";
     }
 
@@ -1211,13 +1246,13 @@ public partial class EditorWindow : FluentWindow
     private void FillPrompts(LibraryItem? item)
     {
         string[] prompts = item == null
-            ? ["Record the window I am working in for 20 seconds", "Show me my recordings in AgentReel"]
+            ? [Strings.PromptRecord, Strings.PromptList]
             :
             [
-                $"Shorten the pauses in my recording “{item.Id}”",
-                $"Add captions that explain each step of “{item.Id}”",
-                $"Find the important moment in “{item.Id}” and highlight it",
-                $"Export “{item.Id}” as MP4"
+                Text.Format(Strings.PromptShorten, item.Id),
+                Text.Format(Strings.PromptCaptions, item.Id),
+                Text.Format(Strings.PromptHighlight, item.Id),
+                Text.Format(Strings.PromptExport, item.Id)
             ];
 
         PromptList.ItemsSource = prompts.Select(PromptChip).ToList();
@@ -1235,7 +1270,7 @@ public partial class EditorWindow : FluentWindow
             Margin = new Thickness(0, 0, 0, 6),
             Padding = new Thickness(10, 6, 10, 6),
             Focusable = false,
-            ToolTip = "Copy, then paste it into the chat with Claude"
+            ToolTip = Strings.PromptTip
         };
 
         chip.Click += (_, _) =>
@@ -1243,7 +1278,7 @@ public partial class EditorWindow : FluentWindow
             try
             {
                 Clipboard.SetText(prompt);
-                Notify("Copied", "Paste it into the chat with Claude.", ControlAppearance.Secondary);
+                Notify(Strings.PromptCopied, Strings.PromptCopiedDetail, ControlAppearance.Secondary);
             }
             catch (System.Runtime.InteropServices.COMException)
             {
@@ -1266,7 +1301,7 @@ public partial class EditorWindow : FluentWindow
             return;
 
         Pause();
-        ShowBusy("Saving version…");
+        ShowBusy(Strings.EditorSaving);
         SaveButton.IsEnabled = false;
 
         try
@@ -1283,14 +1318,14 @@ public partial class EditorWindow : FluentWindow
 
             _documents.Remove(_item.Id);
             Refresh(RecordingLibrary.IdOf(saved));
-            Notify("Saved as a new version", anchored.Count == 0
-                ? "The original stays as it was. Claude sees the version as your latest recording."
-                : $"The original stays as it was. {anchored.Count} {(anchored.Count == 1 ? "edit is" : "edits are")} anchored to steps of “{take!.Take.ShotList}”, so every re-shoot gets {(anchored.Count == 1 ? "it" : "them")}.",
+            Notify(Strings.EditorSaved, anchored.Count == 0
+                ? Strings.EditorSavedDetail
+                : Text.Format(anchored.Count == 1 ? Strings.EditorSavedAnchoredOne : Strings.EditorSavedAnchoredOther, anchored.Count, take!.Take.ShotList),
                 ControlAppearance.Success);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or ArgumentException or UnauthorizedAccessException)
         {
-            Notify("Could not save", ex.Message, ControlAppearance.Danger);
+            Notify(Strings.EditorSaveFailed, ex.Message, ControlAppearance.Danger);
             UpdateChrome();
         }
         finally
@@ -1309,13 +1344,13 @@ public partial class EditorWindow : FluentWindow
 
         if (Timeline.Selection is not { } range)
         {
-            Notify("Select a part first", "Drag on the timeline, or set its start and end with I and O.", ControlAppearance.Secondary);
+            Notify(Strings.EditorSelectFirst, Strings.EditorSelectFirstDetail, ControlAppearance.Secondary);
             return;
         }
 
         if (range.Start <= 0 && range.End >= Duration)
         {
-            Notify("That is everything", "Cutting all of it would leave nothing.", ControlAppearance.Caution);
+            Notify(Strings.EditorEverything, Strings.EditorEverythingDetail, ControlAppearance.Caution);
             return;
         }
 
@@ -1333,7 +1368,7 @@ public partial class EditorWindow : FluentWindow
         }
 
         if (_take != null)
-            Notify("Cut this take only", "It covers part of a step, so re-shoots keep that part. Pick steps on the step track to cut them from every take.", ControlAppearance.Secondary);
+            Notify(Strings.EditorCutTakeOnly, Strings.EditorCutTakeOnlyDetail, ControlAppearance.Secondary);
 
         Add(cut);
     }
@@ -1393,7 +1428,7 @@ public partial class EditorWindow : FluentWindow
 
         if (_document is { IsDirty: true })
         {
-            Notify("Save the version first", "Export takes saved versions, so the original stays as it was. Press Ctrl+S, then export.", ControlAppearance.Secondary);
+            Notify(Strings.EditorSaveFirst, Strings.EditorSaveFirstDetail, ControlAppearance.Secondary);
             return;
         }
 
@@ -1403,10 +1438,10 @@ public partial class EditorWindow : FluentWindow
 
         var dialog = new Microsoft.Win32.SaveFileDialog
         {
-            Title = "Export recording",
+            Title = Strings.ExportTitle,
             FileName = recording.Id,
             InitialDirectory = folder,
-            Filter = "GIF animation (*.gif)|*.gif|MP4 video (*.mp4)|*.mp4|Animated PNG (*.png)|*.png",
+            Filter = Strings.ExportFilter,
             AddExtension = true
         };
 
@@ -1421,16 +1456,16 @@ public partial class EditorWindow : FluentWindow
         };
 
         Pause();
-        ShowBusy("Exporting…");
+        ShowBusy(Strings.ExportBusy);
 
         try
         {
             await RecordingExport.ExportAsync(recording, format, dialog.FileName);
-            Notify("Exported", dialog.FileName, ControlAppearance.Success);
+            Notify(Strings.ExportDone, dialog.FileName, ControlAppearance.Success);
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or ArgumentException or UnauthorizedAccessException or NotSupportedException or System.Runtime.InteropServices.COMException)
         {
-            Notify("Could not export", ex.Message, ControlAppearance.Danger);
+            Notify(Strings.ExportFailed, ex.Message, ControlAppearance.Danger);
         }
         finally
         {
@@ -1584,10 +1619,10 @@ public partial class EditorWindow : FluentWindow
 
         var box = new MessageBox
         {
-            Title = "Close without saving?",
-            Content = dirty == 1 ? "One recording has changes that are not saved as a version." : $"{dirty} recordings have changes that are not saved as versions.",
-            PrimaryButtonText = "Close without saving",
-            CloseButtonText = "Keep editing",
+            Title = Strings.CloseTitle,
+            Content = Text.Count(dirty, Strings.CloseTextOne, Strings.CloseTextOther),
+            PrimaryButtonText = Strings.CloseConfirm,
+            CloseButtonText = Strings.CloseKeepEditing,
             Owner = this
         };
 

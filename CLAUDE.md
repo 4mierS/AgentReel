@@ -56,12 +56,18 @@ with no ScreenToGif code. Since package 4a (2026-10-22) the repo contains no Scr
     `ShotDraft` (director drafts + live locator check).
   - `AgentReel.Mcp`: stdio MCP server (tools below).
   - `AgentReel.Studio`: WPF UI 4.3.0 app (Mica, system theme). No args → session window + recording bar;
-    `review <folder>`; `edit <folder>`; `approve-shots <shot list folder>`.
+    `review <folder>`; `edit <folder>`; `approve-shots <shot list folder>`. English and German: all texts in
+    `Localization/Strings.resx` + `Strings.de.resx` (XAML uses `{x:Static l:Strings.Key}`, code `Strings.Key` and
+    `Text.Format`/`Text.Count`); language = env `AGENTREEL_LANGUAGE`, else `language` in settings.json, else the Windows
+    display language, else English. Files the agent reads (`Edit.json` steps, `edits.json`, draft check notes) stay
+    English; `StepText.Describe(step, culture)` (texts in `AgentReel.Direct/StepStrings*.resx`) is English unless
+    Studio passes a culture.
   - `AgentReel.Cli` (`agentreel.exe`): `baseline|drift|film|reshoot <shot list folder>`; exit code 2 = needs a human.
   - Samples: `AgentReel.Direct.SampleApp` (WPF; `--v2` moves Export, renames Customer→Client, removes Refresh),
     `AgentReel.Direct.SampleApp.WinForms`, `samples/electron`, `samples/shotlists/invoice-export` (used by CI).
   - Tests: `AgentReel.Capture.Tests`, `AgentReel.Export.Tests`, `AgentReel.Mcp.Tests`, `AgentReel.Direct.Tests`
-    (225 tests on 2026-10-22).
+    (231 tests on 2026-10-23; `StudioTextTests` in Mcp.Tests checks that both languages have the same keys and
+    placeholders).
 - MCP tools: recording (`list_targets`, `start_recording`, `stop_recording`, `get_status`, `get_preview` incl. live,
   `list_recordings`, `delete_recording`), editing (`trim`, `optimize`, `add_caption`, `add_highlight`,
   `get_contact_sheet`, `scan_privacy`, `redact`), review (`request_review`, `get_review`, `open_in_studio`), export
@@ -98,7 +104,7 @@ dotnet test AgentReel.Mcp.Tests -c Release --no-build   # likewise Capture/Expor
   drift against `--v2` → reshoot with anchored edits → uploads report and MP4s. First run 39839847094 (2026-10-22)
   green: drift 3 unchanged/1 moved/1 changed/1 missing, 3 of 4 edits carried over, real pixels in the crops.
 
-## Status (2026-10-22)
+## Status (2026-10-23)
 
 Done (all merged and pushed):
 - MCP server, capture, own project model and storage, own export (no FFmpeg), Studio review window, session window,
@@ -118,6 +124,10 @@ Done (all merged and pushed):
   captions; `add_step_captions` burns one caption per step (holds until the next captioned step), anchored to steps.
   Verified over stdio on the WPF sample: draft → approve (UIA) → film (60 frames, 5.5 s) → optimize → step captions →
   request_review showed "CLAUDE SUGGESTS" with 4 caption changes against the take.
+- Package 4b, Studio in English and German (2026-10-23): 264 texts in resx, German in the informal "du"; the agent's
+  name in German cases (`AgentName`); step texts in German as labels ("Klicken: Schaltfläche „OK“"); dates and
+  numbers follow the regional format. Checked by screenshots of editor, review and approval windows in both languages.
+  No app icon yet (waits for the Glasstake logo).
 
 Known limits: real keyboard input during a run lands in the app (re-shoot in a VM/CI); a step whose element is in a
 dialog shows "not on screen" in the draft unless its target names the window; Studio's mouse gestures and the F8
@@ -125,12 +135,13 @@ hotkey were never tested by Amir.
 
 ## Next – START HERE
 
-1. Package 4b: own resources and localization for Studio (English + German).
-2. Rename AgentReel → Glasstake (projects, namespaces, exe names, CLI `glasstake` – Amir said yes to the CLI; ask for
+1. Rename AgentReel → Glasstake (projects, namespaces, exe names, CLI `glasstake` – Amir said yes to the CLI; ask for
    the go on the whole rename, it also touches the registered MCP config and the data folders), rename the solution,
-   drop the "Debug (Store)"/x86/ARM64 configurations.
-3. Fresh repo with a clean history, own LICENSE, NOTICE only for third-party libraries (WPF UI, Vortice, …);
+   drop the "Debug (Store)"/x86/ARM64 configurations. Studio's product name is the resx key `AppName`.
+2. Fresh repo with a clean history, own LICENSE, NOTICE only for third-party libraries (WPF UI, Vortice, …);
    README rewritten (today's README/NOTICE still describe the fork).
+3. Localization leftovers: a language picker in Studio (today only settings.json/env); German texts for the anchored
+   edits list and edit steps would need Studio-side wording (the files stay English).
 
 Open questions for Amir:
 - Package 1: anchor new overlays to a step by default or opt-in? Partial-step cuts anchorable or only whole steps?
@@ -142,6 +153,9 @@ Open questions for Amir:
 ## Lessons that still apply
 
 - WPF visuals need an STA thread (`Editing/Sta.cs`); a headless host creates its own hidden `Application`.
+- WPF compiles XAML in a temporary project before resources are generated, so a resx accessor made by the usual
+  `StronglyTyped*` metadata is missing there. Studio's csproj generates `Strings` in its own target before
+  `MarkupCompilePass1`.
 - Child processes started by the MCP server must not inherit its stdio (use shell execute or own stdin), or the
   JSON-RPC pipe hangs.
 - MP4: odd widths are rounded down to even; a long-held last frame needs CFR to keep the reported duration right.

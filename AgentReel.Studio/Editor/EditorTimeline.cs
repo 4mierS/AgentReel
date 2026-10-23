@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using AgentReel.Editing;
 using AgentReel.Editing.Shots;
+using AgentReel.Studio.Localization;
 using AgentReel.Studio.Review;
 
 namespace AgentReel.Studio.Editor;
@@ -355,7 +356,7 @@ public sealed class EditorTimeline : FrameworkElement
                 left += 10;
             }
 
-            var label = new FormattedText(placed.Label, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Segoe UI Variable Text"), 10.5,
+            var label = new FormattedText(Text.Label(placed.Step),CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Segoe UI Variable Text"), 10.5,
                 Brush("TextFillColorPrimaryBrush", Colors.White), dpi)
             {
                 MaxTextWidth = Math.Max(1, area.Right - left - 4),
@@ -389,7 +390,7 @@ public sealed class EditorTimeline : FrameworkElement
             if (_overlays.Any(a => a.Item is CaptionItem == (row == 0)))
                 continue;
 
-            var name = new FormattedText(row == 0 ? "Captions  ·  T" : "Highlights and redactions  ·  H, R, or drag on the picture", CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+            var name = new FormattedText(row == 0 ? Strings.TimelineCaptionRow : Strings.TimelineAreaRow, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
                 new Typeface("Segoe UI Variable Text"), 10, hint, dpi);
             dc.DrawText(name, new Point(Math.Max(X(0), Pad) + 8, top + (RowHeight - 3 - name.Height) / 2));
         }
@@ -415,12 +416,12 @@ public sealed class EditorTimeline : FrameworkElement
             var text = placed.Item switch
             {
                 CaptionItem c => c.Text.ReplaceLineEndings(" "),
-                RedactionItem => "Redaction",
-                _ => "Highlight"
+                RedactionItem => Strings.KindRedaction,
+                _ => Strings.KindHighlight
             };
 
             if (_anchors.TryGetValue(placed.Item.Id, out var anchor))
-                text += anchor.FollowElement ? $"  ·  follows {anchor.StepId}" : $"  ·  {anchor.StepId}";
+                text += "  ·  " + (anchor.FollowElement ? Text.Format(Strings.TimelineFollows, anchor.StepId) : anchor.StepId);
 
             var label = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, new Typeface("Segoe UI Variable Text"), 10.5, Brushes.White, dpi)
             {
