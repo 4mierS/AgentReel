@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.IO;
+using System.Resources;
 using System.Text.Json;
 
 namespace AgentReel.Direct;
@@ -146,55 +148,53 @@ public static class DraftChecker
 }
 
 /// <summary>
-/// Steps as a person would say them: "Click “Export…”", "Type “Acme Corp” into the Customer box".
+/// Steps as a person would say them: "Click “Export…”", "Type “Acme Corp” into the Customer box". English by default,
+/// for the agent and the files it reads; Studio passes the user's language (texts in StepStrings.resx and .de.resx).
 /// </summary>
 public static class StepText
 {
-    public static string Describe(ShotStep step)
+    private static readonly ResourceManager Texts = new("AgentReel.Direct.StepStrings", typeof(StepText).Assembly);
+
+    /// <param name="culture">The language; null is English.</param>
+    public static string Describe(ShotStep step, CultureInfo? culture = null)
     {
-        var target = step.Target == null ? "" : Element(step.Target);
+        culture ??= CultureInfo.InvariantCulture;
+        var target = step.Target == null ? "" : Element(step.Target, culture);
 
         return step.Action switch
         {
-            ShotAction.Launch => "Start the app",
-            ShotAction.Click => $"Click {target}",
-            ShotAction.DoubleClick => $"Double-click {target}",
-            ShotAction.Type => $"Type “{step.Text}” into {target}",
-            ShotAction.Keys => $"Press {step.Text} in {target}",
-            ShotAction.Select => $"Pick “{step.Text}” in {target}",
-            ShotAction.WaitFor => $"Wait for {target}",
-            ShotAction.Scroll => $"Scroll to {target}",
-            ShotAction.Pause => $"Hold for {(step.Ms ?? 1000) / 1000.0:0.#} s",
-            ShotAction.Close => step.Target == null ? "Close the app" : $"Close {target}",
+            ShotAction.Launch => Text("StepLaunch", culture),
+            ShotAction.Click => Text("StepClick", culture, target),
+            ShotAction.DoubleClick => Text("StepDoubleClick", culture, target),
+            ShotAction.Type => Text("StepType", culture, target, step.Text),
+            ShotAction.Keys => Text("StepKeys", culture, target, step.Text),
+            ShotAction.Select => Text("StepSelect", culture, target, step.Text),
+            ShotAction.WaitFor => Text("StepWaitFor", culture, target),
+            ShotAction.Scroll => Text("StepScroll", culture, target),
+            ShotAction.Pause => Text("StepPause", culture, ((step.Ms ?? 1000) / 1000.0).ToString("0.#", culture)),
+            ShotAction.Close => step.Target == null ? Text("StepCloseApp", culture) : Text("StepClose", culture, target),
             _ => step.Action.ToString()
         };
     }
 
     /// <summary>
-    /// "“Export…”" for a named element, "the FormatBox combo box" for one known only by its id.
+    /// "the “Export…” button" for a named element, "the Format combo box" for one known only by its id.
     /// </summary>
-    public static string Element(Locator target)
+    /// <param name="culture">The language; null is English.</param>
+    public static string Element(Locator target, CultureInfo? culture = null)
     {
-        var type = target.ControlType switch
-        {
-            null or "" => "element",
-            "ComboBox" => "combo box",
-            "MenuItem" => "menu item",
-            "CheckBox" => "check box",
-            "RadioButton" => "radio button",
-            "Edit" => "box",
-            "ListItem" => "list item",
-            "TabItem" => "tab",
-            var other => other.ToLowerInvariant()
-        };
-
-        var where = string.IsNullOrEmpty(target.Window) ? "" : $" in “{target.Window}”";
+        culture ??= CultureInfo.InvariantCulture;
+        var type = string.IsNullOrEmpty(target.ControlType) ? Text("TypeElement", culture) : Texts.GetString("Type" + target.ControlType, culture) ?? target.ControlType.ToLowerInvariant();
+        var where = string.IsNullOrEmpty(target.Window) ? "" : Text("ElementWindow", culture, target.Window);
 
         if (!string.IsNullOrEmpty(target.Name))
-            return $"the “{target.Name}” {type}{where}";
+            return Text("ElementNamed", culture, type, target.Name) + where;
 
-        return string.IsNullOrEmpty(target.AutomationId) ? $"the {type}{where}" : $"the {Words(target.AutomationId)} {type}{where}";
+        return (string.IsNullOrEmpty(target.AutomationId) ? Text("ElementPlain", culture, type) : Text("ElementById", culture, type, Words(target.AutomationId))) + where;
     }
+
+    private static string Text(string key, CultureInfo culture, params object?[] args) =>
+        string.Format(culture, Texts.GetString(key, culture) ?? throw new InvalidOperationException($"No text {key}."), args);
 
     /// <summary>
     /// "CustomerBox" → "Customer" (the control type already says box), "file_name" → "file name".

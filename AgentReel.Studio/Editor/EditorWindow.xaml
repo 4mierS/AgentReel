@@ -3,7 +3,8 @@
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  xmlns:editor="clr-namespace:AgentReel.Studio.Editor"
-                 Title="AgentReel Studio" Width="1480" Height="920" MinWidth="1100" MinHeight="700"
+                 xmlns:l="clr-namespace:AgentReel.Studio.Localization"
+                 Title="{x:Static l:Strings.AppName}" Width="1480" Height="920" MinWidth="1100" MinHeight="700"
                  WindowStartupLocation="CenterScreen" WindowBackdropType="Mica" ExtendsContentIntoTitleBar="True"
                  FontFamily="Segoe UI Variable Text">
 
@@ -14,8 +15,8 @@
                     MouseLeftButtonDown="Item_MouseLeftButtonDown" ToolTip="{Binding Steps}">
                 <Border.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="Show in folder" Click="ShowFolder_Click"/>
-                        <MenuItem Header="Delete" Click="Delete_Click"/>
+                        <MenuItem Header="{x:Static l:Strings.LibraryShowFolder}" Click="ShowFolder_Click"/>
+                        <MenuItem Header="{x:Static l:Strings.Delete}" Click="Delete_Click"/>
                     </ContextMenu>
                 </Border.ContextMenu>
                 <Grid>
@@ -39,8 +40,8 @@
                         <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
                     </StackPanel>
                     <Border Grid.Column="2" Visibility="{Binding ReviewVisibility}" Padding="6,1" CornerRadius="999" Background="{StaticResource Agent.Gradient}"
-                            VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonDown="Review_MouseLeftButtonDown" ToolTip="Claude asked you to review this version">
-                        <TextBlock Text="Review" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                            VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonDown="Review_MouseLeftButtonDown" ToolTip="{x:Static l:Strings.LibraryReviewTip}">
+                        <TextBlock Text="{x:Static l:Strings.LibraryReview}" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
                     </Border>
                 </Grid>
             </Border>
@@ -62,8 +63,8 @@
                         Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" MouseLeftButtonDown="Item_MouseLeftButtonDown" ToolTip="{Binding Steps}">
                     <Border.ContextMenu>
                         <ContextMenu>
-                            <MenuItem Header="Show in folder" Click="ShowFolder_Click"/>
-                            <MenuItem Header="Delete" Click="Delete_Click"/>
+                            <MenuItem Header="{x:Static l:Strings.LibraryShowFolder}" Click="ShowFolder_Click"/>
+                            <MenuItem Header="{x:Static l:Strings.Delete}" Click="Delete_Click"/>
                         </ContextMenu>
                     </Border.ContextMenu>
                     <Grid>
@@ -115,7 +116,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="AgentReel Studio" ShowMaximize="True"/>
+        <ui:TitleBar Grid.Row="0" Title="{x:Static l:Strings.AppName}" ShowMaximize="True"/>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
@@ -132,11 +133,11 @@
                 </Grid.RowDefinitions>
 
                 <Grid Margin="0,0,0,14">
-                    <TextBlock Text="LIBRARY" Style="{StaticResource Section}" VerticalAlignment="Center" Margin="0"/>
-                    <ui:Button x:Name="NewRecordingButton" HorizontalAlignment="Right" Height="32" Padding="10,0" Appearance="Secondary" Click="NewRecording_Click" ToolTip="New recording (N)">
+                    <TextBlock Text="{x:Static l:Strings.LibraryHeader}" Style="{StaticResource Section}" VerticalAlignment="Center" Margin="0"/>
+                    <ui:Button x:Name="NewRecordingButton" HorizontalAlignment="Right" Height="32" Padding="10,0" Appearance="Secondary" Click="NewRecording_Click" ToolTip="{x:Static l:Strings.EditorNewRecordingTip}">
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="9" Height="9" Fill="#FFE5484D" Margin="0,0,7,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Record" VerticalAlignment="Center"/>
+                            <TextBlock Text="{x:Static l:Strings.Record}" VerticalAlignment="Center"/>
                             <Border Style="{StaticResource Keycap}" Margin="8,0,0,0">
                                 <TextBlock Text="N" VerticalAlignment="Center"/>
                             </Border>
@@ -149,7 +150,7 @@
                 </ScrollViewer>
 
                 <TextBlock x:Name="LibraryEmptyText" Grid.Row="1" Style="{StaticResource Hint}" TextWrapping="Wrap" VerticalAlignment="Top" Visibility="Collapsed"
-                           Text="No recordings yet. Record a window, then edit it here or ask Claude in the chat."/>
+                           Text="{x:Static l:Strings.LibraryEmpty}"/>
             </Grid>
 
             <!--Stage, transport, timeline-->
@@ -167,29 +168,29 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock x:Name="TitleText" Text="AgentReel Studio" FontSize="20" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display"
+                        <TextBlock x:Name="TitleText" Text="{x:Static l:Strings.AppName}" FontSize="20" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
                         <TextBlock x:Name="SubtitleText" FontSize="12" Margin="0,2,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <ui:Button x:Name="UndoButton" Width="36" Height="36" Padding="0" Appearance="Transparent" Click="Undo_Click" ToolTip="Undo (Ctrl+Z)" IsEnabled="False">
+                        <ui:Button x:Name="UndoButton" Width="36" Height="36" Padding="0" Appearance="Transparent" Click="Undo_Click" ToolTip="{x:Static l:Strings.EditorUndoTip}" IsEnabled="False">
                             <ui:SymbolIcon Symbol="ArrowUndo24" FontSize="18"/>
                         </ui:Button>
-                        <ui:Button x:Name="RedoButton" Width="36" Height="36" Padding="0" Appearance="Transparent" Click="Redo_Click" ToolTip="Redo (Ctrl+Y)" IsEnabled="False">
+                        <ui:Button x:Name="RedoButton" Width="36" Height="36" Padding="0" Appearance="Transparent" Click="Redo_Click" ToolTip="{x:Static l:Strings.EditorRedoTip}" IsEnabled="False">
                             <ui:SymbolIcon Symbol="ArrowRedo24" FontSize="18"/>
                         </ui:Button>
-                        <ui:Button x:Name="ExportButton" Height="36" Margin="12,0,0,0" Appearance="Secondary" Click="Export_Click" ToolTip="Export as GIF, MP4 or animated PNG (Ctrl+E)" IsEnabled="False">
+                        <ui:Button x:Name="ExportButton" Height="36" Margin="12,0,0,0" Appearance="Secondary" Click="Export_Click" ToolTip="{x:Static l:Strings.EditorExportTip}" IsEnabled="False">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="ArrowExportUp24" FontSize="16" Margin="0,0,6,0"/>
-                                <TextBlock Text="Export" VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Static l:Strings.EditorExport}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </ui:Button>
-                        <ui:Button x:Name="SaveButton" Height="36" Margin="8,0,0,0" Appearance="Primary" Click="Save_Click" ToolTip="Save the changes as a new version (Ctrl+S); the original stays as it is" IsEnabled="False">
+                        <ui:Button x:Name="SaveButton" Height="36" Margin="8,0,0,0" Appearance="Primary" Click="Save_Click" ToolTip="{x:Static l:Strings.EditorSaveTip}" IsEnabled="False">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="Save24" FontSize="16" Margin="0,0,6,0"/>
-                                <TextBlock Text="Save version" VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Static l:Strings.EditorSave}" VerticalAlignment="Center"/>
                                 <Border Style="{StaticResource Keycap}" Margin="8,0,0,0" Background="#33FFFFFF" BorderBrush="#55FFFFFF">
-                                    <TextBlock Text="Ctrl S" Foreground="White" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{x:Static l:Strings.KeyCtrlS}" Foreground="White" VerticalAlignment="Center"/>
                                 </Border>
                             </StackPanel>
                         </ui:Button>
@@ -210,7 +211,7 @@
                                 IsHitTestVisible="False" Visibility="Collapsed">
                             <StackPanel Orientation="Horizontal">
                                 <ui:ProgressRing IsIndeterminate="True" Width="14" Height="14" Margin="0,0,8,0"/>
-                                <TextBlock x:Name="BusyText" Text="Working…" FontSize="12" Foreground="White"/>
+                                <TextBlock x:Name="BusyText" Text="{x:Static l:Strings.EditorWorking}" FontSize="12" Foreground="White"/>
                             </StackPanel>
                         </Border>
 
@@ -219,14 +220,14 @@
                             <Border Width="56" Height="56" CornerRadius="16" Background="{StaticResource Agent.Gradient}" HorizontalAlignment="Center">
                                 <ui:SymbolIcon Symbol="Video24" Filled="True" FontSize="28" Foreground="White"/>
                             </Border>
-                            <TextBlock Text="Record something to begin" FontSize="20" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display" Margin="0,16,0,6"
+                            <TextBlock Text="{x:Static l:Strings.EditorEmptyHeadline}" FontSize="20" FontWeight="SemiBold" FontFamily="Segoe UI Variable Display" Margin="0,16,0,6"
                                        HorizontalAlignment="Center" Foreground="White"/>
                             <TextBlock TextAlignment="Center" TextWrapping="Wrap" FontSize="13" Foreground="#B3FFFFFF"
-                                       Text="Pick a window, record it, then trim, caption and highlight it here – or let Claude do it from the chat."/>
+                                       Text="{x:Static l:Strings.EditorEmptyIntro}"/>
                             <ui:Button HorizontalAlignment="Center" Margin="0,18,0,0" Height="40" Appearance="Primary" Click="NewRecording_Click">
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse Width="10" Height="10" Fill="#FFE5484D" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                    <TextBlock Text="New recording" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{x:Static l:Strings.EditorNewRecording}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </ui:Button>
                         </StackPanel>
@@ -242,7 +243,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Orientation="Horizontal">
-                        <ui:Button x:Name="PlayButton" Appearance="Secondary" Width="40" Height="36" Padding="0" Click="Play_Click" ToolTip="Play / pause (Space)">
+                        <ui:Button x:Name="PlayButton" Appearance="Secondary" Width="40" Height="36" Padding="0" Click="Play_Click" ToolTip="{x:Static l:Strings.PlayTip}">
                             <ui:SymbolIcon x:Name="PlayIcon" Symbol="Play24" Filled="True" FontSize="18"/>
                         </ui:Button>
                         <TextBlock x:Name="TimeText" FontSize="14" FontFamily="Segoe UI Variable Display" VerticalAlignment="Center" Margin="12,0,0,0"
@@ -259,31 +260,31 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <ui:Button x:Name="CutButton" Height="34" Appearance="Transparent" Click="Cut_Click" ToolTip="Cut the selection (Del). Select by dragging on the timeline or with I and O.">
+                        <ui:Button x:Name="CutButton" Height="34" Appearance="Transparent" Click="Cut_Click" ToolTip="{x:Static l:Strings.EditorCutTip}">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="Cut24" FontSize="16" Margin="0,0,6,0"/>
-                                <TextBlock Text="Cut" VerticalAlignment="Center"/>
-                                <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="Del" VerticalAlignment="Center"/></Border>
+                                <TextBlock Text="{x:Static l:Strings.EditorCut}" VerticalAlignment="Center"/>
+                                <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="{x:Static l:Strings.KeyDel}" VerticalAlignment="Center"/></Border>
                             </StackPanel>
                         </ui:Button>
-                        <ui:Button x:Name="CaptionButton" Height="34" Margin="4,0,0,0" Appearance="Transparent" Click="Caption_Click" ToolTip="Add a caption at the playhead or over the selection (T)">
+                        <ui:Button x:Name="CaptionButton" Height="34" Margin="4,0,0,0" Appearance="Transparent" Click="Caption_Click" ToolTip="{x:Static l:Strings.EditorCaptionTip}">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="ClosedCaption24" FontSize="16" Margin="0,0,6,0"/>
-                                <TextBlock Text="Caption" VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Static l:Strings.EditorCaption}" VerticalAlignment="Center"/>
                                 <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="T" VerticalAlignment="Center"/></Border>
                             </StackPanel>
                         </ui:Button>
-                        <ui:Button x:Name="HighlightButton" Height="34" Margin="4,0,0,0" Appearance="Transparent" Click="Highlight_Click" ToolTip="Add a highlight at the playhead (H), or drag on the picture">
+                        <ui:Button x:Name="HighlightButton" Height="34" Margin="4,0,0,0" Appearance="Transparent" Click="Highlight_Click" ToolTip="{x:Static l:Strings.EditorHighlightTip}">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="SquareHint24" FontSize="16" Margin="0,0,6,0"/>
-                                <TextBlock Text="Highlight" VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Static l:Strings.EditorHighlight}" VerticalAlignment="Center"/>
                                 <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="H" VerticalAlignment="Center"/></Border>
                             </StackPanel>
                         </ui:Button>
-                        <ui:Button x:Name="RedactButton" Height="34" Margin="4,0,0,0" Appearance="Transparent" Click="Redact_Click" ToolTip="Cover an area with a solid box (R), or Shift+drag on the picture">
+                        <ui:Button x:Name="RedactButton" Height="34" Margin="4,0,0,0" Appearance="Transparent" Click="Redact_Click" ToolTip="{x:Static l:Strings.EditorRedactTip}">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="EyeOff24" FontSize="16" Margin="0,0,6,0"/>
-                                <TextBlock Text="Redact" VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Static l:Strings.EditorRedact}" VerticalAlignment="Center"/>
                                 <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="R" VerticalAlignment="Center"/></Border>
                             </StackPanel>
                         </ui:Button>
@@ -309,22 +310,22 @@
                         <!--Caption-->
                         <StackPanel x:Name="CaptionPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
                             <Grid>
-                                <TextBlock Text="CAPTION" Style="{StaticResource Section}"/>
+                                <TextBlock Text="{x:Static l:Strings.InspectorCaption}" Style="{StaticResource Section}"/>
                                 <TextBlock x:Name="CaptionTime" Style="{StaticResource Hint}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
                             </Grid>
-                            <ui:TextBox x:Name="CaptionBox" MinHeight="72" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="What happens here?"
+                            <ui:TextBox x:Name="CaptionBox" MinHeight="72" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="{x:Static l:Strings.InspectorCaptionPlaceholder}"
                                         TextChanged="CaptionBox_TextChanged" LostKeyboardFocus="CaptionBox_LostKeyboardFocus" PreviewKeyDown="CaptionBox_PreviewKeyDown"/>
-                            <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,12" Text="Enter applies, Shift+Enter starts a new line."/>
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,6,0,12" Text="{x:Static l:Strings.InspectorCaptionHint}"/>
                             <UniformGrid Rows="1">
-                                <RadioButton x:Name="TopRadio" Content="Top" GroupName="CaptionPosition" Checked="CaptionPosition_Checked"/>
-                                <RadioButton x:Name="CenterRadio" Content="Center" GroupName="CaptionPosition" Checked="CaptionPosition_Checked"/>
-                                <RadioButton x:Name="BottomRadio" Content="Bottom" GroupName="CaptionPosition" Checked="CaptionPosition_Checked"/>
+                                <RadioButton x:Name="TopRadio" Content="{x:Static l:Strings.InspectorTop}" GroupName="CaptionPosition" Checked="CaptionPosition_Checked"/>
+                                <RadioButton x:Name="CenterRadio" Content="{x:Static l:Strings.InspectorCenter}" GroupName="CaptionPosition" Checked="CaptionPosition_Checked"/>
+                                <RadioButton x:Name="BottomRadio" Content="{x:Static l:Strings.InspectorBottom}" GroupName="CaptionPosition" Checked="CaptionPosition_Checked"/>
                             </UniformGrid>
                             <ui:Button Margin="0,14,0,0" Appearance="Transparent" Click="DeleteOverlay_Click" HorizontalAlignment="Left" Padding="8,4">
                                 <StackPanel Orientation="Horizontal">
                                     <ui:SymbolIcon Symbol="Delete20" FontSize="14" Margin="0,0,6,0"/>
-                                    <TextBlock Text="Remove caption"/>
-                                    <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="Del" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{x:Static l:Strings.InspectorRemoveCaption}"/>
+                                    <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="{x:Static l:Strings.KeyDel}" VerticalAlignment="Center"/></Border>
                                 </StackPanel>
                             </ui:Button>
                         </StackPanel>
@@ -332,20 +333,20 @@
                         <!--Highlight-->
                         <StackPanel x:Name="HighlightPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
                             <Grid>
-                                <TextBlock Text="HIGHLIGHT" Style="{StaticResource Section}"/>
+                                <TextBlock Text="{x:Static l:Strings.InspectorHighlight}" Style="{StaticResource Section}"/>
                                 <TextBlock x:Name="HighlightTime" Style="{StaticResource Hint}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
                             </Grid>
                             <UniformGrid Rows="1" Margin="0,0,0,12">
-                                <RadioButton x:Name="RectangleRadio" Content="Rectangle" GroupName="HighlightShape" Checked="HighlightShape_Checked"/>
-                                <RadioButton x:Name="EllipseRadio" Content="Ellipse" GroupName="HighlightShape" Checked="HighlightShape_Checked"/>
+                                <RadioButton x:Name="RectangleRadio" Content="{x:Static l:Strings.InspectorRectangle}" GroupName="HighlightShape" Checked="HighlightShape_Checked"/>
+                                <RadioButton x:Name="EllipseRadio" Content="{x:Static l:Strings.InspectorEllipse}" GroupName="HighlightShape" Checked="HighlightShape_Checked"/>
                             </UniformGrid>
-                            <ui:ToggleSwitch x:Name="DimSwitch" Content="Darken everything else" Checked="Dim_Changed" Unchecked="Dim_Changed"/>
-                            <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0" TextWrapping="Wrap" Text="Drag it on the picture to move it, drag a corner to resize it. Drag its bar on the timeline to change when it shows."/>
+                            <ui:ToggleSwitch x:Name="DimSwitch" Content="{x:Static l:Strings.InspectorDim}" Checked="Dim_Changed" Unchecked="Dim_Changed"/>
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,10,0,0" TextWrapping="Wrap" Text="{x:Static l:Strings.InspectorHighlightHint}"/>
                             <ui:Button Margin="0,14,0,0" Appearance="Transparent" Click="DeleteOverlay_Click" HorizontalAlignment="Left" Padding="8,4">
                                 <StackPanel Orientation="Horizontal">
                                     <ui:SymbolIcon Symbol="Delete20" FontSize="14" Margin="0,0,6,0"/>
-                                    <TextBlock Text="Remove highlight"/>
-                                    <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="Del" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{x:Static l:Strings.InspectorRemoveHighlight}"/>
+                                    <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="{x:Static l:Strings.KeyDel}" VerticalAlignment="Center"/></Border>
                                 </StackPanel>
                             </ui:Button>
                         </StackPanel>
@@ -353,58 +354,58 @@
                         <!--Redaction-->
                         <StackPanel x:Name="RedactionPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
                             <Grid>
-                                <TextBlock Text="REDACTION" Style="{StaticResource Section}"/>
+                                <TextBlock Text="{x:Static l:Strings.InspectorRedaction}" Style="{StaticResource Section}"/>
                                 <TextBlock x:Name="RedactionTime" Style="{StaticResource Hint}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
                             </Grid>
-                            <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Text="A solid box: what is under it is gone from the saved frames, not blurred. Drag it on the picture to move it, drag a corner to resize it."/>
+                            <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Text="{x:Static l:Strings.InspectorRedactionHint}"/>
                             <ui:Button Margin="0,14,0,0" Appearance="Transparent" Click="DeleteOverlay_Click" HorizontalAlignment="Left" Padding="8,4">
                                 <StackPanel Orientation="Horizontal">
                                     <ui:SymbolIcon Symbol="Delete20" FontSize="14" Margin="0,0,6,0"/>
-                                    <TextBlock Text="Remove redaction"/>
-                                    <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="Del" VerticalAlignment="Center"/></Border>
+                                    <TextBlock Text="{x:Static l:Strings.InspectorRemoveRedaction}"/>
+                                    <Border Style="{StaticResource Keycap}" Margin="8,0,0,0"><TextBlock Text="{x:Static l:Strings.KeyDel}" VerticalAlignment="Center"/></Border>
                                 </StackPanel>
                             </ui:Button>
                         </StackPanel>
 
                         <!--Anchor: for a filmed shot list, the step an overlay belongs to. Saved with the shot list, so a re-shoot keeps it.-->
                         <StackPanel x:Name="AnchorPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
-                            <TextBlock Text="STEP" Style="{StaticResource Section}"/>
+                            <TextBlock Text="{x:Static l:Strings.InspectorStep}" Style="{StaticResource Section}"/>
                             <ComboBox x:Name="StepCombo" HorizontalAlignment="Stretch" SelectionChanged="StepCombo_SelectionChanged"/>
-                            <ui:ToggleSwitch x:Name="FollowSwitch" Margin="0,12,0,0" Content="Follow the step's element" Checked="Follow_Changed" Unchecked="Follow_Changed"/>
+                            <ui:ToggleSwitch x:Name="FollowSwitch" Margin="0,12,0,0" Content="{x:Static l:Strings.InspectorFollow}" Checked="Follow_Changed" Unchecked="Follow_Changed"/>
                             <TextBlock x:Name="AnchorHint" Style="{StaticResource Hint}" Margin="0,10,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
 
                         <!--Step: picked on the step track.-->
                         <StackPanel x:Name="StepPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
                             <Grid>
-                                <TextBlock Text="STEP" Style="{StaticResource Section}"/>
+                                <TextBlock Text="{x:Static l:Strings.InspectorStep}" Style="{StaticResource Section}"/>
                                 <TextBlock x:Name="StepTime" Style="{StaticResource Hint}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
                             </Grid>
                             <TextBlock x:Name="StepTitle" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
                             <TextBlock x:Name="StepDetail" Style="{StaticResource Hint}" Margin="0,4,0,12" TextWrapping="Wrap"/>
                             <UniformGrid Columns="2">
-                                <ui:Button Margin="0,0,4,8" Appearance="Secondary" HorizontalAlignment="Stretch" Click="Caption_Click" ToolTip="Caption this step (T)">
+                                <ui:Button Margin="0,0,4,8" Appearance="Secondary" HorizontalAlignment="Stretch" Click="Caption_Click" ToolTip="{x:Static l:Strings.InspectorCaptionStepTip}">
                                     <StackPanel Orientation="Horizontal">
                                         <ui:SymbolIcon Symbol="ClosedCaption20" FontSize="14" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Caption"/>
+                                        <TextBlock Text="{x:Static l:Strings.EditorCaption}"/>
                                     </StackPanel>
                                 </ui:Button>
-                                <ui:Button x:Name="StepCutButton" Margin="4,0,0,8" Appearance="Secondary" HorizontalAlignment="Stretch" Click="Cut_Click" ToolTip="Cut this step out of every take (Del)">
+                                <ui:Button x:Name="StepCutButton" Margin="4,0,0,8" Appearance="Secondary" HorizontalAlignment="Stretch" Click="Cut_Click" ToolTip="{x:Static l:Strings.InspectorCutStepTip}">
                                     <StackPanel Orientation="Horizontal">
                                         <ui:SymbolIcon Symbol="Cut20" FontSize="14" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Cut step"/>
+                                        <TextBlock Text="{x:Static l:Strings.InspectorCutStep}"/>
                                     </StackPanel>
                                 </ui:Button>
-                                <ui:Button x:Name="StepHighlightButton" Margin="0,0,4,0" Appearance="Secondary" HorizontalAlignment="Stretch" Click="HighlightElement_Click" ToolTip="Highlight the element, wherever it is in later takes">
+                                <ui:Button x:Name="StepHighlightButton" Margin="0,0,4,0" Appearance="Secondary" HorizontalAlignment="Stretch" Click="HighlightElement_Click" ToolTip="{x:Static l:Strings.InspectorHighlightItTip}">
                                     <StackPanel Orientation="Horizontal">
                                         <ui:SymbolIcon Symbol="SquareHint20" FontSize="14" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Highlight it"/>
+                                        <TextBlock Text="{x:Static l:Strings.InspectorHighlightIt}"/>
                                     </StackPanel>
                                 </ui:Button>
-                                <ui:Button x:Name="StepRedactButton" Margin="4,0,0,0" Appearance="Secondary" HorizontalAlignment="Stretch" Click="RedactElement_Click" ToolTip="Cover the element, wherever it is in later takes">
+                                <ui:Button x:Name="StepRedactButton" Margin="4,0,0,0" Appearance="Secondary" HorizontalAlignment="Stretch" Click="RedactElement_Click" ToolTip="{x:Static l:Strings.InspectorRedactItTip}">
                                     <StackPanel Orientation="Horizontal">
                                         <ui:SymbolIcon Symbol="EyeOff20" FontSize="14" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Redact it"/>
+                                        <TextBlock Text="{x:Static l:Strings.InspectorRedactIt}"/>
                                     </StackPanel>
                                 </ui:Button>
                             </UniformGrid>
@@ -413,32 +414,32 @@
                         <!--Selection-->
                         <StackPanel x:Name="SelectionPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
                             <Grid>
-                                <TextBlock Text="SELECTION" Style="{StaticResource Section}"/>
+                                <TextBlock Text="{x:Static l:Strings.InspectorSelection}" Style="{StaticResource Section}"/>
                                 <TextBlock x:Name="SelectionTime" Style="{StaticResource Hint}" HorizontalAlignment="Right" VerticalAlignment="Top"/>
                             </Grid>
                             <UniformGrid Columns="2">
                                 <ui:Button Margin="0,0,4,8" Appearance="Secondary" HorizontalAlignment="Stretch" Click="Cut_Click">
                                     <StackPanel Orientation="Horizontal">
                                         <ui:SymbolIcon Symbol="Cut20" FontSize="14" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Cut"/>
+                                        <TextBlock Text="{x:Static l:Strings.EditorCut}"/>
                                     </StackPanel>
                                 </ui:Button>
-                                <ui:Button Margin="4,0,0,8" Appearance="Secondary" HorizontalAlignment="Stretch" Click="KeepSelection_Click" ToolTip="Keep only the selection (K)">
+                                <ui:Button Margin="4,0,0,8" Appearance="Secondary" HorizontalAlignment="Stretch" Click="KeepSelection_Click" ToolTip="{x:Static l:Strings.InspectorKeepOnlyTip}">
                                     <StackPanel Orientation="Horizontal">
                                         <ui:SymbolIcon Symbol="ArrowMinimize20" FontSize="14" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Keep only"/>
+                                        <TextBlock Text="{x:Static l:Strings.InspectorKeepOnly}"/>
                                     </StackPanel>
                                 </ui:Button>
                                 <ui:Button Margin="0,0,4,0" Appearance="Secondary" HorizontalAlignment="Stretch" Click="Caption_Click">
                                     <StackPanel Orientation="Horizontal">
                                         <ui:SymbolIcon Symbol="ClosedCaption20" FontSize="14" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Caption"/>
+                                        <TextBlock Text="{x:Static l:Strings.EditorCaption}"/>
                                     </StackPanel>
                                 </ui:Button>
                                 <ui:Button Margin="4,0,0,0" Appearance="Secondary" HorizontalAlignment="Stretch" Click="Highlight_Click">
                                     <StackPanel Orientation="Horizontal">
                                         <ui:SymbolIcon Symbol="SquareHint20" FontSize="14" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Highlight"/>
+                                        <TextBlock Text="{x:Static l:Strings.EditorHighlight}"/>
                                     </StackPanel>
                                 </ui:Button>
                             </UniformGrid>
@@ -446,46 +447,46 @@
 
                         <!--Shorten: the optimize tool by hand.-->
                         <StackPanel x:Name="ShortenPanel" Style="{StaticResource Panel}">
-                            <TextBlock Text="SHORTEN" Style="{StaticResource Section}"/>
+                            <TextBlock Text="{x:Static l:Strings.InspectorShorten}" Style="{StaticResource Section}"/>
                             <TextBlock Style="{StaticResource Hint}" TextWrapping="Wrap" Margin="0,0,0,14"
-                                       Text="Folds repeated frames and blinking cursors, cuts long waits and speeds up the whole recording."/>
+                                       Text="{x:Static l:Strings.InspectorShortenHint}"/>
                             <Grid>
-                                <TextBlock Text="Longest pause" Style="{StaticResource Key}"/>
+                                <TextBlock Text="{x:Static l:Strings.InspectorLongestPause}" Style="{StaticResource Key}"/>
                                 <TextBlock x:Name="PauseValue" Style="{StaticResource Value}"/>
                             </Grid>
                             <Slider x:Name="PauseSlider" Minimum="0" Maximum="5000" Value="1500" TickFrequency="250" IsSnapToTickEnabled="True" ValueChanged="Shorten_ValueChanged"/>
                             <Grid Margin="0,10,0,0">
-                                <TextBlock Text="Speed" Style="{StaticResource Key}"/>
+                                <TextBlock Text="{x:Static l:Strings.InspectorSpeed}" Style="{StaticResource Key}"/>
                                 <TextBlock x:Name="SpeedValue" Style="{StaticResource Value}"/>
                             </Grid>
                             <Slider x:Name="SpeedSlider" Minimum="0.5" Maximum="4" Value="1" Ticks="0.5,0.75,1,1.25,1.5,2,2.5,3,4" IsSnapToTickEnabled="True" ValueChanged="Shorten_ValueChanged"/>
                             <ui:Button x:Name="ShortenButton" Margin="0,14,0,0" HorizontalAlignment="Stretch" Appearance="Secondary" Click="Shorten_Click">
                                 <StackPanel Orientation="Horizontal">
                                     <ui:SymbolIcon Symbol="FastForward20" FontSize="14" Margin="0,0,6,0"/>
-                                    <TextBlock Text="Shorten"/>
+                                    <TextBlock Text="{x:Static l:Strings.InspectorShortenButton}"/>
                                 </StackPanel>
                             </ui:Button>
                         </StackPanel>
 
                         <!--Changes-->
                         <StackPanel Style="{StaticResource Panel}">
-                            <TextBlock Text="CHANGES" Style="{StaticResource Section}"/>
+                            <TextBlock Text="{x:Static l:Strings.InspectorChanges}" Style="{StaticResource Section}"/>
                             <ItemsControl x:Name="ChangeList"/>
                             <TextBlock x:Name="NoChangesText" Style="{StaticResource Hint}" TextWrapping="Wrap"
-                                       Text="Nothing changed yet. Edits are only previews until you save a version, and every step can be undone."/>
+                                       Text="{x:Static l:Strings.InspectorNoChanges}"/>
                         </StackPanel>
 
                         <!--The shot list's anchored edits: what every re-shoot puts on the new take.-->
                         <StackPanel x:Name="ShotEditsPanel" Style="{StaticResource Panel}" Visibility="Collapsed">
-                            <TextBlock x:Name="ShotEditsTitle" Text="SHOT LIST" Style="{StaticResource Section}"/>
+                            <TextBlock x:Name="ShotEditsTitle" Style="{StaticResource Section}"/>
                             <ItemsControl x:Name="ShotEditList"/>
                             <TextBlock x:Name="NoShotEditsText" Style="{StaticResource Hint}" TextWrapping="Wrap"
-                                       Text="No edits are anchored to steps yet. Captions, highlights, redactions and cuts you add here are anchored to their step when you save, so every re-shoot gets them."/>
+                                       Text="{x:Static l:Strings.InspectorNoShotEdits}"/>
                         </StackPanel>
 
                         <!--Recording-->
                         <StackPanel Style="{StaticResource Panel}">
-                            <TextBlock Text="RECORDING" Style="{StaticResource Section}"/>
+                            <TextBlock Text="{x:Static l:Strings.InspectorRecording}" Style="{StaticResource Section}"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -497,13 +498,13 @@
                                     <RowDefinition/>
                                     <RowDefinition/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Length" Style="{StaticResource Key}"/>
+                                <TextBlock Grid.Row="0" Text="{x:Static l:Strings.InspectorLength}" Style="{StaticResource Key}"/>
                                 <TextBlock Grid.Row="0" Grid.Column="1" x:Name="InfoLength" Style="{StaticResource Value}"/>
-                                <TextBlock Grid.Row="1" Text="Frames" Style="{StaticResource Key}"/>
+                                <TextBlock Grid.Row="1" Text="{x:Static l:Strings.InspectorFrames}" Style="{StaticResource Key}"/>
                                 <TextBlock Grid.Row="1" Grid.Column="1" x:Name="InfoFrames" Style="{StaticResource Value}"/>
-                                <TextBlock Grid.Row="2" Text="Size" Style="{StaticResource Key}"/>
+                                <TextBlock Grid.Row="2" Text="{x:Static l:Strings.InspectorSize}" Style="{StaticResource Key}"/>
                                 <TextBlock Grid.Row="2" Grid.Column="1" x:Name="InfoSize" Style="{StaticResource Value}"/>
-                                <TextBlock Grid.Row="3" Text="Id" Style="{StaticResource Key}"/>
+                                <TextBlock Grid.Row="3" Text="{x:Static l:Strings.InspectorId}" Style="{StaticResource Key}"/>
                                 <TextBlock Grid.Row="3" Grid.Column="1" x:Name="InfoId" Style="{StaticResource Value}"/>
                             </Grid>
                         </StackPanel>
@@ -519,8 +520,8 @@
                                 <ui:SymbolIcon Symbol="Sparkle20" Filled="True" FontSize="15" Foreground="White"/>
                             </Border>
                             <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="ASK CLAUDE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Agent.Brush}"/>
-                                <TextBlock x:Name="ClaudeHint" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Text="In the chat · click to copy"/>
+                                <TextBlock Text="{x:Static l:Strings.ClaudeAsk}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Agent.Brush}"/>
+                                <TextBlock x:Name="ClaudeHint" FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Text="{x:Static l:Strings.ClaudeHint}"/>
                             </StackPanel>
                         </StackPanel>
                         <ItemsControl x:Name="PromptList"/>

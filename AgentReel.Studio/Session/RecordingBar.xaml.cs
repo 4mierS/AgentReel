@@ -3,6 +3,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using AgentReel.Capture;
+using AgentReel.Studio.Localization;
 
 namespace AgentReel.Studio.Session;
 
@@ -32,7 +33,7 @@ public partial class RecordingBar : Window
 
         _target = target;
         _progress = progress;
-        TargetText.Text = target.Kind == CaptureTargetKind.Window ? target.Name : "Whole screen";
+        TargetText.Text = target.Kind == CaptureTargetKind.Window ? target.Name : Strings.BarWholeScreen;
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _timer.Tick += (_, _) => Update();
@@ -78,7 +79,7 @@ public partial class RecordingBar : Window
             return;
 
         TimeText.Text = $"{(int)progress.Elapsed.TotalMinutes}:{progress.Elapsed.Seconds:00}";
-        FramesText.Text = progress.Frames == 1 ? "1 frame" : $"{progress.Frames} frames";
+        FramesText.Text = Text.Count(progress.Frames, Strings.FramesOne, Strings.FramesOther);
     }
 
     private void Finish(bool discard)
@@ -89,7 +90,7 @@ public partial class RecordingBar : Window
         _done = true;
         StopButton.IsEnabled = false;
         DiscardButton.IsEnabled = false;
-        FramesText.Text = "saving…";
+        FramesText.Text = Strings.BarSaving;
         Finished?.Invoke(discard);
     }
 

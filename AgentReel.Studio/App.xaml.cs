@@ -1,9 +1,11 @@
 using System.IO;
 using System.Windows;
+using AgentReel.Core;
 using AgentReel.Direct;
 using AgentReel.Editing;
 using AgentReel.Studio.Director;
 using AgentReel.Studio.Editor;
+using AgentReel.Studio.Localization;
 using AgentReel.Studio.Review;
 using AgentReel.Studio.Session;
 
@@ -20,6 +22,7 @@ public partial class App
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        Text.Apply(Environment.GetEnvironmentVariable("AGENTREEL_LANGUAGE") is { Length: > 0 } language ? language : AppSettings.Current.Language);
 
         if (e.Args is ["review", var folder] && Directory.Exists(folder))
         {
@@ -30,7 +33,7 @@ public partial class App
             }
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
             {
-                MessageBox.Show(ex.Message, "AgentReel Studio", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, Strings.AppName,MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown(1);
                 return;
             }
@@ -53,7 +56,7 @@ public partial class App
                 return;
             }
 
-            MessageBox.Show($"There is no recording with frames in {recording}.", "AgentReel Studio", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(Text.Format(Strings.AppNoRecording, recording), Strings.AppName,MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
         }
@@ -68,7 +71,7 @@ public partial class App
             return;
         }
 
-        MessageBox.Show("Usage: AgentReel.Studio [edit <recording folder> | review <edit folder>]", "AgentReel Studio", MessageBoxButton.OK, MessageBoxImage.Information);
+        MessageBox.Show(Strings.AppUsage, Strings.AppName,MessageBoxButton.OK, MessageBoxImage.Information);
         Shutdown(2);
     }
 }

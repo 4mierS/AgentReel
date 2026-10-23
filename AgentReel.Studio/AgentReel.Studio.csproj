@@ -11,6 +11,16 @@
     <Platforms>AnyCPU;ARM64;x64;x86</Platforms>
     <Configurations>Debug;Release;Debug (Store)</Configurations>
   </PropertyGroup>
+  <!--The UI texts: English in Localization\Strings.resx, German in Strings.de.resx. The typed accessor (Strings) is
+      generated before the XAML is compiled, so markup can use {x:Static l:Strings.Key} and a missing key fails the build.-->
+  <ItemGroup>
+    <Compile Include="$(IntermediateOutputPath)Strings.Designer.cs" Visible="false" />
+  </ItemGroup>
+  <Target Name="GenerateStrings" BeforeTargets="MarkupCompilePass1;CoreCompile" Inputs="Localization\Strings.resx" Outputs="$(IntermediateOutputPath)Strings.Designer.cs">
+    <GenerateResource Sources="Localization\Strings.resx" OutputResources="$(IntermediateOutputPath)Strings.typed.resources" ExecuteAsTool="false"
+                      StronglyTypedLanguage="CSharp" StronglyTypedNamespace="AgentReel.Studio.Localization" StronglyTypedClassName="Strings"
+                      StronglyTypedManifestPrefix="AgentReel.Studio.Localization" StronglyTypedFileName="$(IntermediateOutputPath)Strings.Designer.cs" PublicClass="true" />
+  </Target>
   <ItemGroup>
     <PackageReference Include="WPF-UI" />
   </ItemGroup>

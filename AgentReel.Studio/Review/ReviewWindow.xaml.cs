@@ -1,10 +1,12 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using AgentReel.Editing;
+using AgentReel.Studio.Localization;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using TextBlock = System.Windows.Controls.TextBlock;
@@ -27,7 +29,7 @@ public partial class ReviewWindow : FluentWindow
     private double _position;
     private string? _shownPath;
     private bool _decided;
-    private readonly string _agent;
+    private readonly AgentName _agent;
 
     //What the stage shows instead of the edit while O or P is held.
     private enum Compare { None, Original, Previous }
@@ -50,10 +52,9 @@ public partial class ReviewWindow : FluentWindow
         Loaded += (_, _) => SystemThemeWatcher.Watch(this, WindowBackdropType.Mica, true);
 
         //Named after the client that asked ("Claude"), so the window speaks about someone, not something.
-        var agent = data.Review?.Agent;
-        _agent = string.IsNullOrWhiteSpace(agent) ? "the agent" : agent;
-        AgentText.Text = (string.IsNullOrWhiteSpace(agent) ? "Your agent" : agent).ToUpperInvariant() + " SUGGESTS";
-        FeedbackBox.PlaceholderText = $"Tell {_agent} what to change, e.g. \"keep the first second\" or \"caption shorter\"";
+        _agent = AgentName.Of(data.Review?.Agent);
+        AgentText.Text = Text.Format(Strings.ReviewAgentSuggests, _agent.Headline).ToUpper(CultureInfo.CurrentCulture);
+        FeedbackBox.PlaceholderText = Text.Format(Strings.ReviewFeedbackPlaceholder, _agent.Recipient);
 
         //The agent's own words lead, as one line with the rest listed below; the technical steps follow in small type.
         //Without a summary the steps lead.
@@ -64,18 +65,19 @@ public partial class ReviewWindow : FluentWindow
         DescriptionText.ToolTip = DescriptionText.Text;
         _details = details;
         ShowDetails(all: details.Count <= MaxDetails + 1);
-        SummaryText.Text = headline.Length == 0 ? "" : (data.Record.Steps.Count == 1 ? "1 step: " : $"{data.Record.Steps.Count} steps: ") + steps;
+        SummaryText.Text = headline.Length == 0 ? "" : Text.Format(Strings.ReviewStepsLine, Text.Count(data.Record.Steps.Count, Strings.StepsOne, Strings.StepsOther), steps);
         SummaryText.Visibility = SummaryText.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
 
         if (data.Previous != null)
         {
-            CompareHint.Text = "the original take ·";
+            CompareHint.Text = Strings.ReviewCompareHintTake;
             PreviousHint.Visibility = Visibility.Visible;
         }
 
         var saved = data.Source.Duration - data.Edit.Duration;
         DurationText.Text = $"{Clock.Format(data.Source.Duration)} → {Clock.Format(data.Edit.Duration)}";
-        DurationDetailText.Text = saved > 0 ? $"{Clock.Seconds(saved)} shorter · {data.Edit.Frames.Count} frames" : $"same length · {data.Edit.Frames.Count} frames";
+        var frames = Text.Count(data.Edit.Frames.Count, Strings.FramesOne, Strings.FramesOther);
+        DurationDetailText.Text = saved > 0 ? Text.Format(Strings.ReviewShorter, Clock.Seconds(saved), frames) : Text.Format(Strings.ReviewSameLength, frames);
 
         Timeline.Data = data;
         Timeline.Seek += ms =>
@@ -191,9 +193,9 @@ public partial class ReviewWindow : FluentWindow
         _compare = compare;
         StageBadgeText.Text = compare switch
         {
-            Compare.Original => "Original",
-            Compare.Previous => $"Previous take · {_data.Previous!.Video.Id}",
-            _ => "Edit"
+            Compare.Original => Strings.ReviewOriginal,
+            Compare.Previous => Text.Format(Strings.ReviewPreviousTake, _data.Previous!.Video.Id),
+            _ => Strings.ReviewEdit
         };
         StageBadgeIcon.Symbol = compare == Compare.None ? SymbolRegular.Sparkle16 : SymbolRegular.History16;
         StageBadge.Background = compare == Compare.None ? (Brush)FindResource("Agent.Gradient") : new SolidColorBrush(Color.FromArgb(0xCC, 0x3A, 0x3A, 0x40));
@@ -209,7 +211,7 @@ public partial class ReviewWindow : FluentWindow
         var shown = all ? _details : _details.Take(MaxDetails).ToList();
         DetailList.ItemsSource = shown.Select(DetailRow).ToList();
         DetailList.Visibility = _details.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        MoreDetailsButton.Content = $"{_details.Count - MaxDetails} more";
+        MoreDetailsButton.Content = Text.Format(Strings.ReviewMoreDetails, _details.Count - MaxDetails);
         MoreDetailsButton.Visibility = all ? Visibility.Collapsed : Visibility.Visible;
     }
 
@@ -265,20 +267,20 @@ public partial class ReviewWindow : FluentWindow
 
     private static string ChangeLabel(Change change) => change.Kind switch
     {
-        ChangeKind.Cut => $"{change.Label} at {Clock.Format(change.EditStartMs)}",
-        ChangeKind.Faster => $"Faster {change.Label} at {Clock.Format(change.EditStartMs)}",
-        ChangeKind.Caption => $"Caption “{Shorten(change.Label, 32)}” {Clock.Format(change.EditStartMs)}–{Clock.Format(change.EditEndMs)}",
-        _ => $"Highlight {Clock.Format(change.EditStartMs)}–{Clock.Format(change.EditEndMs)}"
+        ChangeKind.Cut => Text.Format(Strings.ReviewChangeCut, change.Label, Clock.Format(change.EditStartMs)),
+        ChangeKind.Faster => Text.Format(Strings.ReviewChangeFaster, change.Label, Clock.Format(change.EditStartMs)),
+        ChangeKind.Caption => Text.Format(Strings.ReviewChangeCaption, Shorten(change.Label, 32), Clock.Format(change.EditStartMs), Clock.Format(change.EditEndMs)),
+        _ => Text.Format(Strings.ReviewChangeHighlight, Clock.Format(change.EditStartMs), Clock.Format(change.EditEndMs))
     };
 
     private static string Shorten(string text, int length) => text.Length <= length ? text : text[..(length - 1)] + "…";
 
     private static string KindName(ChangeKind kind) => kind switch
     {
-        ChangeKind.Cut => "Cut",
-        ChangeKind.Faster => "Faster",
-        ChangeKind.Caption => "Caption",
-        _ => "Highlight"
+        ChangeKind.Cut => Strings.KindCut,
+        ChangeKind.Faster => Strings.KindFaster,
+        ChangeKind.Caption => Strings.KindCaption,
+        _ => Strings.KindHighlight
     };
 
     private Brush KindBrush(ChangeKind kind) => (Brush)FindResource("Change." + kind);
@@ -294,12 +296,12 @@ public partial class ReviewWindow : FluentWindow
 
         if (points.Count == 0)
         {
-            ChangeText.Text = "no changes";
+            ChangeText.Text = Strings.ReviewNoChanges;
             return;
         }
 
         var passed = points.Count(c => c <= _position + 1);
-        ChangeText.Text = $"Change {Math.Max(1, passed)} of {points.Count}";
+        ChangeText.Text = Text.Format(Strings.ReviewChangeOf, Math.Max(1, passed), points.Count);
     }
 
     private void JumpToChange(int direction)
@@ -343,10 +345,10 @@ public partial class ReviewWindow : FluentWindow
 
         (DoneIcon.Symbol, DoneIcon.Foreground, DoneText.Text) = verdict switch
         {
-            ReviewVerdict.Accepted => (SymbolRegular.CheckmarkCircle24, (Brush)FindResource("Agent.Brush"), $"Kept. {Capitalized(_agent)} continues with this edit."),
-            ReviewVerdict.Rejected when delete => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), "Discarded. The edit will be deleted."),
-            ReviewVerdict.Rejected => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), $"Discarded. {Capitalized(_agent)} drops it, its files stay in your recordings."),
-            _ => (SymbolRegular.Sparkle24, (Brush)FindResource("Agent.Brush"), $"Sent to {_agent}: “{feedback}”")
+            ReviewVerdict.Accepted => (SymbolRegular.CheckmarkCircle24, (Brush)FindResource("Agent.Brush"), Text.Format(Strings.ReviewKept, Text.Capitalized(_agent.Subject))),
+            ReviewVerdict.Rejected when delete => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), Strings.ReviewDiscardedDeleted),
+            ReviewVerdict.Rejected => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), Text.Format(Strings.ReviewDiscardedKept, Text.Capitalized(_agent.Subject))),
+            _ => (SymbolRegular.Sparkle24, (Brush)FindResource("Agent.Brush"), Text.Format(Strings.FeedbackSent, _agent.Object, feedback))
         };
 
         if (!closing)
@@ -360,8 +362,6 @@ public partial class ReviewWindow : FluentWindow
         };
         close.Start();
     }
-
-    private static string Capitalized(string text) => char.ToUpperInvariant(text[0]) + text[1..];
 
     private void Keep_Click(object sender, RoutedEventArgs e) => Decide(ReviewVerdict.Accepted);
 

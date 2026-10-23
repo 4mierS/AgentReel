@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -5,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using AgentReel.Direct;
+using AgentReel.Studio.Localization;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using TextBox = System.Windows.Controls.TextBox;
@@ -21,7 +23,7 @@ public partial class ShotApprovalWindow : FluentWindow
     private readonly string _folder;
     private readonly ShotDraft _draft;
     private readonly List<StepRow> _rows;
-    private readonly string _agent;
+    private readonly AgentName _agent;
     private bool _decided;
 
     public ShotApprovalWindow(string folder, ShotDraft draft)
@@ -33,9 +35,9 @@ public partial class ShotApprovalWindow : FluentWindow
 
         Loaded += (_, _) => SystemThemeWatcher.Watch(this, WindowBackdropType.Mica, true);
 
-        _agent = string.IsNullOrWhiteSpace(draft.Agent) ? "the agent" : draft.Agent;
-        AgentText.Text = (string.IsNullOrWhiteSpace(draft.Agent) ? "Your agent" : draft.Agent).ToUpperInvariant() + " PROPOSES A VIDEO";
-        FeedbackBox.PlaceholderText = $"Tell {_agent} what to change, e.g. \"also show the PDF option\" or \"skip the menu\"";
+        _agent = AgentName.Of(draft.Agent);
+        AgentText.Text = Text.Format(Strings.ApprovalAgentProposes, _agent.Headline).ToUpper(CultureInfo.CurrentCulture);
+        FeedbackBox.PlaceholderText = Text.Format(Strings.ApprovalFeedbackPlaceholder, _agent.Recipient);
 
         GoalText.Text = draft.Goal;
         SummaryText.Text = draft.Summary ?? "";
@@ -43,8 +45,8 @@ public partial class ShotApprovalWindow : FluentWindow
 
         var steps = draft.List.Steps;
         var captions = steps.Count(c => !string.IsNullOrWhiteSpace(c.Caption));
-        CountText.Text = steps.Count == 1 ? "1 step" : $"{steps.Count} steps";
-        AppText.Text = $"{captions} with captions · {AppName(draft.List.App)}";
+        CountText.Text = Text.Count(steps.Count, Strings.StepsOne, Strings.StepsOther);
+        AppText.Text = Text.Format(Strings.ApprovalCaptioned, captions, AppName(draft.List.App));
 
         _rows = steps.Select((step, index) => new StepRow(index + 1, step, draft.CheckOf(step.Id), this)).ToList();
         StepList.ItemsSource = _rows;
@@ -54,8 +56,7 @@ public partial class ShotApprovalWindow : FluentWindow
         if (warnings > 0)
         {
             WarningBar.Visibility = Visibility.Visible;
-            WarningText.Text = (warnings == 1 ? "1 step may not find its element" : $"{warnings} steps may not find their element") +
-                               $" in the app as it is open now. Fine if an earlier step makes it appear; else ask {_agent} to fix it.";
+            WarningText.Text = Text.Format(warnings == 1 ? Strings.ApprovalWarningOne : Strings.ApprovalWarningOther, warnings, _agent.Object);
         }
 
         if (ShotDraft.ReadAnswer(folder) is { Verdict: not DraftVerdict.Pending } answer)
@@ -63,7 +64,7 @@ public partial class ShotApprovalWindow : FluentWindow
     }
 
     private static string AppName(AppTarget app) =>
-        !string.IsNullOrWhiteSpace(app.WindowTitle) ? app.WindowTitle : !string.IsNullOrWhiteSpace(app.Path) ? Path.GetFileNameWithoutExtension(app.Path) : "the app";
+        !string.IsNullOrWhiteSpace(app.WindowTitle) ? app.WindowTitle : !string.IsNullOrWhiteSpace(app.Path) ? Path.GetFileNameWithoutExtension(app.Path) : Strings.ApprovalTheApp;
 
     #region Decision
 
@@ -93,9 +94,9 @@ public partial class ShotApprovalWindow : FluentWindow
 
         (DoneIcon.Symbol, DoneIcon.Foreground, DoneText.Text) = verdict switch
         {
-            DraftVerdict.Approved => (SymbolRegular.CheckmarkCircle24, (Brush)FindResource("Agent.Brush"), $"Approved. {Capitalized(_agent)} films it now."),
-            DraftVerdict.Rejected => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), $"Rejected. {Capitalized(_agent)} will not film it."),
-            _ => (SymbolRegular.Sparkle24, (Brush)FindResource("Agent.Brush"), $"Sent to {_agent}: “{feedback}”")
+            DraftVerdict.Approved => (SymbolRegular.CheckmarkCircle24, (Brush)FindResource("Agent.Brush"), Text.Format(Strings.ApprovalApproved, Text.Capitalized(_agent.Subject))),
+            DraftVerdict.Rejected => (SymbolRegular.DismissCircle24, (Brush)FindResource("Change.Cut"), Text.Format(Strings.ApprovalRejected, Text.Capitalized(_agent.Subject))),
+            _ => (SymbolRegular.Sparkle24, (Brush)FindResource("Agent.Brush"), Text.Format(Strings.FeedbackSent, _agent.Object, feedback))
         };
 
         if (!closing)
@@ -109,8 +110,6 @@ public partial class ShotApprovalWindow : FluentWindow
         };
         close.Start();
     }
-
-    private static string Capitalized(string text) => char.ToUpperInvariant(text[0]) + text[1..];
 
     private void Approve_Click(object sender, RoutedEventArgs e) => Decide(DraftVerdict.Approved);
 
@@ -194,21 +193,21 @@ public sealed class StepRow(int number, ShotStep step, StepCheck? check, ShotApp
 
     public int Number { get; } = number;
 
-    public string Action { get; } = StepText.Describe(step);
+    public string Action { get; } = StepText.Describe(step, CultureInfo.CurrentUICulture);
 
     public string? Caption { get; set; } = step.Caption;
 
     public string CaptionId => "Caption_" + Step.Id;
 
-    public string CaptionName => $"Caption of step {Number}";
+    public string CaptionName => Text.Format(Strings.ApprovalCaptionName, Number);
 
     public string CheckLabel => check?.Status switch
     {
-        CheckStatus.Found => "Found",
-        CheckStatus.Ambiguous => "Several match",
-        CheckStatus.LaterWindow => "In a dialog",
-        CheckStatus.NotFound => "Not on screen",
-        CheckStatus.Unchecked => "Not checked",
+        CheckStatus.Found => Strings.CheckFound,
+        CheckStatus.Ambiguous => Strings.CheckAmbiguous,
+        CheckStatus.LaterWindow => Strings.CheckLaterWindow,
+        CheckStatus.NotFound => Strings.CheckNotFound,
+        CheckStatus.Unchecked => Strings.CheckUnchecked,
         _ => ""
     };
 

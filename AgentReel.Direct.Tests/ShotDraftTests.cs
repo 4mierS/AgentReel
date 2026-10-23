@@ -1,4 +1,7 @@
+using System.Collections;
+using System.Globalization;
 using System.IO;
+using System.Resources;
 using AgentReel.Direct;
 using Xunit;
 
@@ -65,6 +68,30 @@ public class ShotDraftTests
         Assert.Equal("Pick “PNG” in the Format combo box in “Export”", StepText.Describe(steps["format"]));
         Assert.Equal("Click the “OK” button", StepText.Describe(steps["ok"]));
         Assert.Equal("Hold for 1.5 s", StepText.Describe(new ShotStep("p", ShotAction.Pause, Ms: 1500)));
+    }
+
+    [Fact]
+    public void Studio_describes_steps_in_German_too()
+    {
+        var steps = Invoice().Steps.ToDictionary(k => k.Id);
+        var german = CultureInfo.GetCultureInfo("de-DE");
+
+        Assert.Equal("App starten", StepText.Describe(steps["open"], german));
+        Assert.Equal("„Acme Corp“ eingeben in: Feld Customer", StepText.Describe(steps["customer"], german));
+        Assert.Equal("„PNG“ wählen in: Kombinationsfeld Format in „Export“", StepText.Describe(steps["format"], german));
+        Assert.Equal("Klicken: Schaltfläche „OK“", StepText.Describe(steps["ok"], german));
+        Assert.Equal("1,5 s warten", StepText.Describe(new ShotStep("p", ShotAction.Pause, Ms: 1500), german));
+    }
+
+    [Fact]
+    public void English_and_German_step_texts_have_the_same_keys()
+    {
+        var texts = new ResourceManager("AgentReel.Direct.StepStrings", typeof(StepText).Assembly);
+        var english = texts.GetResourceSet(CultureInfo.InvariantCulture, true, false)!.Cast<DictionaryEntry>().Select(s => (string)s.Key).ToHashSet();
+        var german = texts.GetResourceSet(CultureInfo.GetCultureInfo("de"), true, false)!.Cast<DictionaryEntry>().Select(s => (string)s.Key).ToHashSet();
+
+        Assert.NotEmpty(english);
+        Assert.True(english.SetEquals(german), string.Join(", ", english.Except(german).Concat(german.Except(english))));
     }
 
     [Fact]

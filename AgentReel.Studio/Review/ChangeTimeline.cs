@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using AgentReel.Studio.Localization;
 
 namespace AgentReel.Studio.Review;
 
@@ -73,8 +74,8 @@ public sealed class ChangeTimeline : FrameworkElement
         var faster = Brush("Change.Faster");
         var agent = Brush("Agent.Brush");
 
-        Label(dc, "Original", SourceTop, text);
-        Label(dc, "Edit", EditTop, text);
+        Label(dc, Strings.ReviewOriginal, SourceTop, text);
+        Label(dc, Strings.ReviewEdit, EditTop, text);
 
         Lane(dc, SourceTop, _data.Source.Duration, lane);
         Lane(dc, EditTop, _data.Edit.Duration, lane);

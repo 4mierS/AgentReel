@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="StepLaunch" xml:space="preserve">
+    <value>App starten</value>
+  </data>
+  <data name="StepClick" xml:space="preserve">
+    <value>Klicken: {0}</value>
+  </data>
+  <data name="StepDoubleClick" xml:space="preserve">
+    <value>Doppelklicken: {0}</value>
+  </data>
+  <data name="StepType" xml:space="preserve">
+    <value>„{1}“ eingeben in: {0}</value>
+  </data>
+  <data name="StepKeys" xml:space="preserve">
+    <value>{1} drücken in: {0}</value>
+  </data>
+  <data name="StepSelect" xml:space="preserve">
+    <value>„{1}“ wählen in: {0}</value>
+  </data>
+  <data name="StepWaitFor" xml:space="preserve">
+    <value>Warten auf: {0}</value>
+  </data>
+  <data name="StepScroll" xml:space="preserve">
+    <value>Scrollen zu: {0}</value>
+  </data>
+  <data name="StepPause" xml:space="preserve">
+    <value>{0} s warten</value>
+  </data>
+  <data name="StepCloseApp" xml:space="preserve">
+    <value>App schließen</value>
+  </data>
+  <data name="StepClose" xml:space="preserve">
+    <value>Schließen: {0}</value>
+  </data>
+  <data name="ElementNamed" xml:space="preserve">
+    <value>{0} „{1}“</value>
+  </data>
+  <data name="ElementById" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="ElementPlain" xml:space="preserve">
+    <value>{0}</value>
+  </data>
+  <data name="ElementWindow" xml:space="preserve">
+    <value> in „{0}“</value>
+  </data>
+  <data name="TypeElement" xml:space="preserve">
+    <value>Element</value>
+  </data>
+  <data name="TypeButton" xml:space="preserve">
+    <value>Schaltfläche</value>
+  </data>
+  <data name="TypeComboBox" xml:space="preserve">
+    <value>Kombinationsfeld</value>
+  </data>
+  <data name="TypeMenuItem" xml:space="preserve">
+    <value>Menüeintrag</value>
+  </data>
+  <data name="TypeCheckBox" xml:space="preserve">
+    <value>Kontrollkästchen</value>
+  </data>
+  <data name="TypeRadioButton" xml:space="preserve">
+    <value>Optionsfeld</value>
+  </data>
+  <data name="TypeEdit" xml:space="preserve">
+    <value>Feld</value>
+  </data>
+  <data name="TypeListItem" xml:space="preserve">
+    <value>Listeneintrag</value>
+  </data>
+  <data name="TypeTabItem" xml:space="preserve">
+    <value>Registerkarte</value>
+  </data>
+  <data name="TypeText" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="TypeHyperlink" xml:space="preserve">
+    <value>Link</value>
+  </data>
+  <data name="TypeList" xml:space="preserve">
+    <value>Liste</value>
+  </data>
+  <data name="TypeMenu" xml:space="preserve">
+    <value>Menü</value>
+  </data>
+  <data name="TypeTree" xml:space="preserve">
+    <value>Baum</value>
+  </data>
+  <data name="TypeTreeItem" xml:space="preserve">
+    <value>Baumeintrag</value>
+  </data>
+  <data name="TypeWindow" xml:space="preserve">
+    <value>Fenster</value>
+  </data>
+</root>

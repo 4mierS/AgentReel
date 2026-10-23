@@ -3,6 +3,7 @@ using System.IO;
 using AgentReel.Core;
 using AgentReel.Editing;
 using AgentReel.Editing.Shots;
+using AgentReel.Studio.Localization;
 
 namespace AgentReel.Studio.Review;
 
@@ -45,7 +46,7 @@ public sealed class ReviewTrack
 
     public static ReviewTrack Load(string folder)
     {
-        var recording = Recording.Load(folder) ?? throw new InvalidDataException($"There is no readable recording with frames in {folder}.");
+        var recording = Recording.Load(folder) ?? throw new InvalidDataException(Text.Format(Strings.AppNoRecording, folder));
         var frames = new List<TrackFrame>();
         var elapsed = 0;
 
@@ -118,11 +119,11 @@ public sealed class ReviewData
 
     public static ReviewData Load(string editFolder)
     {
-        var record = ReviewFiles.ReadEdit(editFolder) ?? throw new InvalidDataException($"{editFolder} is not an edit (no {ReviewFiles.EditFile}).");
+        var record = ReviewFiles.ReadEdit(editFolder) ?? throw new InvalidDataException(Text.Format(Strings.ReviewNotAnEdit, editFolder, ReviewFiles.EditFile));
         var edit = ReviewTrack.Load(editFolder);
 
         if (record.Sources.Count != edit.Frames.Count)
-            throw new InvalidDataException($"{ReviewFiles.EditFile} does not match the frames of {edit.Id}.");
+            throw new InvalidDataException(Text.Format(Strings.ReviewEditMismatch, ReviewFiles.EditFile, edit.Id));
 
         var parent = Path.GetDirectoryName(Path.GetFullPath(editFolder).TrimEnd(Path.DirectorySeparatorChar)) ?? "";
         //Compared with the original recording, the start of the chain.
@@ -169,7 +170,7 @@ public sealed class ReviewData
             var span = record.Sources[i];
 
             if (span.StartMs > sourceEnd)
-                changes.Add(new Change(ChangeKind.Cut, frame.StartMs, frame.StartMs, sourceEnd, span.StartMs, $"Cut {Clock.Seconds(span.StartMs - sourceEnd)}"));
+                changes.Add(new Change(ChangeKind.Cut, frame.StartMs, frame.StartMs, sourceEnd, span.StartMs, Clock.Seconds(span.StartMs - sourceEnd)));
 
             var sourceLength = span.EndMs - span.StartMs;
 
@@ -193,7 +194,7 @@ public sealed class ReviewData
             changes.Add(faster);
 
         if (source.Duration > sourceEnd)
-            changes.Add(new Change(ChangeKind.Cut, edit.Duration, edit.Duration, sourceEnd, source.Duration, $"Cut {Clock.Seconds(source.Duration - sourceEnd)}"));
+            changes.Add(new Change(ChangeKind.Cut, edit.Duration, edit.Duration, sourceEnd, source.Duration, Clock.Seconds(source.Duration - sourceEnd)));
 
         //A faster run gets its label once it is complete.
         for (var i = 0; i < changes.Count; i++)
@@ -220,7 +221,7 @@ public static class Clock
     public static string Format(double ms) => TimeSpan.FromMilliseconds(Math.Max(0, ms)).ToString(ms >= 3_600_000 ? @"h\:mm\:ss\.f" : @"m\:ss\.f");
 
     /// <summary>
-    /// 4.0 s
+    /// 4.0 s, with the decimal separator of the user's language (4,0 s in German).
     /// </summary>
-    public static string Seconds(double ms) => string.Create(CultureInfo.InvariantCulture, $"{ms / 1000:0.0} s");
+    public static string Seconds(double ms) => string.Create(CultureInfo.CurrentCulture, $"{ms / 1000:0.0} s");
 }

@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Media;
 using AgentReel.Editing;
 using AgentReel.Core;
+using AgentReel.Studio.Localization;
 
 namespace AgentReel.Studio.Editor;
 
@@ -24,9 +25,10 @@ public sealed class LibraryItem : INotifyPropertyChanged
         Review = review;
         Duration = project.Frames.Sum(s => s.Delay);
 
-        Title = edit == null ? When(project.Created) : version > 0 ? $"Version {version}" : "Version";
-        By = edit == null ? "" : edit.Tool == "studio" ? "You" : "Claude";
-        Detail = $"{EditFormat.Clock(Duration)} · {project.Frames.Count} frames";
+        Title = edit == null ? When(project.Created) : version > 0 ? Text.Format(Strings.LibraryVersionNumber, version) : Strings.LibraryVersion;
+        IsByClaude = edit != null && edit.Tool != "studio";
+        By = edit == null ? "" : IsByClaude ? "Claude" : Strings.LibraryByYou;
+        Detail = $"{EditFormat.Clock(Duration)} · {Text.Count(project.Frames.Count, Strings.FramesOne, Strings.FramesOther)}";
         Steps = edit == null ? Id : string.Join("\n", edit.Steps);
     }
 
@@ -43,7 +45,7 @@ public sealed class LibraryItem : INotifyPropertyChanged
     public string Title { get; }
 
     /// <summary>
-    /// Who made a version: "You" (Studio) or "Claude" (MCP tools). Empty for an original recording.
+    /// Who made a version: "You" (Studio) or "Claude" (MCP tools), in the user's language. Empty for an original recording.
     /// </summary>
     public string By { get; }
 
@@ -53,7 +55,7 @@ public sealed class LibraryItem : INotifyPropertyChanged
 
     public bool IsVersion => Edit != null;
 
-    public bool IsByClaude => By == "Claude";
+    public bool IsByClaude { get; }
 
     /// <summary>
     /// Claude asked for a review of this version and the user has not decided yet.
@@ -121,8 +123,10 @@ public sealed class LibraryItem : INotifyPropertyChanged
 
     private static string When(DateTime date)
     {
-        var day = date.Date == DateTime.Today ? "Today" : date.Date == DateTime.Today.AddDays(-1) ? "Yesterday" : date.ToString("d MMM", CultureInfo.CurrentCulture);
-        return $"{day}, {date.ToString("HH:mm", CultureInfo.CurrentCulture)}";
+        //Older days in the regional format, with a short month: "Oct 21", "21. Okt.".
+        var format = CultureInfo.CurrentCulture.DateTimeFormat.MonthDayPattern.Replace("MMMM", "MMM");
+        var day = date.Date == DateTime.Today ? Strings.LibraryToday : date.Date == DateTime.Today.AddDays(-1) ? Strings.LibraryYesterday : date.ToString(format, CultureInfo.CurrentCulture);
+        return Text.Format(Strings.LibraryWhen, day, date.ToString("HH:mm", CultureInfo.CurrentCulture));
     }
 
     public static bool Exists(Recording project) => Directory.Exists(project.Folder);

@@ -5,6 +5,7 @@ using System.Windows.Input;
 using AgentReel.Capture;
 using AgentReel.Editing;
 using AgentReel.Studio.Editor;
+using AgentReel.Studio.Localization;
 using AgentReel.Core;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -116,7 +117,7 @@ public partial class SessionWindow : FluentWindow
             item.IsSelected = true;
 
         RecordButton.IsEnabled = item != null;
-        SelectionText.Text = item == null ? "Pick a window or a screen" : item.IsWindow ? item.Target.Name : item.Title;
+        SelectionText.Text = item == null ? Strings.SessionPick : item.IsWindow ? item.Target.Name : item.Title;
     }
 
     private void Card_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -156,7 +157,7 @@ public partial class SessionWindow : FluentWindow
         catch (Exception ex)
         {
             _recording = false;
-            Notify("Could not start recording", ex.Message, ControlAppearance.Danger);
+            Notify(Strings.SessionStartFailed, ex.Message, ControlAppearance.Danger);
             ListTargets();
             return;
         }
@@ -181,7 +182,7 @@ public partial class SessionWindow : FluentWindow
         }
         catch (Exception ex)
         {
-            Notify("Recording failed", ex.Message, ControlAppearance.Danger);
+            Notify(Strings.SessionRecordingFailed, ex.Message, ControlAppearance.Danger);
             project.Frames = [];
         }
         finally
@@ -199,7 +200,7 @@ public partial class SessionWindow : FluentWindow
             if (discard && Directory.Exists(project.Folder))
                 DeleteFolder(project);
             else
-                Notify("Nothing was recorded", "The window did not draw a single frame. Is it minimized or hidden?", ControlAppearance.Caution);
+                Notify(Strings.SessionNothingRecorded, Strings.SessionNothingRecordedDetail, ControlAppearance.Caution);
 
             ListTargets();
             return;
@@ -257,12 +258,12 @@ public partial class SessionWindow : FluentWindow
         }
         catch (InvalidOperationException ex)
         {
-            Notify("Still open", ex.Message, ControlAppearance.Caution);
+            Notify(Strings.StillOpen, ex.Message, ControlAppearance.Caution);
             return false;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Notify("Could not delete the recording", ex.Message, ControlAppearance.Danger);
+            Notify(Strings.SessionDeleteFailed, ex.Message, ControlAppearance.Danger);
             return false;
         }
     }

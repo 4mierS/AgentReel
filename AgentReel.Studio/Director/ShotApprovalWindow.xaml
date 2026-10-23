@@ -3,7 +3,8 @@
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  xmlns:director="clr-namespace:AgentReel.Studio.Director"
-                 Title="Shot list · AgentReel Studio" Width="980" Height="860" MinWidth="720" MinHeight="560"
+                 xmlns:l="clr-namespace:AgentReel.Studio.Localization"
+                 Title="{x:Static l:Strings.ApprovalTitle}" Width="980" Height="860" MinWidth="720" MinHeight="560"
                  WindowStartupLocation="CenterScreen" WindowBackdropType="Mica" ExtendsContentIntoTitleBar="True"
                  FontFamily="Segoe UI Variable Text">
 
@@ -16,7 +17,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="Shot list · AgentReel Studio" ShowMaximize="True"/>
+        <ui:TitleBar Grid.Row="0" Title="{x:Static l:Strings.ApprovalTitle}" ShowMaximize="True"/>
 
         <!--The user's own request is the headline: they approve whether this list shows what they asked for.-->
         <Grid Grid.Row="1" Margin="28,4,28,12">
@@ -31,7 +32,7 @@
             </Border>
 
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock x:Name="AgentText" Text="YOUR AGENT PROPOSES A VIDEO" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Agent.Brush}" Margin="0,0,0,2"/>
+                <TextBlock x:Name="AgentText" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Agent.Brush}" Margin="0,0,0,2"/>
                 <TextBlock x:Name="GoalText" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="720" HorizontalAlignment="Left"
                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
                 <TextBlock x:Name="SummaryText" FontSize="13" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" MaxWidth="720" HorizontalAlignment="Left"/>
@@ -46,10 +47,11 @@
         <!--Only when the check found a problem: the user should know before approving.-->
         <Border x:Name="WarningBar" Grid.Row="2" Margin="28,0,28,12" Padding="14,10" CornerRadius="8" Visibility="Collapsed"
                 Background="#22F5A524" BorderBrush="#66F5A524" BorderThickness="1">
-            <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Warning20" Filled="True" FontSize="18" Foreground="{StaticResource Change.Faster}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+            <!--A DockPanel, not a horizontal StackPanel: the text needs a width to wrap in.-->
+            <DockPanel>
+                <ui:SymbolIcon DockPanel.Dock="Left" Symbol="Warning20" Filled="True" FontSize="18" Foreground="{StaticResource Change.Faster}" Margin="0,0,10,0" VerticalAlignment="Center"/>
                 <TextBlock x:Name="WarningText" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
-            </StackPanel>
+            </DockPanel>
         </Border>
 
         <!--The steps as the viewer will see them: what happens, and what the video says meanwhile.-->
@@ -97,7 +99,7 @@
                                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,8,0,0">
                                     <TextBlock Text="{Binding CheckNote}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,6" Visibility="{Binding NoteVisibility}"
                                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-                                    <ui:TextBox Text="{Binding Caption, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.AutomationId="{Binding CaptionId}" AutomationProperties.Name="{Binding CaptionName}" PlaceholderText="No caption – the video shows this step without text"
+                                    <ui:TextBox Text="{Binding Caption, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.AutomationId="{Binding CaptionId}" AutomationProperties.Name="{Binding CaptionName}" PlaceholderText="{x:Static l:Strings.ApprovalNoCaption}"
                                                 Icon="{ui:SymbolIcon ClosedCaption20}" MinHeight="36" VerticalContentAlignment="Center" TextWrapping="Wrap" AcceptsReturn="False"/>
                                 </StackPanel>
                             </Grid>
@@ -123,28 +125,28 @@
                                 TextChanged="FeedbackBox_TextChanged" KeyDown="FeedbackBox_KeyDown"/>
 
                     <ui:Button x:Name="SendButton" Grid.Column="1" Margin="8,0,0,0" Height="40" Appearance="Secondary" IsEnabled="False" Click="Send_Click"
-                               ToolTip="Send feedback (Enter)">
+                               ToolTip="{x:Static l:Strings.SendTip}">
                         <StackPanel Orientation="Horizontal">
                             <ui:SymbolIcon Symbol="Send24" FontSize="16" Margin="0,0,6,0"/>
-                            <TextBlock Text="Send"/>
+                            <TextBlock Text="{x:Static l:Strings.Send}"/>
                         </StackPanel>
                     </ui:Button>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="24,0,0,0">
-                        <ui:Button x:Name="RejectButton" Height="40" Appearance="Secondary" Click="Reject_Click" ToolTip="Do not film this (Esc)">
+                        <ui:Button x:Name="RejectButton" Height="40" Appearance="Secondary" Click="Reject_Click" ToolTip="{x:Static l:Strings.ApprovalRejectTip}">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Reject" VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Static l:Strings.ApprovalReject}" VerticalAlignment="Center"/>
                                 <Border Style="{StaticResource Keycap}" Margin="8,0,0,0">
-                                    <TextBlock Text="Esc" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{x:Static l:Strings.KeyEsc}" VerticalAlignment="Center"/>
                                 </Border>
                             </StackPanel>
                         </ui:Button>
-                        <ui:Button x:Name="ApproveButton" Height="40" Margin="8,0,0,0" Appearance="Primary" Click="Approve_Click" ToolTip="Film it like this (Ctrl+Enter)">
+                        <ui:Button x:Name="ApproveButton" Height="40" Margin="8,0,0,0" Appearance="Primary" Click="Approve_Click" ToolTip="{x:Static l:Strings.ApprovalApproveTip}">
                             <StackPanel Orientation="Horizontal">
                                 <ui:SymbolIcon Symbol="Checkmark24" FontSize="16" Margin="0,0,6,0"/>
-                                <TextBlock Text="Approve and film" VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Static l:Strings.ApprovalApprove}" VerticalAlignment="Center"/>
                                 <Border Style="{StaticResource Keycap}" Margin="8,0,0,0" Background="#33FFFFFF" BorderBrush="#55FFFFFF">
-                                    <TextBlock Text="Ctrl ⏎" Foreground="White" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{x:Static l:Strings.KeyCtrlEnter}" Foreground="White" VerticalAlignment="Center"/>
                                 </Border>
                             </StackPanel>
                         </ui:Button>

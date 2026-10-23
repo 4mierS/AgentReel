@@ -34,6 +34,12 @@ public sealed record AppSettings
     /// </summary>
     public int Mp4Framerate { get; init; } = 30;
 
+    /// <summary>
+    /// Studio's language: "en" or "de". Empty: the Windows display language if Studio has it, else English.
+    /// The environment variable AGENTREEL_LANGUAGE overrides it.
+    /// </summary>
+    public string? Language { get; init; }
+
     public static string FilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AgentReel", "settings.json");
 
     public static AppSettings Current
