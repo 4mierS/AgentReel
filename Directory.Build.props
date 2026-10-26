@@ -3,13 +3,13 @@
     <Version>0.1.0</Version>
     <FileVersion>0.1.0</FileVersion>
     <AssemblyVersion>0.1.0</AssemblyVersion>
-    <Company>AgentReel</Company>
+    <Company>Glasstake</Company>
     <Authors>Amir</Authors>
-    <Product>AgentReel</Product>
+    <Product>Glasstake</Product>
     <Copyright>Copyright © 2026 Amir</Copyright>
     <RepositoryUrl>https://github.com/4mierS/AgentReel</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <Description>AgentReel: screen recording and editing that AI agents drive over MCP.</Description>
+    <Description>Glasstake: screen recording and editing that AI agents drive over MCP.</Description>
     <CETCompat>false</CETCompat>
   </PropertyGroup>
 </Project>

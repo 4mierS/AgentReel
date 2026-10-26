@@ -1,0 +1,843 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AppName" xml:space="preserve">
+    <value>Glasstake Studio</value>
+    <comment>Product name; changes with the rename.</comment>
+  </data>
+  <data name="AppNoRecording" xml:space="preserve">
+    <value>There is no recording with frames in {0}.</value>
+    <comment>{0}: folder</comment>
+  </data>
+  <data name="AppUsage" xml:space="preserve">
+    <value>Usage: Glasstake.Studio [edit &lt;recording folder&gt; | review &lt;edit folder&gt; | approve-shots &lt;shot list folder&gt;]</value>
+  </data>
+  <data name="Record" xml:space="preserve">
+    <value>Record</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Send" xml:space="preserve">
+    <value>Send</value>
+  </data>
+  <data name="SendTip" xml:space="preserve">
+    <value>Send feedback (Enter)</value>
+  </data>
+  <data name="PlayTip" xml:space="preserve">
+    <value>Play / pause (Space)</value>
+  </data>
+  <data name="StillOpen" xml:space="preserve">
+    <value>Still open</value>
+  </data>
+  <data name="FramesOne" xml:space="preserve">
+    <value>1 frame</value>
+  </data>
+  <data name="FramesOther" xml:space="preserve">
+    <value>{0} frames</value>
+  </data>
+  <data name="StepsOne" xml:space="preserve">
+    <value>1 step</value>
+  </data>
+  <data name="StepsOther" xml:space="preserve">
+    <value>{0} steps</value>
+  </data>
+  <data name="FeedbackSent" xml:space="preserve">
+    <value>Sent to {0}: “{1}”</value>
+    <comment>{0}: AgentObject or the agent's name; {1}: the feedback</comment>
+  </data>
+  <data name="KeyEsc" xml:space="preserve">
+    <value>Esc</value>
+    <comment>Key cap</comment>
+  </data>
+  <data name="KeyShiftEsc" xml:space="preserve">
+    <value>Shift+Esc</value>
+    <comment>Key cap</comment>
+  </data>
+  <data name="KeyCtrlEnter" xml:space="preserve">
+    <value>Ctrl ⏎</value>
+    <comment>Key cap</comment>
+  </data>
+  <data name="KeyCtrlS" xml:space="preserve">
+    <value>Ctrl S</value>
+    <comment>Key cap</comment>
+  </data>
+  <data name="KeyDel" xml:space="preserve">
+    <value>Del</value>
+    <comment>Key cap</comment>
+  </data>
+  <data name="AgentHeadline" xml:space="preserve">
+    <value>Your agent</value>
+    <comment>Above the headline, upper-cased</comment>
+  </data>
+  <data name="AgentSubject" xml:space="preserve">
+    <value>the agent</value>
+    <comment>Nominative: '{0} films it now.'</comment>
+  </data>
+  <data name="AgentObject" xml:space="preserve">
+    <value>the agent</value>
+    <comment>Accusative: 'Sent to {0}', 'ask {0} to fix it'</comment>
+  </data>
+  <data name="AgentRecipient" xml:space="preserve">
+    <value>the agent</value>
+    <comment>Dative: 'Tell {0} what to change'</comment>
+  </data>
+  <data name="KindCut" xml:space="preserve">
+    <value>Cut</value>
+  </data>
+  <data name="KindFaster" xml:space="preserve">
+    <value>Faster</value>
+  </data>
+  <data name="KindCaption" xml:space="preserve">
+    <value>Caption</value>
+  </data>
+  <data name="KindHighlight" xml:space="preserve">
+    <value>Highlight</value>
+  </data>
+  <data name="KindRedaction" xml:space="preserve">
+    <value>Redaction</value>
+  </data>
+  <data name="ActionLaunch" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="ActionClick" xml:space="preserve">
+    <value>Click</value>
+  </data>
+  <data name="ActionDoubleClick" xml:space="preserve">
+    <value>Double-click</value>
+  </data>
+  <data name="ActionType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="ActionKeys" xml:space="preserve">
+    <value>Keys</value>
+  </data>
+  <data name="ActionSelect" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="ActionWaitFor" xml:space="preserve">
+    <value>Wait for</value>
+  </data>
+  <data name="ActionScroll" xml:space="preserve">
+    <value>Scroll</value>
+  </data>
+  <data name="ActionPause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="ActionClose" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="BarTitle" xml:space="preserve">
+    <value>Recording · Glasstake Studio</value>
+  </data>
+  <data name="BarStarting" xml:space="preserve">
+    <value>starting…</value>
+  </data>
+  <data name="BarSaving" xml:space="preserve">
+    <value>saving…</value>
+  </data>
+  <data name="BarStop" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="BarStopTip" xml:space="preserve">
+    <value>Stop recording (F8)</value>
+  </data>
+  <data name="BarDiscardTip" xml:space="preserve">
+    <value>Stop and throw the recording away</value>
+  </data>
+  <data name="BarWholeScreen" xml:space="preserve">
+    <value>Whole screen</value>
+  </data>
+  <data name="SessionHeadline" xml:space="preserve">
+    <value>What should Claude see?</value>
+  </data>
+  <data name="SessionIntro" xml:space="preserve">
+    <value>Pick a window to record. Afterwards, edit it in the studio or ask Claude in the chat to do it.</value>
+  </data>
+  <data name="SessionBack" xml:space="preserve">
+    <value>Studio</value>
+  </data>
+  <data name="SessionBackTip" xml:space="preserve">
+    <value>Back to the studio (Esc)</value>
+  </data>
+  <data name="SessionSearch" xml:space="preserve">
+    <value>Find a window</value>
+  </data>
+  <data name="SessionWindows" xml:space="preserve">
+    <value>WINDOWS</value>
+  </data>
+  <data name="SessionScreens" xml:space="preserve">
+    <value>SCREENS</value>
+  </data>
+  <data name="SessionNoWindow" xml:space="preserve">
+    <value>No window matches.</value>
+  </data>
+  <data name="SessionEverythingRecorded" xml:space="preserve">
+    <value>Everything on it is recorded</value>
+  </data>
+  <data name="SessionFramerate" xml:space="preserve">
+    <value>Frames per second</value>
+  </data>
+  <data name="SessionCursor" xml:space="preserve">
+    <value>Show the mouse pointer</value>
+  </data>
+  <data name="SessionRecordTip" xml:space="preserve">
+    <value>Start recording (Enter)</value>
+  </data>
+  <data name="SessionPick" xml:space="preserve">
+    <value>Pick a window or a screen</value>
+  </data>
+  <data name="SessionScreen" xml:space="preserve">
+    <value>Screen {0}</value>
+  </data>
+  <data name="SessionMainScreen" xml:space="preserve">
+    <value>Screen {0} · main</value>
+  </data>
+  <data name="SessionWindow" xml:space="preserve">
+    <value>Window</value>
+    <comment>When the process name is unknown</comment>
+  </data>
+  <data name="SessionStartFailed" xml:space="preserve">
+    <value>Could not start recording</value>
+  </data>
+  <data name="SessionRecordingFailed" xml:space="preserve">
+    <value>Recording failed</value>
+  </data>
+  <data name="SessionNothingRecorded" xml:space="preserve">
+    <value>Nothing was recorded</value>
+  </data>
+  <data name="SessionNothingRecordedDetail" xml:space="preserve">
+    <value>The window did not draw a single frame. Is it minimized or hidden?</value>
+  </data>
+  <data name="SessionDeleteFailed" xml:space="preserve">
+    <value>Could not delete the recording</value>
+  </data>
+  <data name="ApprovalTitle" xml:space="preserve">
+    <value>Shot list · Glasstake Studio</value>
+  </data>
+  <data name="ApprovalAgentProposes" xml:space="preserve">
+    <value>{0} proposes a video</value>
+    <comment>Upper-cased; {0}: AgentHeadline or the agent's name</comment>
+  </data>
+  <data name="ApprovalFeedbackPlaceholder" xml:space="preserve">
+    <value>Tell {0} what to change, e.g. “also show the PDF option” or “skip the menu”</value>
+    <comment>{0}: AgentRecipient or the name</comment>
+  </data>
+  <data name="ApprovalCaptioned" xml:space="preserve">
+    <value>{0} with captions · {1}</value>
+    <comment>{0}: count; {1}: app</comment>
+  </data>
+  <data name="ApprovalTheApp" xml:space="preserve">
+    <value>the app</value>
+  </data>
+  <data name="ApprovalWarningOne" xml:space="preserve">
+    <value>{0} step may not find its element in the app as it is open now. Fine if an earlier step makes it appear; else ask {1} to fix it.</value>
+    <comment>{1}: AgentObject or the name</comment>
+  </data>
+  <data name="ApprovalWarningOther" xml:space="preserve">
+    <value>{0} steps may not find their element in the app as it is open now. Fine if an earlier step makes them appear; else ask {1} to fix it.</value>
+    <comment>{1}: AgentObject or the name</comment>
+  </data>
+  <data name="ApprovalNoCaption" xml:space="preserve">
+    <value>No caption – the video shows this step without text</value>
+  </data>
+  <data name="ApprovalCaptionName" xml:space="preserve">
+    <value>Caption of step {0}</value>
+    <comment>Accessible name</comment>
+  </data>
+  <data name="ApprovalReject" xml:space="preserve">
+    <value>Reject</value>
+  </data>
+  <data name="ApprovalRejectTip" xml:space="preserve">
+    <value>Do not film this (Esc)</value>
+  </data>
+  <data name="ApprovalApprove" xml:space="preserve">
+    <value>Approve and film</value>
+  </data>
+  <data name="ApprovalApproveTip" xml:space="preserve">
+    <value>Film it like this (Ctrl+Enter)</value>
+  </data>
+  <data name="ApprovalApproved" xml:space="preserve">
+    <value>Approved. {0} films it now.</value>
+    <comment>{0}: AgentSubject or the name, capitalized</comment>
+  </data>
+  <data name="ApprovalRejected" xml:space="preserve">
+    <value>Rejected. {0} will not film it.</value>
+    <comment>{0}: AgentSubject or the name, capitalized</comment>
+  </data>
+  <data name="CheckFound" xml:space="preserve">
+    <value>Found</value>
+  </data>
+  <data name="CheckAmbiguous" xml:space="preserve">
+    <value>Several match</value>
+  </data>
+  <data name="CheckLaterWindow" xml:space="preserve">
+    <value>In a dialog</value>
+  </data>
+  <data name="CheckNotFound" xml:space="preserve">
+    <value>Not on screen</value>
+  </data>
+  <data name="CheckUnchecked" xml:space="preserve">
+    <value>Not checked</value>
+  </data>
+  <data name="ReviewTitle" xml:space="preserve">
+    <value>Review · Glasstake Studio</value>
+  </data>
+  <data name="ReviewAgentSuggests" xml:space="preserve">
+    <value>{0} suggests</value>
+    <comment>Upper-cased; {0}: AgentHeadline or the agent's name</comment>
+  </data>
+  <data name="ReviewFeedbackPlaceholder" xml:space="preserve">
+    <value>Tell {0} what to change, e.g. “keep the first second” or “caption shorter”</value>
+    <comment>{0}: AgentRecipient or the name</comment>
+  </data>
+  <data name="ReviewStepsLine" xml:space="preserve">
+    <value>{0}: {1}</value>
+    <comment>{0}: '3 steps'; {1}: the steps</comment>
+  </data>
+  <data name="ReviewShorter" xml:space="preserve">
+    <value>{0} shorter · {1}</value>
+    <comment>{0}: seconds; {1}: '12 frames'</comment>
+  </data>
+  <data name="ReviewSameLength" xml:space="preserve">
+    <value>same length · {0}</value>
+    <comment>{0}: '12 frames'</comment>
+  </data>
+  <data name="ReviewEdit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="ReviewOriginal" xml:space="preserve">
+    <value>Original</value>
+  </data>
+  <data name="ReviewPreviousTake" xml:space="preserve">
+    <value>Previous take · {0}</value>
+  </data>
+  <data name="ReviewHold" xml:space="preserve">
+    <value>Hold</value>
+    <comment>Hold [O] to compare …</comment>
+  </data>
+  <data name="ReviewCompareHint" xml:space="preserve">
+    <value>to compare with the original</value>
+  </data>
+  <data name="ReviewCompareHintTake" xml:space="preserve">
+    <value>the original take ·</value>
+    <comment>Hold [O] the original take · [P] the previous take</comment>
+  </data>
+  <data name="ReviewPreviousHint" xml:space="preserve">
+    <value>the previous take</value>
+  </data>
+  <data name="ReviewMoreDetails" xml:space="preserve">
+    <value>{0} more</value>
+  </data>
+  <data name="ReviewPreviousChangeTip" xml:space="preserve">
+    <value>Previous change (Shift+←)</value>
+  </data>
+  <data name="ReviewNextChangeTip" xml:space="preserve">
+    <value>Next change (Shift+→)</value>
+  </data>
+  <data name="ReviewNoChanges" xml:space="preserve">
+    <value>no changes</value>
+  </data>
+  <data name="ReviewChangeOf" xml:space="preserve">
+    <value>Change {0} of {1}</value>
+  </data>
+  <data name="ReviewChangeCut" xml:space="preserve">
+    <value>Cut {0} at {1}</value>
+    <comment>{0}: seconds; {1}: time</comment>
+  </data>
+  <data name="ReviewChangeFaster" xml:space="preserve">
+    <value>Faster {0} at {1}</value>
+    <comment>{0}: '4.0 s → 1.0 s'; {1}: time</comment>
+  </data>
+  <data name="ReviewChangeCaption" xml:space="preserve">
+    <value>Caption “{0}” {1}–{2}</value>
+  </data>
+  <data name="ReviewChangeHighlight" xml:space="preserve">
+    <value>Highlight {0}–{1}</value>
+  </data>
+  <data name="ReviewDiscard" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="ReviewDiscardTip" xml:space="preserve">
+    <value>Reject and delete the edit (Esc)</value>
+  </data>
+  <data name="ReviewDiscardMoreTip" xml:space="preserve">
+    <value>More ways to discard</value>
+  </data>
+  <data name="ReviewDiscardDelete" xml:space="preserve">
+    <value>Discard and delete the edit</value>
+  </data>
+  <data name="ReviewDiscardKeepFiles" xml:space="preserve">
+    <value>Discard, but keep its files</value>
+  </data>
+  <data name="ReviewKeep" xml:space="preserve">
+    <value>Keep edit</value>
+  </data>
+  <data name="ReviewKeepTip" xml:space="preserve">
+    <value>Keep the edit (Ctrl+Enter)</value>
+  </data>
+  <data name="ReviewKept" xml:space="preserve">
+    <value>Kept. {0} continues with this edit.</value>
+    <comment>{0}: AgentSubject or the name, capitalized</comment>
+  </data>
+  <data name="ReviewDiscardedDeleted" xml:space="preserve">
+    <value>Discarded. The edit will be deleted.</value>
+  </data>
+  <data name="ReviewDiscardedKept" xml:space="preserve">
+    <value>Discarded. {0} drops it, its files stay in your recordings.</value>
+    <comment>{0}: AgentSubject or the name, capitalized</comment>
+  </data>
+  <data name="ReviewNotAnEdit" xml:space="preserve">
+    <value>{0} is not an edit (no {1}).</value>
+  </data>
+  <data name="ReviewEditMismatch" xml:space="preserve">
+    <value>{0} does not match the frames of {1}.</value>
+  </data>
+  <data name="LibraryHeader" xml:space="preserve">
+    <value>LIBRARY</value>
+  </data>
+  <data name="LibraryEmpty" xml:space="preserve">
+    <value>No recordings yet. Record a window, then edit it here or ask Claude in the chat.</value>
+  </data>
+  <data name="LibraryShowFolder" xml:space="preserve">
+    <value>Show in folder</value>
+  </data>
+  <data name="LibraryReview" xml:space="preserve">
+    <value>Review</value>
+  </data>
+  <data name="LibraryReviewTip" xml:space="preserve">
+    <value>Claude asked you to review this version</value>
+  </data>
+  <data name="LibraryVersion" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="LibraryVersionNumber" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="LibraryByYou" xml:space="preserve">
+    <value>You</value>
+  </data>
+  <data name="LibraryToday" xml:space="preserve">
+    <value>Today</value>
+  </data>
+  <data name="LibraryYesterday" xml:space="preserve">
+    <value>Yesterday</value>
+  </data>
+  <data name="LibraryWhen" xml:space="preserve">
+    <value>{0}, {1}</value>
+    <comment>{0}: day; {1}: time</comment>
+  </data>
+  <data name="DeleteVersionTitle" xml:space="preserve">
+    <value>Delete this version?</value>
+  </data>
+  <data name="DeleteRecordingTitle" xml:space="preserve">
+    <value>Delete this recording?</value>
+  </data>
+  <data name="DeleteText" xml:space="preserve">
+    <value>Its frames are deleted from disk. This cannot be undone.</value>
+  </data>
+  <data name="DeleteTextVersionsOne" xml:space="preserve">
+    <value>Its frames are deleted from disk. Its version stays. This cannot be undone.</value>
+  </data>
+  <data name="DeleteTextVersionsOther" xml:space="preserve">
+    <value>Its frames are deleted from disk. Its {0} versions stay. This cannot be undone.</value>
+  </data>
+  <data name="EditorNewRecording" xml:space="preserve">
+    <value>New recording</value>
+  </data>
+  <data name="EditorNewRecordingTip" xml:space="preserve">
+    <value>New recording (N)</value>
+  </data>
+  <data name="EditorUndoTip" xml:space="preserve">
+    <value>Undo (Ctrl+Z)</value>
+  </data>
+  <data name="EditorRedoTip" xml:space="preserve">
+    <value>Redo (Ctrl+Y)</value>
+  </data>
+  <data name="EditorExport" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="EditorExportTip" xml:space="preserve">
+    <value>Export as GIF, MP4 or animated PNG (Ctrl+E)</value>
+  </data>
+  <data name="EditorSave" xml:space="preserve">
+    <value>Save version</value>
+  </data>
+  <data name="EditorSaveTip" xml:space="preserve">
+    <value>Save the changes as a new version (Ctrl+S); the original stays as it is</value>
+  </data>
+  <data name="EditorWorking" xml:space="preserve">
+    <value>Working…</value>
+  </data>
+  <data name="EditorSaving" xml:space="preserve">
+    <value>Saving version…</value>
+  </data>
+  <data name="EditorEmptyHeadline" xml:space="preserve">
+    <value>Record something to begin</value>
+  </data>
+  <data name="EditorEmptyIntro" xml:space="preserve">
+    <value>Pick a window, record it, then trim, caption and highlight it here – or let Claude do it from the chat.</value>
+  </data>
+  <data name="EditorCut" xml:space="preserve">
+    <value>Cut</value>
+  </data>
+  <data name="EditorCutTip" xml:space="preserve">
+    <value>Cut the selection (Del). Select by dragging on the timeline or with I and O.</value>
+  </data>
+  <data name="EditorCaption" xml:space="preserve">
+    <value>Caption</value>
+  </data>
+  <data name="EditorCaptionTip" xml:space="preserve">
+    <value>Add a caption at the playhead or over the selection (T)</value>
+  </data>
+  <data name="EditorHighlight" xml:space="preserve">
+    <value>Highlight</value>
+  </data>
+  <data name="EditorHighlightTip" xml:space="preserve">
+    <value>Add a highlight at the playhead (H), or drag on the picture</value>
+  </data>
+  <data name="EditorRedact" xml:space="preserve">
+    <value>Redact</value>
+  </data>
+  <data name="EditorRedactTip" xml:space="preserve">
+    <value>Cover an area with a solid box (R), or Shift+drag on the picture</value>
+  </data>
+  <data name="EditorByClaude" xml:space="preserve">
+    <value>by Claude</value>
+  </data>
+  <data name="EditorByYou" xml:space="preserve">
+    <value>by you</value>
+  </data>
+  <data name="EditorSavedVersion" xml:space="preserve">
+    <value>Saved version</value>
+  </data>
+  <data name="EditorUnsavedOne" xml:space="preserve">
+    <value>Preview · 1 unsaved change</value>
+  </data>
+  <data name="EditorUnsavedOther" xml:space="preserve">
+    <value>Preview · {0} unsaved changes</value>
+  </data>
+  <data name="EditorReviewFailed" xml:space="preserve">
+    <value>Could not open the review</value>
+  </data>
+  <data name="EditorDeleteFailed" xml:space="preserve">
+    <value>Could not delete it</value>
+  </data>
+  <data name="EditorEditFailed" xml:space="preserve">
+    <value>That did not work</value>
+  </data>
+  <data name="EditorNoElement" xml:space="preserve">
+    <value>This step has no element</value>
+  </data>
+  <data name="EditorNoElementDetail" xml:space="preserve">
+    <value>Draw the area on the picture instead.</value>
+  </data>
+  <data name="EditorShotListFailed" xml:space="preserve">
+    <value>Could not change the shot list</value>
+  </data>
+  <data name="EditorSaved" xml:space="preserve">
+    <value>Saved as a new version</value>
+  </data>
+  <data name="EditorSavedDetail" xml:space="preserve">
+    <value>The original stays as it was. Claude sees the version as your latest recording.</value>
+  </data>
+  <data name="EditorSavedAnchoredOne" xml:space="preserve">
+    <value>The original stays as it was. {0} edit is anchored to steps of “{1}”, so every re-shoot gets it.</value>
+    <comment>{0}: 1; {1}: shot list</comment>
+  </data>
+  <data name="EditorSavedAnchoredOther" xml:space="preserve">
+    <value>The original stays as it was. {0} edits are anchored to steps of “{1}”, so every re-shoot gets them.</value>
+    <comment>{0}: count; {1}: shot list</comment>
+  </data>
+  <data name="EditorSaveFailed" xml:space="preserve">
+    <value>Could not save</value>
+  </data>
+  <data name="EditorSelectFirst" xml:space="preserve">
+    <value>Select a part first</value>
+  </data>
+  <data name="EditorSelectFirstDetail" xml:space="preserve">
+    <value>Drag on the timeline, or set its start and end with I and O.</value>
+  </data>
+  <data name="EditorEverything" xml:space="preserve">
+    <value>That is everything</value>
+  </data>
+  <data name="EditorEverythingDetail" xml:space="preserve">
+    <value>Cutting all of it would leave nothing.</value>
+  </data>
+  <data name="EditorCutTakeOnly" xml:space="preserve">
+    <value>Cut this take only</value>
+  </data>
+  <data name="EditorCutTakeOnlyDetail" xml:space="preserve">
+    <value>It covers part of a step, so re-shoots keep that part. Pick steps on the step track to cut them from every take.</value>
+  </data>
+  <data name="EditorSaveFirst" xml:space="preserve">
+    <value>Save the version first</value>
+  </data>
+  <data name="EditorSaveFirstDetail" xml:space="preserve">
+    <value>Export takes saved versions, so the original stays as it was. Press Ctrl+S, then export.</value>
+  </data>
+  <data name="ExportTitle" xml:space="preserve">
+    <value>Export recording</value>
+  </data>
+  <data name="ExportFilter" xml:space="preserve">
+    <value>GIF animation (*.gif)|*.gif|MP4 video (*.mp4)|*.mp4|Animated PNG (*.png)|*.png</value>
+    <comment>File dialog filter; keep the order GIF, MP4, PNG</comment>
+  </data>
+  <data name="ExportBusy" xml:space="preserve">
+    <value>Exporting…</value>
+  </data>
+  <data name="ExportDone" xml:space="preserve">
+    <value>Exported</value>
+  </data>
+  <data name="ExportFailed" xml:space="preserve">
+    <value>Could not export</value>
+  </data>
+  <data name="CloseTitle" xml:space="preserve">
+    <value>Close without saving?</value>
+  </data>
+  <data name="CloseTextOne" xml:space="preserve">
+    <value>One recording has changes that are not saved as a version.</value>
+  </data>
+  <data name="CloseTextOther" xml:space="preserve">
+    <value>{0} recordings have changes that are not saved as versions.</value>
+  </data>
+  <data name="CloseConfirm" xml:space="preserve">
+    <value>Close without saving</value>
+  </data>
+  <data name="CloseKeepEditing" xml:space="preserve">
+    <value>Keep editing</value>
+  </data>
+  <data name="ChangeTrimmed" xml:space="preserve">
+    <value>Trimmed to {0} – {1}</value>
+  </data>
+  <data name="ChangeCut" xml:space="preserve">
+    <value>Cut {0} – {1}</value>
+  </data>
+  <data name="ChangeOptimized" xml:space="preserve">
+    <value>Shortened: {0}</value>
+  </data>
+  <data name="ChangePauses" xml:space="preserve">
+    <value>pauses shortened to {0}</value>
+  </data>
+  <data name="ChangeSpeed" xml:space="preserve">
+    <value>{0}× speed</value>
+  </data>
+  <data name="ChangeFolded" xml:space="preserve">
+    <value>repeated frames folded</value>
+  </data>
+  <data name="ChangeCaption" xml:space="preserve">
+    <value>Caption “{0}”</value>
+  </data>
+  <data name="ChangeOverlay" xml:space="preserve">
+    <value>{0} from {1} to {2}</value>
+    <comment>{0}: the overlay; {1}, {2}: times</comment>
+  </data>
+  <data name="InspectorCaption" xml:space="preserve">
+    <value>CAPTION</value>
+  </data>
+  <data name="InspectorCaptionPlaceholder" xml:space="preserve">
+    <value>What happens here?</value>
+  </data>
+  <data name="InspectorCaptionHint" xml:space="preserve">
+    <value>Enter applies, Shift+Enter starts a new line.</value>
+  </data>
+  <data name="InspectorTop" xml:space="preserve">
+    <value>Top</value>
+  </data>
+  <data name="InspectorCenter" xml:space="preserve">
+    <value>Center</value>
+  </data>
+  <data name="InspectorBottom" xml:space="preserve">
+    <value>Bottom</value>
+  </data>
+  <data name="InspectorRemoveCaption" xml:space="preserve">
+    <value>Remove caption</value>
+  </data>
+  <data name="InspectorHighlight" xml:space="preserve">
+    <value>HIGHLIGHT</value>
+  </data>
+  <data name="InspectorRectangle" xml:space="preserve">
+    <value>Rectangle</value>
+  </data>
+  <data name="InspectorEllipse" xml:space="preserve">
+    <value>Ellipse</value>
+  </data>
+  <data name="InspectorDim" xml:space="preserve">
+    <value>Darken everything else</value>
+  </data>
+  <data name="InspectorHighlightHint" xml:space="preserve">
+    <value>Drag it on the picture to move it, drag a corner to resize it. Drag its bar on the timeline to change when it shows.</value>
+  </data>
+  <data name="InspectorRemoveHighlight" xml:space="preserve">
+    <value>Remove highlight</value>
+  </data>
+  <data name="InspectorRedaction" xml:space="preserve">
+    <value>REDACTION</value>
+  </data>
+  <data name="InspectorRedactionHint" xml:space="preserve">
+    <value>A solid box: what is under it is gone from the saved frames, not blurred. Drag it on the picture to move it, drag a corner to resize it.</value>
+  </data>
+  <data name="InspectorRemoveRedaction" xml:space="preserve">
+    <value>Remove redaction</value>
+  </data>
+  <data name="InspectorStep" xml:space="preserve">
+    <value>STEP</value>
+  </data>
+  <data name="InspectorFollow" xml:space="preserve">
+    <value>Follow the step's element</value>
+  </data>
+  <data name="InspectorNotAnchored" xml:space="preserve">
+    <value>Not anchored (this version only)</value>
+  </data>
+  <data name="InspectorAnchorNone" xml:space="preserve">
+    <value>Only in this version. Anchor it to a step, and every re-shoot of “{0}” puts it there again.</value>
+    <comment>{0}: shot list</comment>
+  </data>
+  <data name="InspectorAnchorFollows" xml:space="preserve">
+    <value>Saved with the shot list when you save. In every re-shoot it covers the element, wherever it moved.</value>
+  </data>
+  <data name="InspectorAnchorStep" xml:space="preserve">
+    <value>Saved with the shot list when you save. Every re-shoot shows it on this step, even if the step takes longer.</value>
+  </data>
+  <data name="InspectorAnchorNoElement" xml:space="preserve">
+    <value>The step has no element to follow.</value>
+  </data>
+  <data name="InspectorDriftMoved" xml:space="preserve">
+    <value>moved in this build</value>
+  </data>
+  <data name="InspectorDriftChanged" xml:space="preserve">
+    <value>changed in this build</value>
+  </data>
+  <data name="InspectorCaptionStepTip" xml:space="preserve">
+    <value>Caption this step (T)</value>
+  </data>
+  <data name="InspectorCutStep" xml:space="preserve">
+    <value>Cut step</value>
+  </data>
+  <data name="InspectorCutStepTip" xml:space="preserve">
+    <value>Cut this step out of every take (Del)</value>
+  </data>
+  <data name="InspectorHighlightIt" xml:space="preserve">
+    <value>Highlight it</value>
+  </data>
+  <data name="InspectorHighlightItTip" xml:space="preserve">
+    <value>Highlight the element, wherever it is in later takes</value>
+  </data>
+  <data name="InspectorRedactIt" xml:space="preserve">
+    <value>Redact it</value>
+  </data>
+  <data name="InspectorRedactItTip" xml:space="preserve">
+    <value>Cover the element, wherever it is in later takes</value>
+  </data>
+  <data name="InspectorSelection" xml:space="preserve">
+    <value>SELECTION</value>
+  </data>
+  <data name="InspectorKeepOnly" xml:space="preserve">
+    <value>Keep only</value>
+  </data>
+  <data name="InspectorKeepOnlyTip" xml:space="preserve">
+    <value>Keep only the selection (K)</value>
+  </data>
+  <data name="InspectorShorten" xml:space="preserve">
+    <value>SHORTEN</value>
+  </data>
+  <data name="InspectorShortenHint" xml:space="preserve">
+    <value>Folds repeated frames and blinking cursors, cuts long waits and speeds up the whole recording.</value>
+  </data>
+  <data name="InspectorLongestPause" xml:space="preserve">
+    <value>Longest pause</value>
+  </data>
+  <data name="InspectorKeepAll" xml:space="preserve">
+    <value>keep all</value>
+  </data>
+  <data name="InspectorSpeed" xml:space="preserve">
+    <value>Speed</value>
+  </data>
+  <data name="InspectorShortenButton" xml:space="preserve">
+    <value>Shorten</value>
+  </data>
+  <data name="InspectorChanges" xml:space="preserve">
+    <value>CHANGES</value>
+  </data>
+  <data name="InspectorNoChanges" xml:space="preserve">
+    <value>Nothing changed yet. Edits are only previews until you save a version, and every step can be undone.</value>
+  </data>
+  <data name="InspectorShotList" xml:space="preserve">
+    <value>Shot list “{0}”</value>
+    <comment>Upper-cased</comment>
+  </data>
+  <data name="InspectorNoShotEdits" xml:space="preserve">
+    <value>No edits are anchored to steps yet. Captions, highlights, redactions and cuts you add here are anchored to their step when you save, so every re-shoot gets them.</value>
+  </data>
+  <data name="InspectorRemoveShotEditTip" xml:space="preserve">
+    <value>Remove from the shot list: later re-shoots no longer get it (saved versions keep it)</value>
+  </data>
+  <data name="InspectorRecording" xml:space="preserve">
+    <value>RECORDING</value>
+  </data>
+  <data name="InspectorLength" xml:space="preserve">
+    <value>Length</value>
+  </data>
+  <data name="InspectorFrames" xml:space="preserve">
+    <value>Frames</value>
+  </data>
+  <data name="InspectorSize" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="InspectorId" xml:space="preserve">
+    <value>Id</value>
+  </data>
+  <data name="TimelineCaptionRow" xml:space="preserve">
+    <value>Captions  ·  T</value>
+  </data>
+  <data name="TimelineAreaRow" xml:space="preserve">
+    <value>Highlights and redactions  ·  H, R, or drag on the picture</value>
+  </data>
+  <data name="TimelineFollows" xml:space="preserve">
+    <value>follows {0}</value>
+    <comment>{0}: step id</comment>
+  </data>
+  <data name="ClaudeAsk" xml:space="preserve">
+    <value>ASK CLAUDE</value>
+  </data>
+  <data name="ClaudeHint" xml:space="preserve">
+    <value>In the chat · click to copy</value>
+  </data>
+  <data name="PromptTip" xml:space="preserve">
+    <value>Copy, then paste it into the chat with Claude</value>
+  </data>
+  <data name="PromptCopied" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="PromptCopiedDetail" xml:space="preserve">
+    <value>Paste it into the chat with Claude.</value>
+  </data>
+  <data name="PromptRecord" xml:space="preserve">
+    <value>Record the window I am working in for 20 seconds</value>
+  </data>
+  <data name="PromptList" xml:space="preserve">
+    <value>Show me my recordings in Glasstake</value>
+  </data>
+  <data name="PromptShorten" xml:space="preserve">
+    <value>Shorten the pauses in my recording “{0}”</value>
+    <comment>{0}: recording id</comment>
+  </data>
+  <data name="PromptCaptions" xml:space="preserve">
+    <value>Add captions that explain each step of “{0}”</value>
+    <comment>{0}: recording id</comment>
+  </data>
+  <data name="PromptHighlight" xml:space="preserve">
+    <value>Find the important moment in “{0}” and highlight it</value>
+    <comment>{0}: recording id</comment>
+  </data>
+  <data name="PromptExport" xml:space="preserve">
+    <value>Export “{0}” as MP4</value>
+    <comment>{0}: recording id</comment>
+  </data>
+</root>

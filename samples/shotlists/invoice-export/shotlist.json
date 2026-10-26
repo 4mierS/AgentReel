@@ -3,7 +3,7 @@
   "name": "invoice-export",
   "description": "Export an invoice as PNG in the WPF sample app. CI passes the app with --app.",
   "app": {
-    "path": "AgentReel.Direct.SampleApp.exe",
+    "path": "Glasstake.Direct.SampleApp.exe",
     "windowTitle": "Glasstake Sample"
   },
   "steps": [

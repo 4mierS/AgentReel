@@ -18,8 +18,8 @@ AgentReel is not affiliated with or endorsed by the ScreenToGif project. The ori
 Requirements: Windows 10 2004 (build 19041) or newer, .NET 9 SDK.
 
 ```powershell
-dotnet build GifRecorder.sln -c Debug
-dotnet test GifRecorder.sln -c Debug
+dotnet build Glasstake.sln -c Debug
+dotnet test Glasstake.sln -c Debug
 ```
 
 ## Projects
