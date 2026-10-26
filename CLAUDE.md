@@ -1,4 +1,4 @@
-# CLAUDE.md – AgentReel (working name Glasstake)
+# CLAUDE.md – Glasstake (repo still named AgentReel)
 
 Context for Claude Code. Read this first, then `README.md` and `NOTICE.md`.
 Product and business doc (German, Claude Docs): https://claude.ai/artifact/A8M4ciJ2qmzNrz7EgvBQpo
@@ -19,7 +19,8 @@ Pricing (decided): free basics; individual $7/month (or $70/year, AI features); 
 
 History: started 2026-10-20 as a hard fork of ScreenToGif (Ms-PL). Decided 2026-10-21 to become an independent app
 with no ScreenToGif code. Since package 4a (2026-10-22) the repo contains no ScreenToGif project anymore; all
-`AgentReel.*` code is new (clean room). The git history still contains the Ms-PL code.
+`AgentReel.*` code is new (clean room). The git history still contains the Ms-PL code. Renamed AgentReel → Glasstake
+(working name, attorney clearance pending) on 2026-10-26; the GitHub repo and the checkout folder keep the old name.
 
 ## Hard rules
 
@@ -36,37 +37,39 @@ with no ScreenToGif code. Since package 4a (2026-10-22) the repo contains no Scr
 
 - `origin` = https://github.com/4mierS/AgentReel (private). `upstream` = ScreenToGif (never push). Branch `main`.
   Use `gh -R 4mierS/AgentReel`.
-- Solution `GifRecorder.sln` (not renamed yet; still has the old "Debug (Store)" and x86/ARM64 configurations).
-  Projects target `net9.0-windows10.0.19041.0` (`AgentReel.Core`: plain `net9.0`). `Directory.Build.props` sets AgentReel metadata
-  (Company/Product "AgentReel", "Copyright © 2026 Amir", 0.1.0) and `CETCompat=false` (open question, see below).
+- Solution `Glasstake.sln` (Debug/Release, Any CPU only).
+  Projects target `net9.0-windows10.0.19041.0` (`Glasstake.Core`: plain `net9.0`). `Directory.Build.props` sets Glasstake metadata
+  (Company/Product "Glasstake", "Copyright © 2026 Amir", 0.1.0) and `CETCompat=false` (open question, see below).
 - Projects:
-  - `AgentReel.Core`: `Recording`/`RecordedFrame`, `recording.json`, `RecordingStore`
-    (`%LOCALAPPDATA%\AgentReel\Recordings`, env `AGENTREEL_RECORDINGS`), `AppSettings`
-    (`%APPDATA%\AgentReel\settings.json`), `RecordingLock`, `LegacyImport` (copies old `%TEMP%\ScreenToGif\Recording`
+  - `Glasstake.Core`: `Recording`/`RecordedFrame`, `recording.json`, `RecordingStore`
+    (`%LOCALAPPDATA%\Glasstake\Recordings`, env `GLASSTAKE_RECORDINGS`), `AppSettings`
+    (`%APPDATA%\Glasstake\settings.json`), `DataFolders` (moves the old `AgentReel` data folders to `Glasstake` on
+    first use, or keeps using them if a file is open; `DataFolders.Variable` falls back to old `AGENTREEL_*` env
+    variables), `RecordingLock`, `LegacyImport` (copies old `%TEMP%\ScreenToGif\Recording`
     projects once).
-  - `AgentReel.Capture`: Windows.Graphics.Capture recorder (`ICaptureService`, `WgcCaptureService`,
+  - `Glasstake.Capture`: Windows.Graphics.Capture recorder (`ICaptureService`, `WgcCaptureService`,
     `ProjectRecording`). Frames throttled to the framerate; unchanged content extends the previous delay.
-  - `AgentReel.Export`: own GIF and APNG encoders, MP4 via Media Foundation (Vortice.MediaFoundation).
-  - `AgentReel.Editing`: timeline edits (`Timeline`: trim, fold, retime, isolate), overlays, contact sheet, edit chain,
+  - `Glasstake.Export`: own GIF and APNG encoders, MP4 via Media Foundation (Vortice.MediaFoundation).
+  - `Glasstake.Editing`: timeline edits (`Timeline`: trim, fold, retime, isolate), overlays, contact sheet, edit chain,
     `Edit.json`/`Review.json`, `RecordingLibrary`, `RecordingExport`, `EditDocument`/`Clips` (Studio editor model),
     `Privacy/` (OCR, detectors, redaction), `Shots/` (`ShotFilm`, `AnchoredEdits`, `TakeClock`, `PreviousTake`).
-  - `AgentReel.Direct`: shot lists (`%LOCALAPPDATA%\AgentReel\ShotLists`, env `AGENTREEL_SHOTLISTS`), locator matcher
+  - `Glasstake.Direct`: shot lists (`%LOCALAPPDATA%\Glasstake\ShotLists`, env `GLASSTAKE_SHOTLISTS`), locator matcher
     (found/moved/changed/missing), `ShotPlayer` (UIA patterns, guarded SendInput fallback), `TemplateMatch`/`Vision`
     (picture fallback), `InputWatch` (warns about real input during a run), drift report (json/html/png),
     `ShotDraft` (director drafts + live locator check).
-  - `AgentReel.Mcp`: stdio MCP server (tools below).
-  - `AgentReel.Studio`: WPF UI 4.3.0 app (Mica, system theme). No args → session window + recording bar;
+  - `Glasstake.Mcp`: stdio MCP server (tools below).
+  - `Glasstake.Studio`: WPF UI 4.3.0 app (Mica, system theme). No args → session window + recording bar;
     `review <folder>`; `edit <folder>`; `approve-shots <shot list folder>`. English and German: all texts in
     `Localization/Strings.resx` + `Strings.de.resx` (XAML uses `{x:Static l:Strings.Key}`, code `Strings.Key` and
-    `Text.Format`/`Text.Count`); language = env `AGENTREEL_LANGUAGE`, else `language` in settings.json, else the Windows
+    `Text.Format`/`Text.Count`); language = env `GLASSTAKE_LANGUAGE`, else `language` in settings.json, else the Windows
     display language, else English. Files the agent reads (`Edit.json` steps, `edits.json`, draft check notes) stay
-    English; `StepText.Describe(step, culture)` (texts in `AgentReel.Direct/StepStrings*.resx`) is English unless
+    English; `StepText.Describe(step, culture)` (texts in `Glasstake.Direct/StepStrings*.resx`) is English unless
     Studio passes a culture.
-  - `AgentReel.Cli` (`agentreel.exe`): `baseline|drift|film|reshoot <shot list folder>`; exit code 2 = needs a human.
-  - Samples: `AgentReel.Direct.SampleApp` (WPF; `--v2` moves Export, renames Customer→Client, removes Refresh),
-    `AgentReel.Direct.SampleApp.WinForms`, `samples/electron`, `samples/shotlists/invoice-export` (used by CI).
-  - Tests: `AgentReel.Capture.Tests`, `AgentReel.Export.Tests`, `AgentReel.Mcp.Tests`, `AgentReel.Direct.Tests`
-    (231 tests on 2026-10-23; `StudioTextTests` in Mcp.Tests checks that both languages have the same keys and
+  - `Glasstake.Cli` (`glasstake.exe`): `baseline|drift|film|reshoot <shot list folder>`; exit code 2 = needs a human.
+  - Samples: `Glasstake.Direct.SampleApp` (WPF; `--v2` moves Export, renames Customer→Client, removes Refresh),
+    `Glasstake.Direct.SampleApp.WinForms`, `samples/electron`, `samples/shotlists/invoice-export` (used by CI).
+  - Tests: `Glasstake.Capture.Tests`, `Glasstake.Export.Tests`, `Glasstake.Mcp.Tests`, `Glasstake.Direct.Tests`
+    (235 tests on 2026-10-26; `StudioTextTests` in Mcp.Tests checks that both languages have the same keys and
     placeholders).
 - MCP tools: recording (`list_targets`, `start_recording`, `stop_recording`, `get_status`, `get_preview` incl. live,
   `list_recordings`, `delete_recording`), editing (`trim`, `optimize`, `add_caption`, `add_highlight`,
@@ -83,28 +86,28 @@ Requires Windows 10 2004+ and the .NET 9 SDK. The SDK is user-local in `%LOCALAP
 PATH by default): set PATH and `DOTNET_ROOT` to it. Build with `-c Release` for test runs.
 
 ```powershell
-dotnet build GifRecorder.sln -c Release
-dotnet test AgentReel.Mcp.Tests -c Release --no-build   # likewise Capture/Export/Direct.Tests
+dotnet build Glasstake.sln -c Release
+dotnet test Glasstake.Mcp.Tests -c Release --no-build   # likewise Capture/Export/Direct.Tests
 ```
 
 - **Desktop lock**: before any UIA, recording or Direct test run, create `%TEMP%\glasstake-desktop.lock` (owner and
   time inside) and delete it afterwards; if it exists, wait. Parallel desktop runs break tests.
 - Never record the primary monitor (private mail). No SendKeys. Don't delete Amir's recordings or the demo takes
-  `2026-10-22 16-05-39` and `2026-10-22 16-05-51`. For end-to-end runs, point `AGENTREEL_RECORDINGS` and
-  `AGENTREEL_SHOTLISTS` to a scratch folder and `AGENTREEL_STUDIO` to the built Studio.
-- End-to-end checks: drive `AgentReel.Mcp.exe` over raw JSON-RPC on stdin (initialize with clientInfo `claude-code`),
+  `2026-10-22 16-05-39` and `2026-10-22 16-05-51`. For end-to-end runs, point `GLASSTAKE_RECORDINGS` and
+  `GLASSTAKE_SHOTLISTS` to a scratch folder and `GLASSTAKE_STUDIO` to the built Studio.
+- End-to-end checks: drive `Glasstake.Mcp.exe` over raw JSON-RPC on stdin (initialize with clientInfo `claude-code`),
   click Studio buttons through UI Automation (`InvokePattern`, buttons are named by `x:Name`).
-- The registered server is the Debug build of `AgentReel.Mcp` in this checkout, registered as `agentreel` in Claude
+- The registered server is the Debug build of `Glasstake.Mcp` in this checkout, registered as `glasstake` in Claude
   Code (user scope) and Claude Desktop (Store build, config under
   `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\`), both with `DOTNET_ROOT`. A running client locks the
-  exe: stop the `AgentReel.Mcp` processes under `AgentReel.Mcp\bin\Debug\`, rebuild, then Amir reconnects (`/mcp`)
+  exe: stop the `Glasstake.Mcp` processes under `Glasstake.Mcp\bin\Debug\`, rebuild, then Amir reconnects (`/mcp`)
   and restarts Claude Desktop.
 - CI: `.github/workflows/build.yml` (windows-latest, build + all four test projects; the hosted runner has an
   interactive desktop, so UIA and WGC work). `.github/workflows/reshoot.yml` (workflow_dispatch): baseline v1 →
   drift against `--v2` → reshoot with anchored edits → uploads report and MP4s. First run 39839847094 (2026-10-22)
   green: drift 3 unchanged/1 moved/1 changed/1 missing, 3 of 4 edits carried over, real pixels in the crops.
 
-## Status (2026-10-23)
+## Status (2026-10-26)
 
 Done (all merged and pushed):
 - MCP server, capture, own project model and storage, own export (no FFmpeg), Studio review window, session window,
@@ -116,7 +119,7 @@ Done (all merged and pushed):
   a one-line headline plus a list, hold P for the previous take. Checked via UIA only; real mouse/keyboard gestures are
   untested.
 - Package 3, robustness (`befeff9b`): WinForms and Electron samples (no FlaUI needed), picture fallback, input
-  warning, `AgentReel.Cli` and the reshoot workflow (green on GitHub). Electron: empty UIA tree in about 1 of 6 runs,
+  warning, `Glasstake.Cli` and the reshoot workflow (green on GitHub). Electron: empty UIA tree in about 1 of 6 runs,
   accepted for now.
 - Package 2, director mode (`1e7044a4`): `draft_shot_list` checks the draft against the running app (found,
   ambiguous, in a later dialog, not found) and opens Studio's approval window (goal as headline, steps in plain words,
@@ -128,6 +131,10 @@ Done (all merged and pushed):
   name in German cases (`AgentName`); step texts in German as labels ("Klicken: Schaltfläche „OK“"); dates and
   numbers follow the regional format. Checked by screenshots of editor, review and approval windows in both languages.
   No app icon yet (waits for the Glasstake logo).
+- Package 5, rename AgentReel → Glasstake (2026-10-26): projects, namespaces, `Glasstake.sln` (Debug/Release, Any
+  CPU), exes `Glasstake.Mcp.exe`/`Glasstake.Studio.exe`/`glasstake.exe`, MCP server name `glasstake`, env
+  `GLASSTAKE_*` (old `AGENTREEL_*` still read), data folders `%LOCALAPPDATA%`/`%APPDATA%\Glasstake` (old folders
+  moved on first use), exports to `Videos\Glasstake`. README and NOTICE untouched (rewritten with the fresh repo).
 
 Known limits: real keyboard input during a run lands in the app (re-shoot in a VM/CI); a step whose element is in a
 dialog shows "not on screen" in the draft unless its target names the window; Studio's mouse gestures and the F8
@@ -135,12 +142,9 @@ hotkey were never tested by Amir.
 
 ## Next – START HERE
 
-1. Rename AgentReel → Glasstake (projects, namespaces, exe names, CLI `glasstake` – Amir said yes to the CLI; ask for
-   the go on the whole rename, it also touches the registered MCP config and the data folders), rename the solution,
-   drop the "Debug (Store)"/x86/ARM64 configurations. Studio's product name is the resx key `AppName`.
-2. Fresh repo with a clean history, own LICENSE, NOTICE only for third-party libraries (WPF UI, Vortice, …);
+1. Fresh repo with a clean history, own LICENSE, NOTICE only for third-party libraries (WPF UI, Vortice, …);
    README rewritten (today's README/NOTICE still describe the fork).
-3. Localization leftovers: a language picker in Studio (today only settings.json/env); German texts for the anchored
+2. Localization leftovers: a language picker in Studio (today only settings.json/env); German texts for the anchored
    edits list and edit steps would need Studio-side wording (the files stay English).
 
 Open questions for Amir:

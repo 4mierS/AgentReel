@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Glasstake's own export: GIF and APNG encoders and MP4 through Windows Media Foundation. New Glasstake code,
+       written from the format specifications, not derived from ScreenToGif. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>True</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Vortice.MediaFoundation" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Glasstake.Export.Tests" />
+  </ItemGroup>
+</Project>

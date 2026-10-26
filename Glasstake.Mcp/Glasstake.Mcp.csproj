@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- MCP server (stdio) that lets an agent record and export. New Glasstake code, not derived from ScreenToGif. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>True</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Glasstake.Mcp.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Glasstake.Capture\Glasstake.Capture.csproj" />
+    <ProjectReference Include="..\Glasstake.Core\Glasstake.Core.csproj" />
+    <ProjectReference Include="..\Glasstake.Direct\Glasstake.Direct.csproj" />
+    <ProjectReference Include="..\Glasstake.Editing\Glasstake.Editing.csproj" />
+    <ProjectReference Include="..\Glasstake.Export\Glasstake.Export.csproj" />
+    <!-- Copied next to the server, which starts it for request_review and open_in_studio. -->
+    <ProjectReference Include="..\Glasstake.Studio\Glasstake.Studio.csproj" />
+  </ItemGroup>
+</Project>

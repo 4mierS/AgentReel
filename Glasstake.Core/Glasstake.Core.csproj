@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Glasstake's own recording model, storage folders, settings and locks. New Glasstake code, not derived from ScreenToGif. -->
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Glasstake.Mcp.Tests" />
+  </ItemGroup>
+</Project>

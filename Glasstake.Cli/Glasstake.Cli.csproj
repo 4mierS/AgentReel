@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Command line for shot lists in CI: baseline, drift check, film and re-shoot without an agent or MCP client.
+       New Glasstake code, not derived from ScreenToGif. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>glasstake</AssemblyName>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>True</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Glasstake.Direct.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Glasstake.Capture\Glasstake.Capture.csproj" />
+    <ProjectReference Include="..\Glasstake.Core\Glasstake.Core.csproj" />
+    <ProjectReference Include="..\Glasstake.Direct\Glasstake.Direct.csproj" />
+    <ProjectReference Include="..\Glasstake.Editing\Glasstake.Editing.csproj" />
+    <ProjectReference Include="..\Glasstake.Export\Glasstake.Export.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,128 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using Glasstake.Core;
+using Glasstake.Editing;
+using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
+
+namespace Glasstake.Mcp;
+
+/// <summary>
+/// Review-before-apply: the user sees an edit next to its source in Glasstake Studio and keeps it, drops it or tells
+/// the agent what to change.
+/// </summary>
+[McpServerToolType]
+public sealed class ReviewTools(RecordingSession session)
+{
+    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
+
+    [McpServerTool(Name = "request_review"), Description("Shows an edit to the user in Glasstake Studio: the edit and its original at the same moment, a timeline of what was cut, sped up or drawn, and your summary. The user keeps it, rejects it or writes feedback. Returns at once; call get_review for the answer. Only edits (recordings with a sourceId) can be reviewed.")]
+    public ReviewInfo RequestReview(
+        McpServer server,
+        [Description("What you changed and why, in one to three short sentences, written for the user.")] string summary,
+        [Description("Recording id of the edit. Default: the newest recording, also one the user made in Glasstake Studio.")] string? recordingId = null)
+    {
+        if (string.IsNullOrWhiteSpace(summary))
+            throw new McpException("summary must not be empty.");
+
+        var project = session.Get(recordingId);
+        var id = RecordingSession.IdOf(project);
+        var edit = ReviewFiles.ReadEdit(project.Folder) ?? throw new McpException($"'{id}' is not an edit, there is nothing to compare it with. Review an edit made by trim, optimize, add_caption or add_highlight.");
+
+        ReviewFiles.WriteReview(project.Folder, new ReviewRecord(summary.Trim(), DateTime.Now, Agent: AgentName(server.ClientInfo)));
+        var studio = StudioPath();
+
+        try
+        {
+            //Shell execute, so Studio does not inherit stdin/stdout, which belong to the MCP protocol.
+            using var process = Process.Start(new ProcessStartInfo(studio) { UseShellExecute = true, ArgumentList = { "review", project.Folder } });
+        }
+        catch (Exception ex)
+        {
+            throw new McpException($"Starting Glasstake Studio ({studio}) failed: {ex.Message}", ex);
+        }
+
+        return new ReviewInfo(id, edit.SourceId, "pending", null);
+    }
+
+    [McpServerTool(Name = "get_review"), Description("The user's answer to request_review: pending, accepted (keep the edit), rejected (the user does not want it) or feedback (make a new edit of the original that follows the feedback, then request a review again). For rejected, the user also chose whether to delete the edit: deleted=true means it is already gone, deleted=false means the user keeps its files, so do not delete it. Waits up to waitSeconds for an answer.")]
+    public async Task<ReviewInfo> GetReview(
+        [Description("Recording id of the edit. Default: the newest recording, also one the user made in Glasstake Studio.")] string? recordingId = null,
+        [Description("Seconds to wait for the user's answer, 0 to 300. 0 returns at once.")] int waitSeconds = 60,
+        CancellationToken cancellationToken = default)
+    {
+        if (waitSeconds is < 0 or > 300)
+            throw new McpException("waitSeconds must be between 0 and 300.");
+
+        var project = session.Get(recordingId);
+        var id = RecordingSession.IdOf(project);
+        var source = session.SourceOf(project);
+        var until = DateTime.UtcNow.AddSeconds(waitSeconds);
+
+        while (true)
+        {
+            var review = ReviewFiles.ReadReview(project.Folder) ?? throw new McpException($"No review was requested for '{id}'. Call request_review first.");
+
+            if (review.Verdict == ReviewVerdict.Rejected && review.DeleteEdit)
+                return new ReviewInfo(id, source, "rejected", review.Feedback, await DeleteAsync(id, cancellationToken));
+
+            if (review.Verdict != ReviewVerdict.Pending || DateTime.UtcNow >= until)
+                return new ReviewInfo(id, source, review.Verdict.ToString().ToLowerInvariant(), review.Feedback);
+
+            await Task.Delay(PollInterval, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Deletes a rejected edit as the user asked. Studio may still be decoding a frame while it closes, so a locked file
+    /// gets a few retries.
+    /// </summary>
+    private async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await session.DeleteAsync(id);
+                return true;
+            }
+            catch (IOException) when (attempt < 5)
+            {
+                await Task.Delay(400, cancellationToken);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The name the user knows the client by. Claude's clients send technical names (claude-code, claude-ai), all of
+    /// them are "Claude"; other clients show their title or name.
+    /// </summary>
+    internal static string? AgentName(Implementation? client)
+    {
+        if (client == null)
+            return null;
+
+        if (client.Name.Contains("claude", StringComparison.OrdinalIgnoreCase))
+            return "Claude";
+
+        var name = string.IsNullOrWhiteSpace(client.Title) ? client.Name : client.Title;
+        return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+    }
+
+    /// <summary>
+    /// GLASSTAKE_STUDIO, else Studio next to this server (the build copies it there through the project reference).
+    /// </summary>
+    internal static string StudioPath()
+    {
+        var configured = DataFolders.Variable("GLASSTAKE_STUDIO");
+        var path = string.IsNullOrWhiteSpace(configured) ? Path.Combine(AppContext.BaseDirectory, "Glasstake.Studio.exe") : configured.Trim('"');
+
+        return File.Exists(path) ? path : throw new McpException($"Glasstake Studio was not found at {path}. Set GLASSTAKE_STUDIO to the full path of Glasstake.Studio.exe.");
+    }
+}
+
+/// <param name="Verdict">pending, accepted, rejected or feedback.</param>
+/// <param name="Deleted">The rejected edit was deleted, as the user chose.</param>
+public sealed record ReviewInfo(string RecordingId, string? SourceId, string Verdict, string? Feedback, bool Deleted = false);

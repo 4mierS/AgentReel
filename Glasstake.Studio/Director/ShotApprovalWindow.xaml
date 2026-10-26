@@ -1,0 +1,163 @@
+﻿<ui:FluentWindow x:Class="Glasstake.Studio.Director.ShotApprovalWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:director="clr-namespace:Glasstake.Studio.Director"
+                 xmlns:l="clr-namespace:Glasstake.Studio.Localization"
+                 Title="{x:Static l:Strings.ApprovalTitle}" Width="980" Height="860" MinWidth="720" MinHeight="560"
+                 WindowStartupLocation="CenterScreen" WindowBackdropType="Mica" ExtendsContentIntoTitleBar="True"
+                 FontFamily="Segoe UI Variable Text">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="{x:Static l:Strings.ApprovalTitle}" ShowMaximize="True"/>
+
+        <!--The user's own request is the headline: they approve whether this list shows what they asked for.-->
+        <Grid Grid.Row="1" Margin="28,4,28,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12" Background="{StaticResource Agent.Gradient}" VerticalAlignment="Top" Margin="0,2,16,0">
+                <ui:SymbolIcon Symbol="MoviesAndTv24" Filled="True" FontSize="22" Foreground="White"/>
+            </Border>
+
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock x:Name="AgentText" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Agent.Brush}" Margin="0,0,0,2"/>
+                <TextBlock x:Name="GoalText" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" MaxWidth="720" HorizontalAlignment="Left"
+                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                <TextBlock x:Name="SummaryText" FontSize="13" TextWrapping="Wrap" Margin="0,6,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" MaxWidth="720" HorizontalAlignment="Left"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" VerticalAlignment="Top" Margin="24,0,0,0">
+                <TextBlock x:Name="CountText" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Right" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                <TextBlock x:Name="AppText" FontSize="12" HorizontalAlignment="Right" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+            </StackPanel>
+        </Grid>
+
+        <!--Only when the check found a problem: the user should know before approving.-->
+        <Border x:Name="WarningBar" Grid.Row="2" Margin="28,0,28,12" Padding="14,10" CornerRadius="8" Visibility="Collapsed"
+                Background="#22F5A524" BorderBrush="#66F5A524" BorderThickness="1">
+            <!--A DockPanel, not a horizontal StackPanel: the text needs a width to wrap in.-->
+            <DockPanel>
+                <ui:SymbolIcon DockPanel.Dock="Left" Symbol="Warning20" Filled="True" FontSize="18" Foreground="{StaticResource Change.Faster}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="WarningText" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+            </DockPanel>
+        </Border>
+
+        <!--The steps as the viewer will see them: what happens, and what the video says meanwhile.-->
+        <ScrollViewer Grid.Row="3" Margin="28,0,12,0" Padding="0,0,16,0" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="StepList" Margin="0,0,0,16">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type director:StepRow}">
+                        <Border Margin="0,0,0,8" Padding="16,12" CornerRadius="8" BorderThickness="1"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.RowSpan="2" Width="28" Height="28" CornerRadius="14" VerticalAlignment="Top" Margin="0,0,14,0"
+                                        Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                                    <TextBlock Text="{Binding Number}" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                </Border>
+
+                                <Grid Grid.Column="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="{Binding Action}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+
+                                    <!--How the step's element was found in the running app.-->
+                                    <Border Grid.Column="1" Margin="12,0,0,0" Padding="8,2" CornerRadius="999" VerticalAlignment="Center"
+                                            Background="{Binding CheckBackground}" Visibility="{Binding CheckVisibility}" ToolTip="{Binding CheckNote}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <ui:SymbolIcon Symbol="{Binding CheckIcon}" Filled="True" FontSize="12" Foreground="{Binding CheckBrush}" Margin="0,0,5,0"/>
+                                            <TextBlock Text="{Binding CheckLabel}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding CheckBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,8,0,0">
+                                    <TextBlock Text="{Binding CheckNote}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,6" Visibility="{Binding NoteVisibility}"
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                                    <ui:TextBox Text="{Binding Caption, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.AutomationId="{Binding CaptionId}" AutomationProperties.Name="{Binding CaptionName}" PlaceholderText="{x:Static l:Strings.ApprovalNoCaption}"
+                                                Icon="{ui:SymbolIcon ClosedCaption20}" MinHeight="36" VerticalContentAlignment="Center" TextWrapping="Wrap" AcceptsReturn="False"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!--The decision, as in the review window: feedback is a sentence to the agent.-->
+        <Border Grid.Row="4" Padding="28,16" BorderThickness="0,1,0,0"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+            <Grid>
+                <Grid x:Name="DecisionGrid">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ui:TextBox x:Name="FeedbackBox" Grid.Column="0"
+                                Icon="{ui:SymbolIcon Sparkle20}" MinHeight="40" VerticalContentAlignment="Center" AcceptsReturn="False"
+                                TextChanged="FeedbackBox_TextChanged" KeyDown="FeedbackBox_KeyDown"/>
+
+                    <ui:Button x:Name="SendButton" Grid.Column="1" Margin="8,0,0,0" Height="40" Appearance="Secondary" IsEnabled="False" Click="Send_Click"
+                               ToolTip="{x:Static l:Strings.SendTip}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="Send24" FontSize="16" Margin="0,0,6,0"/>
+                            <TextBlock Text="{x:Static l:Strings.Send}"/>
+                        </StackPanel>
+                    </ui:Button>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="24,0,0,0">
+                        <ui:Button x:Name="RejectButton" Height="40" Appearance="Secondary" Click="Reject_Click" ToolTip="{x:Static l:Strings.ApprovalRejectTip}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{x:Static l:Strings.ApprovalReject}" VerticalAlignment="Center"/>
+                                <Border Style="{StaticResource Keycap}" Margin="8,0,0,0">
+                                    <TextBlock Text="{x:Static l:Strings.KeyEsc}" VerticalAlignment="Center"/>
+                                </Border>
+                            </StackPanel>
+                        </ui:Button>
+                        <ui:Button x:Name="ApproveButton" Height="40" Margin="8,0,0,0" Appearance="Primary" Click="Approve_Click" ToolTip="{x:Static l:Strings.ApprovalApproveTip}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="Checkmark24" FontSize="16" Margin="0,0,6,0"/>
+                                <TextBlock Text="{x:Static l:Strings.ApprovalApprove}" VerticalAlignment="Center"/>
+                                <Border Style="{StaticResource Keycap}" Margin="8,0,0,0" Background="#33FFFFFF" BorderBrush="#55FFFFFF">
+                                    <TextBlock Text="{x:Static l:Strings.KeyCtrlEnter}" Foreground="White" VerticalAlignment="Center"/>
+                                </Border>
+                            </StackPanel>
+                        </ui:Button>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel x:Name="DonePanel" Orientation="Horizontal" Visibility="Collapsed" Height="40">
+                    <ui:SymbolIcon x:Name="DoneIcon" Symbol="CheckmarkCircle24" Filled="True" FontSize="22" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBlock x:Name="DoneText" FontSize="14" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</ui:FluentWindow>

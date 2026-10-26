@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>True</UseWPF>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Glasstake.Direct\Glasstake.Direct.csproj" />
+    <!-- Filming and re-shooting (ReshootTests). -->
+    <ProjectReference Include="..\Glasstake.Editing\Glasstake.Editing.csproj" />
+    <!-- CliTests. -->
+    <ProjectReference Include="..\Glasstake.Cli\Glasstake.Cli.csproj" />
+    <!-- Copied next to the tests, which start it as the app under test. -->
+    <ProjectReference Include="..\Glasstake.Direct.SampleApp\Glasstake.Direct.SampleApp.csproj" />
+    <ProjectReference Include="..\Glasstake.Direct.SampleApp.WinForms\Glasstake.Direct.SampleApp.WinForms.csproj" />
+  </ItemGroup>
+</Project>
